@@ -29,10 +29,10 @@
 | 실시간 시세 WebSocket 구독과 재연결/복구 UI | Stock-exchange-FE | Partial |
 | KRW 가격과 USD 환산 가격 동시 표시 | Stock-exchange-FE | Partial |
 | 적용 환율 기준시각/출처와 stale 상태 표시 | Stock-exchange-FE | Partial |
-| 과거 시세 차트 | Stock-exchange-FE | Planned |
-| 종목 상세 현재가와 원화 기준 가격 | Stock-exchange-FE | Planned |
-| 외국인 투자한도 게이지와 당일 예상 범위 | Stock-exchange-FE | Planned |
-| VI 발동, 단일가 매매, 상·하한가 배지 | Stock-exchange-FE | Planned |
+| 과거 시세 차트 | Stock-exchange-FE | Partial |
+| 종목 상세 현재가와 원화 기준 가격 | Stock-exchange-FE | Partial |
+| 외국인 투자한도 게이지와 당일 예상 범위 | Stock-exchange-FE | Partial |
+| VI 발동, 단일가 매매, 상·하한가 배지 | Stock-exchange-FE | Partial |
 | 아이디/비밀번호 회원가입과 로그인 | Stock-exchange-FE | Partial |
 | mock USD 계좌 잔고와 실제 결제 없는 달러 충전 화면 | Stock-exchange-FE | Partial |
 | 자체 mock ledger 모의 주문 패드와 주문 제한 안내 팝업 | Stock-exchange-FE | Partial |

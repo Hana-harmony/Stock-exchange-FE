@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'core/account_controller.dart';
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
+import 'core/market_detail_controller.dart';
 import 'core/market_quote_controller.dart';
 import 'core/market_quote_live_client.dart';
 import 'core/trade_controller.dart';
@@ -14,6 +15,7 @@ class StockExchangeApp extends StatelessWidget {
     this.sessionController,
     this.accountController,
     this.tradeController,
+    this.marketDetailController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -22,6 +24,7 @@ class StockExchangeApp extends StatelessWidget {
   final ExchangeSessionController? sessionController;
   final AccountController? accountController;
   final TradeController? tradeController;
+  final MarketDetailController? marketDetailController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -40,6 +43,7 @@ class StockExchangeApp extends StatelessWidget {
         sessionController: sessionController,
         accountController: accountController,
         tradeController: tradeController,
+        marketDetailController: marketDetailController,
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
@@ -54,6 +58,7 @@ class ExchangeShell extends StatefulWidget {
     this.sessionController,
     this.accountController,
     this.tradeController,
+    this.marketDetailController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -62,6 +67,7 @@ class ExchangeShell extends StatefulWidget {
   final ExchangeSessionController? sessionController;
   final AccountController? accountController;
   final TradeController? tradeController;
+  final MarketDetailController? marketDetailController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -78,6 +84,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final ExchangeSessionController _sessionController;
   late final AccountController _accountController;
   late final TradeController _tradeController;
+  late final MarketDetailController _marketDetailController;
   late final MarketQuoteController _marketQuoteController;
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
@@ -90,6 +97,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _sessionController = widget.sessionController ?? _createSessionController();
     _accountController = widget.accountController ?? _createAccountController();
     _tradeController = widget.tradeController ?? _createTradeController();
+    _marketDetailController =
+        widget.marketDetailController ?? _createMarketDetailController();
     _marketQuoteController =
         widget.marketQuoteController ?? _createMarketQuoteController();
     _watchlistQuoteController =
@@ -123,6 +132,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return TradeController(apiClient: _apiClient);
   }
 
+  MarketDetailController _createMarketDetailController() {
+    return MarketDetailController(apiClient: _apiClient);
+  }
+
   MarketQuoteController _createMarketQuoteController() {
     return MarketQuoteController(
       apiClient: _apiClient,
@@ -148,6 +161,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.tradeController == null) {
       _tradeController.dispose();
+    }
+    if (widget.marketDetailController == null) {
+      _marketDetailController.dispose();
     }
     if (widget.marketQuoteController == null) {
       _marketQuoteController.dispose();
@@ -180,6 +196,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           children: [
             MarketScreen(
               sessionController: _sessionController,
+              marketDetailController: _marketDetailController,
               marketQuoteController: _marketQuoteController,
             ),
             PortfolioScreen(
@@ -232,10 +249,12 @@ class MarketScreen extends StatelessWidget {
   const MarketScreen({
     super.key,
     required this.sessionController,
+    required this.marketDetailController,
     required this.marketQuoteController,
   });
 
   final ExchangeSessionController sessionController;
+  final MarketDetailController marketDetailController;
   final MarketQuoteController marketQuoteController;
 
   @override
@@ -248,6 +267,7 @@ class MarketScreen extends StatelessWidget {
         const _SearchField(),
         const _MarketFilters(),
         _QuoteSnapshotPanel(marketQuoteController: marketQuoteController),
+        _StockDetailPanel(marketDetailController: marketDetailController),
       ],
     );
   }
@@ -1173,6 +1193,209 @@ class _QuoteRow extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _StockDetailPanel extends StatefulWidget {
+  const _StockDetailPanel({required this.marketDetailController});
+
+  final MarketDetailController marketDetailController;
+
+  @override
+  State<_StockDetailPanel> createState() => _StockDetailPanelState();
+}
+
+class _StockDetailPanelState extends State<_StockDetailPanel> {
+  final TextEditingController _stockCodeController =
+      TextEditingController(text: '005930');
+
+  @override
+  void dispose() {
+    _stockCodeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<MarketDetailState>(
+      valueListenable: widget.marketDetailController,
+      builder: (context, detailState, child) {
+        final isLoading = detailState.status == MarketDetailStatus.loading;
+        final detail = detailState.detail;
+        final chart = detailState.chart;
+        final orderBook = detailState.orderBook;
+        final latestPoint = chart?.latestPoint;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outlineVariant,
+              ),
+              borderRadius: BorderRadius.circular(8),
+              color: Theme.of(context).colorScheme.surface,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          'Stock detail, chart, and order book',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                      if (detail != null) _SmallBadge(label: detail.riskBadge),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    children: [
+                      SizedBox(
+                        width: 180,
+                        child: TextField(
+                          controller: _stockCodeController,
+                          keyboardType: TextInputType.number,
+                          maxLength: 6,
+                          decoration: const InputDecoration(
+                            counterText: '',
+                            labelText: 'Stock code',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      FilledButton.icon(
+                        onPressed: isLoading
+                            ? null
+                            : () => widget.marketDetailController.loadStock(
+                                  stockCode: _stockCodeController.text,
+                                ),
+                        icon: isLoading
+                            ? const SizedBox.square(
+                                dimension: 16,
+                                child: CircularProgressIndicator(strokeWidth: 2),
+                              )
+                            : const Icon(Icons.candlestick_chart_outlined),
+                        label: const Text('Load details'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (detailState.errorMessage != null)
+                    _InfoPanel(
+                      icon: Icons.error_outline,
+                      title: 'Stock detail unavailable',
+                      body: detailState.errorMessage!,
+                      meta: 'Detail, chart, and order book use Stock-exchange-BE REST.',
+                    ),
+                  if (detail == null)
+                    const _InfoPanel(
+                      icon: Icons.query_stats,
+                      title: 'Detail REST ready',
+                      body: 'Load a Korean stock code to show current price, historical chart data, and order book.',
+                      meta: 'Source path: Stock-exchange-BE to Hana-OmniLens-API',
+                    )
+                  else ...[
+                    Wrap(
+                      spacing: 16,
+                      runSpacing: 10,
+                      children: [
+                        _Metric(label: 'Name', value: detail.stockName),
+                        _Metric(label: 'KRW', value: detail.krwDisplay),
+                        _Metric(
+                          label: detail.displayCurrency,
+                          value: detail.localCurrencyDisplay,
+                        ),
+                        _Metric(label: 'Move', value: detail.changeRate),
+                        _Metric(
+                          label: 'Foreign owned',
+                          value: '${detail.foreignOwnershipRate}%',
+                        ),
+                        _Metric(
+                          label: 'Foreign limit',
+                          value: '${detail.foreignLimitExhaustionRate}%',
+                        ),
+                        _Metric(
+                          label: 'Price limit',
+                          value: detail.priceLimitState,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    _InfoPanel(
+                      icon: Icons.public,
+                      title: 'Hana-OmniLens market detail',
+                      body:
+                          '${detail.market} / ${detail.sector} / volume ${detail.volume}',
+                      meta:
+                          '${detail.dataSource} / foreign base ${detail.foreignOwnershipBaseDate}',
+                    ),
+                    if (latestPoint != null)
+                      _InfoPanel(
+                        icon: Icons.show_chart,
+                        title: 'Historical chart snapshot',
+                        body:
+                            '${chart!.pointCount} ${chart.interval} points from ${chart.from} to ${chart.to}. Latest close ${latestPoint.closeKrwDisplay} / ${latestPoint.closeLocalDisplay}.',
+                        meta:
+                            '${chart.dataSource} / adjusted ${latestPoint.adjusted}',
+                      ),
+                    _OrderBookPreview(orderBook: orderBook),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _OrderBookPreview extends StatelessWidget {
+  const _OrderBookPreview({required this.orderBook});
+
+  final MarketOrderBook? orderBook;
+
+  @override
+  Widget build(BuildContext context) {
+    final asks = orderBook?.asks.take(3).toList() ?? const <OrderBookLevel>[];
+    final bids = orderBook?.bids.take(3).toList() ?? const <OrderBookLevel>[];
+
+    if (orderBook == null) {
+      return const _InfoPanel(
+        icon: Icons.stacked_line_chart,
+        title: 'Order book pending',
+        body: 'Order book levels will appear after detail loading.',
+        meta: 'REST order book snapshot pending',
+      );
+    }
+
+    return _InfoPanel(
+      icon: Icons.stacked_bar_chart,
+      title: 'Order book snapshot',
+      body: 'Ask ${_levelText(asks)} / Bid ${_levelText(bids)}',
+      meta: '${orderBook!.dataSource} / '
+          '${orderBook!.displayCurrency} converted levels',
+    );
+  }
+
+  static String _levelText(List<OrderBookLevel> levels) {
+    if (levels.isEmpty) {
+      return 'none';
+    }
+    return levels
+        .map((level) => '${level.localCurrencyPrice} x ${level.quantity}')
+        .join(', ');
   }
 }
 

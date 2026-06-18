@@ -50,6 +50,8 @@
 - Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액을 `amountUsd`로 보내 실제 결제 없는 mock deposit ledger를 생성한다.
 - Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 상·하한가 warning/blocking reason을 표시하고, `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다.
 - `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, quote/cache/FX metadata를 Market 화면에 바인딩한다.
+- `MarketDetailController`는 Stock-exchange-BE `GET /api/v1/stocks/{stockCode}`, `GET /api/v1/market/stocks/{stockCode}/chart`, `GET /api/v1/market/stocks/{stockCode}/orderbook`을 함께 조회해 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 Market 화면에 바인딩한다.
+- Market 종목 상세 패널은 현재가 KRW와 USD 환산 가격, 외국인 보유율/한도소진율, VI/상·하한가 상태 badge, 최근 차트 종가, ask/bid 호가를 표시한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list에 병합한다.
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic을 구독한다.

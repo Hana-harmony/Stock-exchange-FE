@@ -8,6 +8,7 @@ import 'package:stock_exchange_fe/src/app.dart';
 import 'package:stock_exchange_fe/src/core/account_controller.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 
@@ -207,6 +208,136 @@ void main() {
     expect(find.text('SK hynix'), findsOneWidget);
     expect(find.text('USD 184.16'), findsOneWidget);
     expect(find.text('Cache FRESH_CACHE / REST snapshot / WebSocket live'), findsOneWidget);
+  });
+
+  testWidgets('loads stock detail chart and order book from REST', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketDetailController = MarketDetailController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(request.url.queryParameters['currency'], 'USD');
+
+          if (request.url.path.endsWith('/chart')) {
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'dataSource': 'Hana-OmniLens-API',
+                'stockCode': '005930',
+                'interval': '1d',
+                'from': '2026-06-01',
+                'to': '2026-06-18',
+                'baseCurrency': 'KRW',
+                'displayCurrency': 'USD',
+                'pointCount': 1,
+                'points': [
+                  {
+                    'tradeDate': '2026-06-18',
+                    'openPriceKrw': '81000',
+                    'highPriceKrw': '82900',
+                    'lowPriceKrw': '80500',
+                    'closePriceKrw': '82400',
+                    'localCurrency': 'USD',
+                    'closeLocalCurrencyPrice': '54.01',
+                    'volume': 18300000,
+                    'adjusted': false,
+                  }
+                ],
+                'servedAt': '2026-06-18T06:00:01Z',
+              },
+              'timestamp': '2026-06-18T06:00:01Z',
+            });
+          }
+          if (request.url.path.endsWith('/orderbook')) {
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'dataSource': 'Hana-OmniLens-API',
+                'stockCode': '005930',
+                'market': 'KOSPI',
+                'baseCurrency': 'KRW',
+                'displayCurrency': 'USD',
+                'asks': [
+                  {
+                    'priceKrw': '82500',
+                    'localCurrencyPrice': '54.08',
+                    'quantity': 800,
+                    'orderCount': 12,
+                  }
+                ],
+                'bids': [
+                  {
+                    'priceKrw': '82400',
+                    'localCurrencyPrice': '54.01',
+                    'quantity': 1200,
+                    'orderCount': 19,
+                  }
+                ],
+                'marketDataTime': '2026-06-18T06:00:00Z',
+                'servedAt': '2026-06-18T06:00:01Z',
+              },
+              'timestamp': '2026-06-18T06:00:01Z',
+            });
+          }
+
+          expect(request.url.path, '/api/v1/stocks/005930');
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'stockCode': '005930',
+              'stockName': 'Samsung Electronics',
+              'market': 'KOSPI',
+              'sector': 'Semiconductor',
+              'baseCurrency': 'KRW',
+              'displayCurrency': 'USD',
+              'currentPriceKrw': '82400',
+              'localCurrencyPrice': '54.01',
+              'changeRate': '+1.23%',
+              'volume': 18300000,
+              'marketDataTime': '2026-06-18T06:00:00Z',
+              'foreignOwnershipRate': '55.31',
+              'foreignLimitExhaustionRate': '55.31',
+              'foreignOwnershipBaseDate': '2026-06-18',
+              'viActive': false,
+              'priceLimitState': 'UPPER_LIMIT',
+              'tradingHalted': false,
+              'orderable': true,
+              'dataSource': 'Hana-OmniLens-API',
+              'servedAt': '2026-06-18T06:00:01Z',
+            },
+            'timestamp': '2026-06-18T06:00:01Z',
+          });
+        }),
+      ),
+    );
+    addTearDown(marketDetailController.dispose);
+
+    await tester.pumpWidget(
+      StockExchangeApp(marketDetailController: marketDetailController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('Load details'));
+    await tester.tap(find.text('Load details'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Stock detail, chart, and order book'), findsOneWidget);
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.text('USD 54.01'), findsWidgets);
+    expect(find.text('UPPER_LIMIT'), findsWidgets);
+    expect(find.text('Historical chart snapshot'), findsOneWidget);
+    expect(find.textContaining('Ask 54.08 x 800'), findsOneWidget);
   });
 
   testWidgets('refreshes account portfolio quotes after sign in', (tester) async {
