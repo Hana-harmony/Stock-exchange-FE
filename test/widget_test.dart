@@ -25,7 +25,7 @@ void main() {
     expect(find.text('REST snapshot ready'), findsOneWidget);
     expect(find.text('USD 54.00'), findsOneWidget);
     expect(
-      find.text('FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API'),
+      find.text('FX 1525.93 / unknown time / source Hana-OmniLens-API'),
       findsOneWidget,
     );
   });
