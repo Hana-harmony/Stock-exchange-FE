@@ -35,5 +35,10 @@
 11. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
 
 ## 현재 구현 상태
-- Flutter 앱 하네스, 기본 Market dashboard shell, widget test, GitHub Actions CI가 존재한다.
-- 실제 화면 라우팅, 상태 관리, API client, WebSocket client, iOS/Android 세부 설정은 미구현이다.
+- Flutter 앱 하네스, Material 3 기반 앱 shell, 하단 탭 navigation, widget test, GitHub Actions CI가 존재한다.
+- Market, Portfolio, Alerts, Tax 탭의 영어 UI skeleton이 존재한다.
+- Market 탭은 종목 검색, 시장/watchlist/portfolio 필터, KRW/USD 가격, WebSocket/REST 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
+- Portfolio 탭은 mock USD cash, 실제 주문이 아닌 자체 ledger 기반 거래, 보유종목과 실현손익 연결 영역을 가진다.
+- Alerts 탭은 AI 번역 뉴스·공시, 원문 링크, My Portfolio/Watchlist 필터, 실시간 push timeline 영역을 가진다.
+- Tax 탭은 서류 상태, 환급 추정, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
+- 실제 API client, WebSocket client, 인증 세션, 상태 관리, iOS/Android 플랫폼 세부 설정은 미구현이다.
