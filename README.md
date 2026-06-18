@@ -25,8 +25,10 @@ flutter test
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope와 bearer auth session header를 처리한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이와 session store 경계를 제공한다.
 - `AccountController`는 mock USD account REST 조회와 실제 결제 없는 deposit API 호출 상태를 관리한다.
+- `TradeController`는 orderability 확인, 자체 mock ledger 주문 실행, portfolio/holding/recent trade 조회 상태를 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 연결한다.
 - Portfolio 화면은 로그인된 accountId로 mock USD cash balance를 조회하고, 입력한 금액으로 실제 결제 없는 mock USD deposit을 실행한다.
+- Portfolio 화면은 KIS 주문을 보내지 않는 자체 mock order pad와 orderability 경고/차단 표시를 제공한다.
 - `MarketQuoteController`는 Stock-exchange-BE REST snapshot을 조회해 Market 화면의 KRW/USD quote와 FX metadata를 갱신한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list에 병합한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic을 구독한다.

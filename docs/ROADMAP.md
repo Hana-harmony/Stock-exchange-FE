@@ -26,7 +26,7 @@
 - VI/상·하한가 배지
 - 아이디/비밀번호 회원가입·로그인 form과 mock USD 계좌 화면: Partial
 - 실제 결제 없는 달러 충전 화면: Partial
-- 자체 mock ledger 모의 주문 패드와 제한 안내 팝업
+- 자체 mock ledger 모의 주문 패드와 제한 안내 팝업: Partial
 - 매도 실현손익 표시: Partial
 
 ## M3 뉴스·공시 인텔리전스
