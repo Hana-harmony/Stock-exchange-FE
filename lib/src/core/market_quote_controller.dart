@@ -208,14 +208,24 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   MarketQuoteController({
     required ExchangeApiClient apiClient,
     MarketQuoteLiveClient? liveClient,
+    List<Duration> liveReconnectDelays = const [
+      Duration(seconds: 1),
+      Duration(seconds: 3),
+      Duration(seconds: 5),
+    ],
     List<MarketQuote> seedQuotes = const [],
   })  : _apiClient = apiClient,
         _liveClient = liveClient,
+        _liveReconnectDelays = liveReconnectDelays,
         super(MarketQuoteState.idle(seedQuotes: seedQuotes));
 
   final ExchangeApiClient _apiClient;
   final MarketQuoteLiveClient? _liveClient;
+  final List<Duration> _liveReconnectDelays;
   StreamSubscription<Map<String, dynamic>>? _liveSubscription;
+  Timer? _liveReconnectTimer;
+  MarketQuoteLiveSubscription? _activeLiveRequest;
+  int _liveReconnectAttempt = 0;
 
   Future<void> loadSnapshot({
     String? market,
@@ -332,41 +342,28 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     }
 
     await unsubscribeLive();
+    final liveRequest = MarketQuoteLiveSubscription(
+      market: market,
+      stockCodes: stockCodes,
+      accountId: accountId,
+      accountScope: accountScope,
+    );
+    _activeLiveRequest = liveRequest;
+    _liveReconnectAttempt = 0;
     value = value.copyWith(
       liveStatus: MarketQuoteLiveStatus.connecting,
       liveMessage: 'Connecting quote WebSocket.',
       clearErrorMessage: true,
     );
 
-    _liveSubscription = liveClient
-        .subscribe(
-          MarketQuoteLiveSubscription(
-            market: market,
-            stockCodes: stockCodes,
-            accountId: accountId,
-            accountScope: accountScope,
-          ),
-        )
-        .listen(
-          (tick) => _applyLiveTick(MarketQuote.fromJson(tick)),
-          onError: (_) {
-            value = value.copyWith(
-              liveStatus: MarketQuoteLiveStatus.failure,
-              liveMessage: 'Quote WebSocket disconnected.',
-            );
-          },
-          onDone: () {
-            if (value.liveStatus != MarketQuoteLiveStatus.failure) {
-              value = value.copyWith(
-                liveStatus: MarketQuoteLiveStatus.disconnected,
-                liveMessage: 'Quote WebSocket closed.',
-              );
-            }
-          },
-        );
+    _openLiveSubscription(liveClient, liveRequest);
   }
 
   Future<void> unsubscribeLive() async {
+    _activeLiveRequest = null;
+    _liveReconnectAttempt = 0;
+    _liveReconnectTimer?.cancel();
+    _liveReconnectTimer = null;
     await _liveSubscription?.cancel();
     _liveSubscription = null;
     if (value.liveStatus != MarketQuoteLiveStatus.disconnected) {
@@ -375,6 +372,60 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         liveMessage: 'Quote WebSocket disconnected.',
       );
     }
+  }
+
+  void _openLiveSubscription(
+    MarketQuoteLiveClient liveClient,
+    MarketQuoteLiveSubscription liveRequest,
+  ) {
+    _liveSubscription = liveClient.subscribe(liveRequest).listen(
+      (tick) {
+        _liveReconnectAttempt = 0;
+        _applyLiveTick(MarketQuote.fromJson(tick));
+      },
+      onError: (_) => _scheduleLiveReconnect(
+        liveClient,
+        liveRequest,
+        reason: 'Quote WebSocket disconnected.',
+      ),
+      onDone: () => _scheduleLiveReconnect(
+        liveClient,
+        liveRequest,
+        reason: 'Quote WebSocket closed.',
+      ),
+    );
+  }
+
+  void _scheduleLiveReconnect(
+    MarketQuoteLiveClient liveClient,
+    MarketQuoteLiveSubscription liveRequest, {
+    required String reason,
+  }) {
+    if (_activeLiveRequest != liveRequest) {
+      return;
+    }
+    if (_liveReconnectAttempt >= _liveReconnectDelays.length) {
+      value = value.copyWith(
+        liveStatus: MarketQuoteLiveStatus.failure,
+        liveMessage: '$reason Reconnect attempts exhausted.',
+      );
+      return;
+    }
+
+    final delay = _liveReconnectDelays[_liveReconnectAttempt];
+    _liveReconnectAttempt += 1;
+    value = value.copyWith(
+      liveStatus: MarketQuoteLiveStatus.connecting,
+      liveMessage:
+          '$reason Reconnecting quote WebSocket in ${delay.inSeconds}s.',
+    );
+
+    _liveReconnectTimer?.cancel();
+    _liveReconnectTimer = Timer(delay, () {
+      if (_activeLiveRequest == liveRequest) {
+        _openLiveSubscription(liveClient, liveRequest);
+      }
+    });
   }
 
   void _applyLiveTick(MarketQuote tick) {
@@ -398,6 +449,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
 
   @override
   void dispose() {
+    _liveReconnectTimer?.cancel();
     _liveSubscription?.cancel();
     super.dispose();
   }
