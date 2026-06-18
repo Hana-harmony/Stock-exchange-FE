@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:stock_exchange_fe/src/app.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
 
 void main() {
   testWidgets('renders market shell with USD quote context', (tester) async {
@@ -24,7 +25,7 @@ void main() {
     expect(find.text('REST snapshot ready'), findsOneWidget);
     expect(find.text('USD 54.00'), findsOneWidget);
     expect(
-      find.text('FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API'),
+      find.text('FX 1525.93 / unknown time / source Hana-OmniLens-API'),
       findsOneWidget,
     );
   });
@@ -93,6 +94,68 @@ void main() {
 
     expect(find.text('Signed in as hana'), findsOneWidget);
     expect(find.text('Account ACC-ABC123456789'), findsOneWidget);
+  });
+
+  testWidgets('refreshes market quotes from REST snapshot', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = MarketQuoteController(
+      seedQuotes: seedMarketQuotes,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/v1/market/quotes');
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'dataSource': 'Hana-OmniLens-API',
+              'marketCoverage': 'ALL',
+              'displayCurrency': 'USD',
+              'transport': {
+                'snapshot': 'REST',
+                'realtime': 'WebSocket',
+              },
+              'cache': {'status': 'FRESH_CACHE'},
+              'quoteCount': 1,
+              'quotes': [
+                {
+                  'stockCode': '000660',
+                  'stockName': 'SK hynix',
+                  'market': 'KOSPI',
+                  'currentPriceKrw': '281000',
+                  'changeRate': '+2.10%',
+                  'volume': 2300000,
+                  'localCurrency': 'USD',
+                  'localCurrencyPrice': '184.16',
+                  'fxRate': '1525.80',
+                  'fxRateTime': '2026-06-18T06:00:00Z',
+                  'fxRateSource': 'Hana-OmniLens-API',
+                  'fxStale': false,
+                }
+              ],
+              'servedAt': '2026-06-18T06:00:01Z',
+            },
+            'timestamp': '2026-06-18T06:00:01Z',
+          });
+        }),
+      ),
+    );
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      StockExchangeApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Refresh'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('SK hynix'), findsOneWidget);
+    expect(find.text('USD 184.16'), findsOneWidget);
+    expect(find.text('Cache FRESH_CACHE / REST snapshot / WebSocket live'), findsOneWidget);
   });
 }
 

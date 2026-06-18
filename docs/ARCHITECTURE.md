@@ -45,5 +45,6 @@
 - Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이를 관리하고, `ExchangeSessionStore` 경계를 통해 session 저장소를 분리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 바인딩한다.
+- `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, quote/cache/FX metadata를 Market 화면에 바인딩한다.
 - 현재 저장소 구현은 테스트와 앱 하네스용 memory store이며, 운영 token secure storage는 후속 구현 대상이다.
-- API client 시장/계좌 화면 바인딩, WebSocket client, iOS/Android 플랫폼 세부 설정은 미구현이다.
+- watchlist/portfolio quote 화면 바인딩, WebSocket client, iOS/Android 플랫폼 세부 설정은 미구현이다.

@@ -13,12 +13,13 @@
 | Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Partial |
 | 인증 세션 controller와 session store 경계 | Stock-exchange-FE | Partial |
 | 로그인/회원가입 form과 session controller 화면 바인딩 | Stock-exchange-FE | Partial |
+| Market quote REST snapshot controller와 화면 바인딩 | Stock-exchange-FE | Partial |
 
 ## 1. 한국 주식 주문 지원
 
 | 화면/기능 | 책임 | 상태 |
 | --- | --- | --- |
-| 전체/시장별 종목 실시간 시세 목록 | Stock-exchange-FE | Partial |
+| 전체/시장별 종목 REST snapshot 시세 목록 | Stock-exchange-FE | Partial |
 | watchlist/보유종목 실시간 시세 목록 | Stock-exchange-FE | Partial |
 | 실시간 시세 WebSocket 구독과 재연결/복구 UI | Stock-exchange-FE | Partial |
 | KRW 가격과 USD 환산 가격 동시 표시 | Stock-exchange-FE | Partial |

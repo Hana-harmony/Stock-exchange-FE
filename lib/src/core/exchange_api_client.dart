@@ -207,16 +207,17 @@ class ExchangeApiClient {
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getMarketQuotes({
-    String market = 'ALL',
+    String? market,
     String currency = 'USD',
-    int? limit,
+    List<String> stockCodes = const [],
   }) {
     return get<Map<String, dynamic>>(
       '/api/v1/market/quotes',
       query: {
-        'market': market,
+        if (market != null && market.isNotEmpty && market != 'ALL')
+          'market': market,
         'currency': currency,
-        if (limit != null) 'limit': '$limit',
+        if (stockCodes.isNotEmpty) 'stockCodes': stockCodes.join(','),
       },
     );
   }

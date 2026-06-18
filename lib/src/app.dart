@@ -3,14 +3,17 @@ import 'package:http/http.dart' as http;
 
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
+import 'core/market_quote_controller.dart';
 
 class StockExchangeApp extends StatelessWidget {
   const StockExchangeApp({
     super.key,
     this.sessionController,
+    this.marketQuoteController,
   });
 
   final ExchangeSessionController? sessionController;
+  final MarketQuoteController? marketQuoteController;
 
   @override
   Widget build(BuildContext context) {
@@ -22,7 +25,10 @@ class StockExchangeApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF7FAFC),
         useMaterial3: true,
       ),
-      home: ExchangeShell(sessionController: sessionController),
+      home: ExchangeShell(
+        sessionController: sessionController,
+        marketQuoteController: marketQuoteController,
+      ),
     );
   }
 }
@@ -31,9 +37,11 @@ class ExchangeShell extends StatefulWidget {
   const ExchangeShell({
     super.key,
     this.sessionController,
+    this.marketQuoteController,
   });
 
   final ExchangeSessionController? sessionController;
+  final MarketQuoteController? marketQuoteController;
 
   @override
   State<ExchangeShell> createState() => _ExchangeShellState();
@@ -42,23 +50,40 @@ class ExchangeShell extends StatefulWidget {
 class _ExchangeShellState extends State<ExchangeShell> {
   int _selectedIndex = 0;
   http.Client? _ownedHttpClient;
+  late final ExchangeApiClient _apiClient;
   late final ExchangeSessionController _sessionController;
+  late final MarketQuoteController _marketQuoteController;
 
   @override
   void initState() {
     super.initState();
+    _apiClient = _createApiClient();
     _sessionController = widget.sessionController ?? _createSessionController();
+    _marketQuoteController =
+        widget.marketQuoteController ?? _createMarketQuoteController();
     _sessionController.restore();
   }
 
-  ExchangeSessionController _createSessionController() {
+  ExchangeApiClient _createApiClient() {
     _ownedHttpClient = http.Client();
+    return ExchangeApiClient(
+      baseUri: const ExchangeEnvironment().apiBaseUri,
+      httpClient: _ownedHttpClient!,
+      sessionProvider: () => _sessionController.session,
+    );
+  }
+
+  ExchangeSessionController _createSessionController() {
     return ExchangeSessionController(
-      apiClient: ExchangeApiClient(
-        baseUri: const ExchangeEnvironment().apiBaseUri,
-        httpClient: _ownedHttpClient!,
-      ),
+      apiClient: _apiClient,
       sessionStore: MemoryExchangeSessionStore(),
+    );
+  }
+
+  MarketQuoteController _createMarketQuoteController() {
+    return MarketQuoteController(
+      apiClient: _apiClient,
+      seedQuotes: seedMarketQuotes,
     );
   }
 
@@ -66,6 +91,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
   void dispose() {
     if (widget.sessionController == null) {
       _sessionController.dispose();
+    }
+    if (widget.marketQuoteController == null) {
+      _marketQuoteController.dispose();
     }
     _ownedHttpClient?.close();
     super.dispose();
@@ -87,7 +115,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
         child: IndexedStack(
           index: _selectedIndex,
           children: [
-            MarketScreen(sessionController: _sessionController),
+            MarketScreen(
+              sessionController: _sessionController,
+              marketQuoteController: _marketQuoteController,
+            ),
             PortfolioScreen(sessionController: _sessionController),
             const AlertsScreen(),
             const TaxScreen(),
@@ -132,9 +163,11 @@ class MarketScreen extends StatelessWidget {
   const MarketScreen({
     super.key,
     required this.sessionController,
+    required this.marketQuoteController,
   });
 
   final ExchangeSessionController sessionController;
+  final MarketQuoteController marketQuoteController;
 
   @override
   Widget build(BuildContext context) {
@@ -145,29 +178,7 @@ class MarketScreen extends StatelessWidget {
         _SessionStatusPanel(sessionController: sessionController),
         const _SearchField(),
         const _MarketFilters(),
-        const _StatusStrip(),
-        const _InfoPanel(
-          icon: Icons.currency_exchange,
-          title: 'FX applied',
-          body: 'USD prices use the latest KRW/USD rate from Stock-exchange-BE.',
-          meta: 'FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API',
-        ),
-        _QuoteRow(
-          symbol: '005930',
-          name: 'Samsung Electronics',
-          priceKrw: 'KRW 82,400',
-          priceUsd: 'USD 54.00',
-          change: '+1.23%',
-          badge: 'Watchlist',
-        ),
-        _QuoteRow(
-          symbol: '035420',
-          name: 'NAVER',
-          priceKrw: 'KRW 183,700',
-          priceUsd: 'USD 120.41',
-          change: '-0.38%',
-          badge: 'Portfolio',
-        ),
+        _QuoteSnapshotPanel(marketQuoteController: marketQuoteController),
       ],
     );
   }
@@ -623,6 +634,123 @@ class _StatusStrip extends StatelessWidget {
   }
 }
 
+class _QuoteSnapshotPanel extends StatelessWidget {
+  const _QuoteSnapshotPanel({required this.marketQuoteController});
+
+  final MarketQuoteController marketQuoteController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<MarketQuoteState>(
+      valueListenable: marketQuoteController,
+      builder: (context, quoteState, child) {
+        final snapshot = quoteState.snapshot;
+        final firstQuote =
+            quoteState.quotes.isNotEmpty ? quoteState.quotes.first : null;
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _QuoteSnapshotActions(
+              quoteState: quoteState,
+              onRefresh: () => marketQuoteController.loadSnapshot(),
+            ),
+            const _StatusStrip(),
+            _InfoPanel(
+              icon: Icons.currency_exchange,
+              title: 'FX applied',
+              body: snapshot == null
+                  ? 'USD prices use the latest KRW/USD rate from Stock-exchange-BE.'
+                  : '${snapshot.quoteCount} quotes from ${snapshot.dataSource}.',
+              meta: firstQuote?.fxMeta ??
+                  'FX pending / source Stock-exchange-BE snapshot',
+            ),
+            if (quoteState.errorMessage != null)
+              _InfoPanel(
+                icon: Icons.error_outline,
+                title: 'Snapshot unavailable',
+                body: quoteState.errorMessage!,
+                meta: 'Keeping the latest visible quote list on screen.',
+              ),
+            if (quoteState.quotes.isEmpty)
+              const _InfoPanel(
+                icon: Icons.search_off,
+                title: 'No quotes',
+                body: 'No Korean stock quote snapshot is available yet.',
+                meta: 'Use REST snapshot refresh after the backend is running.',
+              )
+            else
+              ...quoteState.quotes.map(_QuoteRow.fromMarketQuote),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _QuoteSnapshotActions extends StatelessWidget {
+  const _QuoteSnapshotActions({
+    required this.quoteState,
+    required this.onRefresh,
+  });
+
+  final MarketQuoteState quoteState;
+  final VoidCallback onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = quoteState.status == MarketQuoteStatus.loading;
+    final snapshot = quoteState.snapshot;
+    final cacheStatus = snapshot?.cacheStatus ?? 'seed';
+    final transport = snapshot == null
+        ? 'REST snapshot / WebSocket later'
+        : '${snapshot.transportSnapshot} snapshot / ${snapshot.transportRealtime} live';
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: Theme.of(context).colorScheme.surface,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'REST quote snapshot',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text('Cache $cacheStatus / $transport'),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: isLoading ? null : onRefresh,
+                icon: isLoading
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StatusChip extends StatelessWidget {
   const _StatusChip({required this.icon, required this.label});
 
@@ -663,6 +791,17 @@ class _QuoteRow extends StatelessWidget {
     required this.change,
     required this.badge,
   });
+
+  factory _QuoteRow.fromMarketQuote(MarketQuote quote) {
+    return _QuoteRow(
+      symbol: quote.stockCode,
+      name: quote.stockName,
+      priceKrw: quote.krwDisplay,
+      priceUsd: quote.localCurrencyDisplay,
+      change: quote.changeRate,
+      badge: quote.badge,
+    );
+  }
 
   final String symbol;
   final String name;
