@@ -160,10 +160,10 @@ class TradeOrderability {
 
   String get summary {
     if (!canPlaceMockOrder && blockingReasons.isNotEmpty) {
-      return 'Blocked: ${blockingReasons.join(', ')}';
+      return 'Blocked: ${blockingReasons.map(_orderabilityMessage).join(', ')}';
     }
     if (warnings.isNotEmpty) {
-      return 'Warnings: ${warnings.join(', ')}';
+      return 'Warnings: ${warnings.map(_orderabilityMessage).join(', ')}';
     }
     return 'Mock order is available.';
   }
@@ -184,6 +184,19 @@ class TradeOrderability {
       ),
     );
   }
+}
+
+String _orderabilityMessage(String code) {
+  return switch (code) {
+    'FOREIGN_LIMIT_EXCEEDED' =>
+      'Foreign ownership limit would be exceeded',
+    'TRADING_HALTED' => 'Trading is halted',
+    'ORDER_NOT_ALLOWED' => 'Order is not allowed',
+    'VI_ACTIVE' => 'Volatility interruption is active',
+    'BUY_AT_UPPER_LIMIT' => 'Buy order is at the upper price limit',
+    'SELL_AT_LOWER_LIMIT' => 'Sell order is at the lower price limit',
+    _ => code.replaceAll('_', ' ').toLowerCase(),
+  };
 }
 
 class TradeExecution {
