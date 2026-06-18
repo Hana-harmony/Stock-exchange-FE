@@ -80,6 +80,7 @@
 
 ## 6. Stock-exchange-FE 구현
 - Flutter 기반 iOS/Android 앱으로 구현한다.
+- iOS Runner와 Android app target 설정을 저장소에 포함한다.
 - UI 기본 언어는 영어이며, 금액의 기본 화폐 단위는 USD다.
 - 종목 검색, 전체 종목 시세, watchlist, 보유종목, 차트, 주문, 계좌, 알림, 세무 환급 화면을 구현한다.
 - WebSocket 실시간 tick을 화면에 반영하고 stale 상태와 재연결 상태를 보여준다.
