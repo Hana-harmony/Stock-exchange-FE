@@ -1,5 +1,7 @@
 # 구현 로드맵
 
+전체 구현 순서와 단계별 완료 기준은 `docs/IMPLEMENTATION_SEQUENCE.md`를 따른다.
+
 ## M1 프론트엔드 하네스
 - Flutter 앱 scaffold
 - iOS target 설정
