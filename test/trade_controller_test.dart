@@ -1,0 +1,193 @@
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
+import 'package:stock_exchange_fe/src/core/trade_controller.dart';
+
+void main() {
+  test('checks orderability warnings before mock order', () async {
+    final controller = TradeController(
+      apiClient: _client((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/accounts/ACC-ABC123456789/trades/orderability',
+        );
+        expect(request.url.queryParameters['stockCode'], '005930');
+        expect(request.url.queryParameters['side'], 'BUY');
+        expect(request.url.queryParameters['quantity'], '2');
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {
+            'stockCode': '005930',
+            'side': 'BUY',
+            'quantity': 2,
+            'canPlaceMockOrder': true,
+            'blockingReasons': [],
+            'warnings': ['VI_ACTIVE', 'BUY_AT_UPPER_LIMIT'],
+            'orderabilitySource': 'Hana-OmniLens-API',
+            'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+          },
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await controller.checkOrderability(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 2,
+    );
+
+    expect(controller.value.status, TradeStatus.loaded);
+    expect(controller.value.orderability?.summary, contains('VI_ACTIVE'));
+  });
+
+  test('executes mock trade and refreshes portfolio', () async {
+    final paths = <String>[];
+    final controller = TradeController(
+      apiClient: _client((request) async {
+        paths.add('${request.method} ${request.url.path}');
+        if (request.method == 'POST') {
+          expect(jsonDecode(request.body), {
+            'stockCode': '005930',
+            'side': 'BUY',
+            'quantity': 2,
+          });
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': _tradeJson(),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _portfolioJson(),
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await controller.executeTrade(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 2,
+    );
+
+    expect(paths, [
+      'POST /api/v1/accounts/ACC-ABC123456789/trades',
+      'GET /api/v1/accounts/ACC-ABC123456789/portfolio',
+    ]);
+    expect(controller.value.lastTrade?.stockName, 'Samsung Electronics');
+    expect(controller.value.portfolio?.holdings.single.quantity, 2);
+  });
+
+  test('validates sign in stock code and quantity before API call', () async {
+    var requestCount = 0;
+    final controller = TradeController(
+      apiClient: _client((request) async {
+        requestCount++;
+        return _jsonResponse({});
+      }),
+    );
+
+    await controller.executeTrade(
+      accountId: null,
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 1,
+    );
+    expect(controller.value.errorMessage, 'Sign in before placing a mock order.');
+
+    await controller.checkOrderability(
+      accountId: 'ACC-ABC123456789',
+      stockCode: 'ABCDEF',
+      side: 'BUY',
+      quantity: 1,
+    );
+    expect(controller.value.errorMessage, 'Enter a 6 digit Korean stock code.');
+
+    await controller.checkOrderability(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 0,
+    );
+    expect(controller.value.errorMessage, 'Quantity must be at least 1.');
+    expect(requestCount, 0);
+  });
+}
+
+ExchangeApiClient _client(
+  Future<http.Response> Function(http.Request request) handler,
+) {
+  return ExchangeApiClient(
+    baseUri: Uri.parse('http://localhost:3000'),
+    httpClient: MockClient(handler),
+  );
+}
+
+Map<String, Object?> _tradeJson() {
+  return {
+    'tradeId': 'TRD-1',
+    'accountId': 'ACC-ABC123456789',
+    'stockCode': '005930',
+    'stockName': 'Samsung Electronics',
+    'side': 'BUY',
+    'quantity': 2,
+    'executionPriceUsd': '50.00',
+    'grossAmountUsd': '100.00',
+    'realizedPnlUsd': '0.00',
+    'remainingQuantity': 2,
+    'cashBalanceUsdAfter': '100.00',
+    'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+  };
+}
+
+Map<String, Object?> _portfolioJson() {
+  return {
+    'accountId': 'ACC-ABC123456789',
+    'currency': 'USD',
+    'cashBalanceUsd': '100.00',
+    'totalMarketValueUsd': '110.00',
+    'totalAssetValueUsd': '210.00',
+    'realizedPnlUsd': '0.00',
+    'unrealizedPnlUsd': '10.00',
+    'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+    'holdings': [
+      {
+        'stockCode': '005930',
+        'stockName': 'Samsung Electronics',
+        'quantity': 2,
+        'averagePriceUsd': '50.00',
+        'currentPriceUsd': '55.00',
+        'marketValueUsd': '110.00',
+        'unrealizedPnlUsd': '10.00',
+        'unrealizedPnlRate': '10.00',
+      }
+    ],
+    'recentTrades': [_tradeJson()],
+  };
+}
+
+http.Response _jsonResponse(Map<String, Object?> body) {
+  return http.Response(
+    jsonEncode(body),
+    200,
+    headers: {'content-type': 'application/json'},
+  );
+}

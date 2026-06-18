@@ -9,6 +9,7 @@ import 'package:stock_exchange_fe/src/core/account_controller.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 
 void main() {
   testWidgets('renders market shell with USD quote context', (tester) async {
@@ -101,13 +102,39 @@ void main() {
             })),
       ),
     );
+    final tradeController = TradeController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '0.00',
+                'totalMarketValueUsd': '0.00',
+                'totalAssetValueUsd': '0.00',
+                'realizedPnlUsd': '0.00',
+                'unrealizedPnlUsd': '0.00',
+                'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+                'holdings': [],
+                'recentTrades': [],
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
     addTearDown(controller.dispose);
     addTearDown(accountController.dispose);
+    addTearDown(tradeController.dispose);
 
     await tester.pumpWidget(
       StockExchangeApp(
         sessionController: controller,
         accountController: accountController,
+        tradeController: tradeController,
       ),
     );
     await tester.pumpAndSettle();
@@ -288,6 +315,35 @@ void main() {
         }),
       ),
     );
+    final tradeController = TradeController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/portfolio')) {
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '125.50',
+                'totalMarketValueUsd': '0.00',
+                'totalAssetValueUsd': '125.50',
+                'realizedPnlUsd': '0.00',
+                'unrealizedPnlUsd': '0.00',
+                'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+                'holdings': [],
+                'recentTrades': [],
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            });
+          }
+          return _jsonResponse({});
+        }),
+      ),
+    );
     final sessionController = ExchangeSessionController(
       sessionStore: store,
       apiClient: ExchangeApiClient(
@@ -296,6 +352,7 @@ void main() {
       ),
     );
     addTearDown(accountController.dispose);
+    addTearDown(tradeController.dispose);
     addTearDown(portfolioQuoteController.dispose);
     addTearDown(sessionController.dispose);
 
@@ -303,6 +360,7 @@ void main() {
       StockExchangeApp(
         sessionController: sessionController,
         accountController: accountController,
+        tradeController: tradeController,
         portfolioQuoteController: portfolioQuoteController,
       ),
     );
@@ -327,6 +385,127 @@ void main() {
     expect(find.text('USD 1125.50'), findsWidgets);
     expect(find.text('Last ledger entry CASH-123'), findsOneWidget);
   });
+
+  testWidgets('checks and places mock order through exchange ledger', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = MemoryExchangeSessionStore();
+    await store.write(
+      const AuthSession(
+        username: 'hana',
+        accountId: 'ACC-ABC123456789',
+        tokenType: 'Bearer',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final sessionController = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({})),
+      ),
+    );
+    final accountController = AccountController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '200.00',
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
+    final tradeController = TradeController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/trades/orderability')) {
+            expect(request.url.queryParameters['stockCode'], '005930');
+            expect(request.url.queryParameters['side'], 'BUY');
+            expect(request.url.queryParameters['quantity'], '1');
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'stockCode': '005930',
+                'side': 'BUY',
+                'quantity': 1,
+                'canPlaceMockOrder': true,
+                'blockingReasons': [],
+                'warnings': ['VI_ACTIVE'],
+                'orderabilitySource': 'Hana-OmniLens-API',
+                'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            });
+          }
+          if (request.method == 'POST') {
+            expect(request.url.path, '/api/v1/accounts/ACC-ABC123456789/trades');
+            expect(jsonDecode(request.body), {
+              'stockCode': '005930',
+              'side': 'BUY',
+              'quantity': 1,
+            });
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': _tradeJson(),
+              'timestamp': '2026-06-18T06:00:00Z',
+            });
+          }
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': _portfolioJson(),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
+      ),
+    );
+    addTearDown(sessionController.dispose);
+    addTearDown(accountController.dispose);
+    addTearDown(tradeController.dispose);
+
+    await tester.pumpWidget(
+      StockExchangeApp(
+        sessionController: sessionController,
+        accountController: accountController,
+        tradeController: tradeController,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_navigationDestination('Portfolio'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Exchange mock ledger only. No KIS order is sent.'), findsOneWidget);
+
+    await tester.tap(find.text('Check orderability'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Warnings: VI_ACTIVE'), findsOneWidget);
+
+    await tester.tap(find.text('Place mock order'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Last mock trade'), findsOneWidget);
+    expect(find.textContaining('BUY 1 Samsung Electronics'), findsOneWidget);
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.text('USD 150.00'), findsWidgets);
+  });
 }
 
 Finder _navigationDestination(String label) {
@@ -341,4 +520,47 @@ http.Response _jsonResponse(Map<String, Object?> body) {
     200,
     headers: {'content-type': 'application/json'},
   );
+}
+
+Map<String, Object?> _tradeJson() {
+  return {
+    'tradeId': 'TRD-1',
+    'accountId': 'ACC-ABC123456789',
+    'stockCode': '005930',
+    'stockName': 'Samsung Electronics',
+    'side': 'BUY',
+    'quantity': 1,
+    'executionPriceUsd': '50.00',
+    'grossAmountUsd': '50.00',
+    'realizedPnlUsd': '0.00',
+    'remainingQuantity': 1,
+    'cashBalanceUsdAfter': '150.00',
+    'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+  };
+}
+
+Map<String, Object?> _portfolioJson() {
+  return {
+    'accountId': 'ACC-ABC123456789',
+    'currency': 'USD',
+    'cashBalanceUsd': '150.00',
+    'totalMarketValueUsd': '55.00',
+    'totalAssetValueUsd': '205.00',
+    'realizedPnlUsd': '0.00',
+    'unrealizedPnlUsd': '5.00',
+    'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+    'holdings': [
+      {
+        'stockCode': '005930',
+        'stockName': 'Samsung Electronics',
+        'quantity': 1,
+        'averagePriceUsd': '50.00',
+        'currentPriceUsd': '55.00',
+        'marketValueUsd': '55.00',
+        'unrealizedPnlUsd': '5.00',
+        'unrealizedPnlRate': '10.00',
+      }
+    ],
+    'recentTrades': [_tradeJson()],
+  };
 }
