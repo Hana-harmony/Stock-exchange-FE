@@ -1,0 +1,39 @@
+# 아키텍처
+
+## 목적
+- Flutter 기반 iOS/Android 영어 MTS 앱으로 현지 투자자가 모든 한국 상장주식 정보를 이해하고, USD 기준 모의 주문을 실행하고, 보유/관심 종목의 뉴스·공시를 빠르게 확인하도록 화면을 제공한다.
+- 세무 서류 제출과 환급/선지급 상태를 단계별로 안내한다.
+
+## 플랫폼 경계
+- 운영 앱은 Flutter 기반 iOS/Android 앱이다.
+- Stock-exchange-FE는 Stock-exchange-BE API와 WebSocket만 호출한다.
+- Hana-OmniLens-API, Hannah-Montana-AI, KIS/KRX/FX provider는 모바일 앱에서 직접 호출하지 않는다.
+- Flutter Web은 운영 대상이 아니며, 필요 시 내부 QA/데모 용도로만 별도 검토한다.
+- 기본 사용자 언어는 English, 기본 표시·충전·모의 주문 화폐는 USD다.
+
+## 화면 구성
+- `auth`: 아이디/비밀번호 회원가입, 로그인
+- `market`: 전체/시장별 종목 실시간 시세 목록, 종목 검색, 종목 상세, 현재가/호가, 과거 시세 차트 표시
+- `account`: mock USD 계좌 잔고, 실제 결제 없는 달러 충전
+- `order`: 자체 mock ledger 모의 주문 패드, 주문 가능 여부, VI/상·하한가 제한 안내
+- `portfolio`: 보유종목, USD 평가금액, watchlist, 매도 실현손익
+- `intelligence`: K-News 피드, 원문 링크, 감성/중요도/이벤트 태그
+- `notifications`: All, My Portfolio, Watchlist 필터가 있는 통합 알림함
+- `tax`: 서류 업로드, 검증 상태, 환급 대상 안내, 정산 상세, 선지급 완료와 리스크 고지
+
+## 데이터 흐름
+1. FE는 Stock-exchange-BE에서 전체/시장별/watchlist/보유종목 실시간 시세 snapshot을 REST로 먼저 조회하고 KRW 가격과 USD 가격을 함께 표시한다.
+2. FE는 Stock-exchange-BE의 quote WebSocket을 구독해 장중 가격, 호가, 등락률, VI/상·하한가 상태 tick과 USD 환산 가격 tick을 실시간 반영한다.
+3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
+4. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
+5. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.
+6. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, 외국인 보유율, 당일 예측 범위, VI/상·하한가 상태를 표시한다.
+7. 회원가입은 아이디/비밀번호만 받고, 가입 후 mock USD 계좌와 충전 화면을 제공한다.
+8. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 실제 주문이 아닌 자체 mock 거래임을 표시한다.
+9. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
+10. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다.
+11. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
+
+## 현재 구현 상태
+- Flutter 앱 하네스, 기본 Market dashboard shell, widget test, GitHub Actions CI가 존재한다.
+- 실제 화면 라우팅, 상태 관리, API client, WebSocket client, iOS/Android 세부 설정은 미구현이다.
