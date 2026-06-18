@@ -204,6 +204,84 @@ void main() {
       '/api/v1/accounts/ACC-ABC123456789/market/quotes/portfolio',
     ]);
   });
+
+  test('trade APIs send mock ledger contracts and bearer token', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final requests = <String>[];
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+
+        if (request.url.path.endsWith('/trades/orderability')) {
+          expect(request.url.queryParameters['stockCode'], '005930');
+          expect(request.url.queryParameters['side'], 'BUY');
+          expect(request.url.queryParameters['quantity'], '2');
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {'canPlaceMockOrder': true},
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+        if (request.url.path.endsWith('/trades')) {
+          expect(jsonDecode(request.body), {
+            'stockCode': '005930',
+            'side': 'BUY',
+            'quantity': 2,
+          });
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {'tradeId': 'TRD-1'},
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+
+        expect(request.url.path, '/api/v1/accounts/ACC-ABC123456789/portfolio');
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {'holdings': [], 'recentTrades': []},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await client.checkOrderability(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 2,
+    );
+    await client.executeTrade(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 2,
+    );
+    await client.getPortfolio('ACC-ABC123456789');
+
+    expect(requests, [
+      'GET /api/v1/accounts/ACC-ABC123456789/trades/orderability',
+      'POST /api/v1/accounts/ACC-ABC123456789/trades',
+      'GET /api/v1/accounts/ACC-ABC123456789/portfolio',
+    ]);
+  });
 }
 
 String? _header(http.Request request, String name) {

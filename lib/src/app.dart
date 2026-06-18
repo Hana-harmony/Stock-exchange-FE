@@ -6,12 +6,14 @@ import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
 import 'core/market_quote_controller.dart';
 import 'core/market_quote_live_client.dart';
+import 'core/trade_controller.dart';
 
 class StockExchangeApp extends StatelessWidget {
   const StockExchangeApp({
     super.key,
     this.sessionController,
     this.accountController,
+    this.tradeController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -19,6 +21,7 @@ class StockExchangeApp extends StatelessWidget {
 
   final ExchangeSessionController? sessionController;
   final AccountController? accountController;
+  final TradeController? tradeController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -36,6 +39,7 @@ class StockExchangeApp extends StatelessWidget {
       home: ExchangeShell(
         sessionController: sessionController,
         accountController: accountController,
+        tradeController: tradeController,
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
@@ -49,6 +53,7 @@ class ExchangeShell extends StatefulWidget {
     super.key,
     this.sessionController,
     this.accountController,
+    this.tradeController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -56,6 +61,7 @@ class ExchangeShell extends StatefulWidget {
 
   final ExchangeSessionController? sessionController;
   final AccountController? accountController;
+  final TradeController? tradeController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -71,6 +77,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final ExchangeApiClient _apiClient;
   late final ExchangeSessionController _sessionController;
   late final AccountController _accountController;
+  late final TradeController _tradeController;
   late final MarketQuoteController _marketQuoteController;
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
@@ -82,6 +89,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _apiClient = _createApiClient();
     _sessionController = widget.sessionController ?? _createSessionController();
     _accountController = widget.accountController ?? _createAccountController();
+    _tradeController = widget.tradeController ?? _createTradeController();
     _marketQuoteController =
         widget.marketQuoteController ?? _createMarketQuoteController();
     _watchlistQuoteController =
@@ -111,6 +119,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return AccountController(apiClient: _apiClient);
   }
 
+  TradeController _createTradeController() {
+    return TradeController(apiClient: _apiClient);
+  }
+
   MarketQuoteController _createMarketQuoteController() {
     return MarketQuoteController(
       apiClient: _apiClient,
@@ -133,6 +145,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.accountController == null) {
       _accountController.dispose();
+    }
+    if (widget.tradeController == null) {
+      _tradeController.dispose();
     }
     if (widget.marketQuoteController == null) {
       _marketQuoteController.dispose();
@@ -170,6 +185,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
             PortfolioScreen(
               sessionController: _sessionController,
               accountController: _accountController,
+              tradeController: _tradeController,
               watchlistQuoteController: _watchlistQuoteController,
               portfolioQuoteController: _portfolioQuoteController,
             ),
@@ -242,12 +258,14 @@ class PortfolioScreen extends StatelessWidget {
     super.key,
     required this.sessionController,
     required this.accountController,
+    required this.tradeController,
     required this.watchlistQuoteController,
     required this.portfolioQuoteController,
   });
 
   final ExchangeSessionController sessionController;
   final AccountController accountController;
+  final TradeController tradeController;
   final MarketQuoteController watchlistQuoteController;
   final MarketQuoteController portfolioQuoteController;
 
@@ -261,6 +279,10 @@ class PortfolioScreen extends StatelessWidget {
         _BalancePanel(
           sessionController: sessionController,
           accountController: accountController,
+        ),
+        _MockTradePanel(
+          sessionController: sessionController,
+          tradeController: tradeController,
         ),
         _AccountQuoteSnapshotPanel(
           title: 'Portfolio quote snapshot',
@@ -1376,6 +1398,296 @@ class _BalancePanelState extends State<_BalancePanel> {
           },
         );
       },
+    );
+  }
+}
+
+class _MockTradePanel extends StatefulWidget {
+  const _MockTradePanel({
+    required this.sessionController,
+    required this.tradeController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final TradeController tradeController;
+
+  @override
+  State<_MockTradePanel> createState() => _MockTradePanelState();
+}
+
+class _MockTradePanelState extends State<_MockTradePanel> {
+  final TextEditingController _stockCodeController =
+      TextEditingController(text: '005930');
+  final TextEditingController _quantityController =
+      TextEditingController(text: '1');
+  String _side = 'BUY';
+
+  @override
+  void initState() {
+    super.initState();
+    widget.sessionController.addListener(_loadSignedInPortfolio);
+    _loadSignedInPortfolio();
+  }
+
+  @override
+  void dispose() {
+    widget.sessionController.removeListener(_loadSignedInPortfolio);
+    _stockCodeController.dispose();
+    _quantityController.dispose();
+    super.dispose();
+  }
+
+  void _loadSignedInPortfolio() {
+    final session = widget.sessionController.session;
+    if (session != null) {
+      widget.tradeController.loadPortfolio(session.accountId);
+    }
+  }
+
+  int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 0;
+
+  Future<void> _checkOrderability() {
+    return widget.tradeController.checkOrderability(
+      accountId: widget.sessionController.session?.accountId,
+      stockCode: _stockCodeController.text.trim(),
+      side: _side,
+      quantity: _quantity,
+    );
+  }
+
+  Future<void> _executeTrade() {
+    return widget.tradeController.executeTrade(
+      accountId: widget.sessionController.session?.accountId,
+      stockCode: _stockCodeController.text.trim(),
+      side: _side,
+      quantity: _quantity,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return ValueListenableBuilder<ExchangeSessionState>(
+      valueListenable: widget.sessionController,
+      builder: (context, sessionState, child) {
+        return ValueListenableBuilder<TradeState>(
+          valueListenable: widget.tradeController,
+          builder: (context, tradeState, child) {
+            final isSignedIn = sessionState.isSignedIn;
+            final isLoading = tradeState.status == TradeStatus.loading;
+            final orderability = tradeState.orderability;
+            final portfolio = tradeState.portfolio;
+            final canExecute = isSignedIn &&
+                !isLoading &&
+                (orderability?.canPlaceMockOrder ?? true);
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(8),
+                  color: colorScheme.surface,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Mock order pad',
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .titleMedium
+                                      ?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                                const SizedBox(height: 4),
+                                const Text(
+                                  'Exchange mock ledger only. No KIS order is sent.',
+                                ),
+                              ],
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: isSignedIn && !isLoading
+                                ? () => widget.tradeController.loadPortfolio(
+                                      sessionState.session?.accountId,
+                                    )
+                                : null,
+                            icon: const Icon(Icons.account_balance_wallet),
+                            label: const Text('Portfolio'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SegmentedButton<String>(
+                        segments: const [
+                          ButtonSegment(value: 'BUY', label: Text('BUY')),
+                          ButtonSegment(value: 'SELL', label: Text('SELL')),
+                        ],
+                        selected: {_side},
+                        onSelectionChanged: isLoading
+                            ? null
+                            : (selected) {
+                                setState(() {
+                                  _side = selected.single;
+                                });
+                              },
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _stockCodeController,
+                              enabled: isSignedIn && !isLoading,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Stock code',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 120,
+                            child: TextField(
+                              controller: _quantityController,
+                              enabled: isSignedIn && !isLoading,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Qty',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed:
+                                isSignedIn && !isLoading ? _checkOrderability : null,
+                            icon: const Icon(Icons.rule),
+                            label: const Text('Check orderability'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: canExecute ? _executeTrade : null,
+                            icon: isLoading
+                                ? const SizedBox.square(
+                                    dimension: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.receipt_long),
+                            label: const Text('Place mock order'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _TradeMetricStrip(portfolio: portfolio),
+                      if (orderability != null) ...[
+                        const SizedBox(height: 12),
+                        _InfoPanel(
+                          icon: orderability.canPlaceMockOrder
+                              ? Icons.check_circle_outline
+                              : Icons.block,
+                          title: 'Orderability',
+                          body: orderability.summary,
+                          meta:
+                              '${orderability.orderabilitySource} / ${orderability.tradingMode}',
+                        ),
+                      ],
+                      if (tradeState.lastTrade != null) ...[
+                        const SizedBox(height: 12),
+                        _InfoPanel(
+                          icon: Icons.receipt_long,
+                          title: 'Last mock trade',
+                          body: tradeState.lastTrade!.summary,
+                          meta:
+                              'Cash after USD ${tradeState.lastTrade!.cashBalanceUsdAfter}',
+                        ),
+                      ],
+                      if (portfolio != null && portfolio.holdings.isNotEmpty) ...[
+                        const SizedBox(height: 12),
+                        ...portfolio.holdings.take(3).map(_HoldingRow.new),
+                      ],
+                      if (tradeState.errorMessage != null) ...[
+                        const SizedBox(height: 12),
+                        Text(
+                          tradeState.errorMessage!,
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _TradeMetricStrip extends StatelessWidget {
+  const _TradeMetricStrip({required this.portfolio});
+
+  final PortfolioSnapshot? portfolio;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 16,
+      runSpacing: 8,
+      children: [
+        _Metric(
+          label: 'Cash',
+          value: 'USD ${portfolio?.cashBalanceUsd ?? '0.00'}',
+        ),
+        _Metric(
+          label: 'Market value',
+          value: 'USD ${portfolio?.totalMarketValueUsd ?? '0.00'}',
+        ),
+        _Metric(
+          label: 'Realized PnL',
+          value: 'USD ${portfolio?.realizedPnlUsd ?? '0.00'}',
+        ),
+        _Metric(
+          label: 'Unrealized PnL',
+          value: 'USD ${portfolio?.unrealizedPnlUsd ?? '0.00'}',
+        ),
+      ],
+    );
+  }
+}
+
+class _HoldingRow extends StatelessWidget {
+  const _HoldingRow(this.holding);
+
+  final MockHolding holding;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoPanel(
+      icon: Icons.inventory_2_outlined,
+      title: holding.stockName,
+      body:
+          '${holding.quantity} shares / avg USD ${holding.averagePriceUsd} / current USD ${holding.currentPriceUsd}',
+      meta:
+          'Value USD ${holding.marketValueUsd} / Unrealized USD ${holding.unrealizedPnlUsd} (${holding.unrealizedPnlRate}%)',
     );
   }
 }

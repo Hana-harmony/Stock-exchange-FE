@@ -252,6 +252,42 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getPortfolio(String accountId) {
+    return get<Map<String, dynamic>>('/api/v1/accounts/$accountId/portfolio');
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> checkOrderability({
+    required String accountId,
+    required String stockCode,
+    required String side,
+    required int quantity,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/trades/orderability',
+      query: {
+        'stockCode': stockCode,
+        'side': side,
+        'quantity': '$quantity',
+      },
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> executeTrade({
+    required String accountId,
+    required String stockCode,
+    required String side,
+    required int quantity,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/trades',
+      body: {
+        'stockCode': stockCode,
+        'side': side,
+        'quantity': quantity,
+      },
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getNotifications(
     String accountId,
   ) {

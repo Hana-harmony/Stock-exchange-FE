@@ -45,8 +45,10 @@
 - Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이를 관리하고, `ExchangeSessionStore` 경계를 통해 session 저장소를 분리한다.
 - `AccountController`는 Stock-exchange-BE account REST 조회와 mock USD deposit 상태를 관리한다.
+- `TradeController`는 Stock-exchange-BE orderability, mock trade execution, portfolio REST 상태를 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 바인딩한다.
 - Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액을 `amountUsd`로 보내 실제 결제 없는 mock deposit ledger를 생성한다.
+- Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 상·하한가 warning/blocking reason을 표시하고, `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다.
 - `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, quote/cache/FX metadata를 Market 화면에 바인딩한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list에 병합한다.
