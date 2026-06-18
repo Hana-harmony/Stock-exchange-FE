@@ -164,16 +164,70 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     String? market,
     String currency = 'USD',
   }) async {
+    return _load(
+      loader: () => _apiClient.getMarketQuotes(
+        market: market,
+        currency: currency,
+      ),
+    );
+  }
+
+  Future<void> loadWatchlistSnapshot({
+    required String? accountId,
+    String? market,
+    String currency = 'USD',
+  }) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = MarketQuoteState.failure(
+        errorMessage: 'Sign in to load watchlist quotes.',
+        quotes: value.quotes,
+        snapshot: value.snapshot,
+      );
+      return;
+    }
+
+    return _load(
+      loader: () => _apiClient.getWatchlistQuotes(
+        accountId,
+        market: market,
+        currency: currency,
+      ),
+    );
+  }
+
+  Future<void> loadPortfolioSnapshot({
+    required String? accountId,
+    String? market,
+    String currency = 'USD',
+  }) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = MarketQuoteState.failure(
+        errorMessage: 'Sign in to load portfolio quotes.',
+        quotes: value.quotes,
+        snapshot: value.snapshot,
+      );
+      return;
+    }
+
+    return _load(
+      loader: () => _apiClient.getPortfolioQuotes(
+        accountId,
+        market: market,
+        currency: currency,
+      ),
+    );
+  }
+
+  Future<void> _load({
+    required Future<ApiEnvelope<Map<String, dynamic>>> Function() loader,
+  }) async {
     value = MarketQuoteState.loading(
       quotes: value.quotes,
       snapshot: value.snapshot,
     );
 
     try {
-      final response = await _apiClient.getMarketQuotes(
-        market: market,
-        currency: currency,
-      );
+      final response = await loader();
       final snapshot = MarketQuoteSnapshot.fromJson(response.data ?? {});
       value = MarketQuoteState.loaded(snapshot);
     } on ExchangeApiException catch (error) {

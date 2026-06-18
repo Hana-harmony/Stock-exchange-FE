@@ -223,18 +223,32 @@ class ExchangeApiClient {
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getWatchlistQuotes(
-    String accountId,
-  ) {
+    String accountId, {
+    String? market,
+    String currency = 'USD',
+  }) {
     return get<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/market/quotes/watchlist',
+      query: {
+        if (market != null && market.isNotEmpty && market != 'ALL')
+          'market': market,
+        'currency': currency,
+      },
     );
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getPortfolioQuotes(
-    String accountId,
-  ) {
+    String accountId, {
+    String? market,
+    String currency = 'USD',
+  }) {
     return get<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/market/quotes/portfolio',
+      query: {
+        if (market != null && market.isNotEmpty && market != 'ALL')
+          'market': market,
+        'currency': currency,
+      },
     );
   }
 
