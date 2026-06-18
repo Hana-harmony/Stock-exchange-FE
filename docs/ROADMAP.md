@@ -16,7 +16,7 @@
 - 종목 검색: Partial
 - 전체 종목 REST snapshot 시세 목록: Partial
 - 시장별, watchlist, 보유종목 REST snapshot 시세 목록: Partial
-- 실시간 시세 WebSocket 구독과 tick 반영: Planned
+- 실시간 시세 WebSocket 구독과 tick 반영: Partial
 - WebSocket 재연결, stale 표시, REST snapshot refresh: Partial
 - KRW 가격과 USD 환산 가격 동시 표시: Partial
 - 적용 환율 기준시각/출처와 stale 상태 UI: Partial

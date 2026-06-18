@@ -15,6 +15,7 @@
 | 로그인/회원가입 form과 session controller 화면 바인딩 | Stock-exchange-FE | Partial |
 | Market quote REST snapshot controller와 화면 바인딩 | Stock-exchange-FE | Partial |
 | Watchlist/portfolio quote REST snapshot 화면 바인딩 | Stock-exchange-FE | Partial |
+| Market quote STOMP WebSocket client와 tick 병합 | Stock-exchange-FE | Partial |
 
 ## 1. 한국 주식 주문 지원
 
