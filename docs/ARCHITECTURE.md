@@ -48,6 +48,6 @@
 - `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, quote/cache/FX metadata를 Market 화면에 바인딩한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list에 병합한다.
-- Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회한다.
+- Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic을 구독한다.
 - 현재 저장소 구현은 테스트와 앱 하네스용 memory store이며, 운영 token secure storage는 후속 구현 대상이다.
 - WebSocket 자동 reconnect/backoff, token secure storage, iOS/Android 플랫폼 세부 설정은 미구현이다.
