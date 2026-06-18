@@ -8,6 +8,7 @@ void main() {
 
     expect(find.text('Hana Local Exchange'), findsOneWidget);
     expect(find.text('Korea Market'), findsOneWidget);
+    expect(find.text('Sign in with username and password'), findsOneWidget);
     expect(find.text('Search all Korean stocks'), findsOneWidget);
     expect(find.text('WebSocket live'), findsOneWidget);
     expect(find.text('REST snapshot ready'), findsOneWidget);
