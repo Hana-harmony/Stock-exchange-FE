@@ -29,9 +29,10 @@ class MarketQuoteState {
   })  : status = MarketQuoteStatus.loading,
         errorMessage = null;
 
-  const MarketQuoteState.loaded(this.snapshot)
+  const MarketQuoteState.loaded(MarketQuoteSnapshot loadedSnapshot)
       : status = MarketQuoteStatus.loaded,
-        quotes = snapshot.quotes,
+        quotes = loadedSnapshot.quotes,
+        snapshot = loadedSnapshot,
         errorMessage = null;
 
   const MarketQuoteState.failure({
