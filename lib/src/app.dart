@@ -1,7 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import 'core/exchange_api_client.dart';
+import 'core/exchange_session_controller.dart';
 
 class StockExchangeApp extends StatelessWidget {
-  const StockExchangeApp({super.key});
+  const StockExchangeApp({
+    super.key,
+    this.sessionController,
+  });
+
+  final ExchangeSessionController? sessionController;
 
   @override
   Widget build(BuildContext context) {
@@ -13,13 +22,18 @@ class StockExchangeApp extends StatelessWidget {
         scaffoldBackgroundColor: const Color(0xFFF7FAFC),
         useMaterial3: true,
       ),
-      home: const ExchangeShell(),
+      home: ExchangeShell(sessionController: sessionController),
     );
   }
 }
 
 class ExchangeShell extends StatefulWidget {
-  const ExchangeShell({super.key});
+  const ExchangeShell({
+    super.key,
+    this.sessionController,
+  });
+
+  final ExchangeSessionController? sessionController;
 
   @override
   State<ExchangeShell> createState() => _ExchangeShellState();
@@ -27,6 +41,35 @@ class ExchangeShell extends StatefulWidget {
 
 class _ExchangeShellState extends State<ExchangeShell> {
   int _selectedIndex = 0;
+  http.Client? _ownedHttpClient;
+  late final ExchangeSessionController _sessionController;
+
+  @override
+  void initState() {
+    super.initState();
+    _sessionController = widget.sessionController ?? _createSessionController();
+    _sessionController.restore();
+  }
+
+  ExchangeSessionController _createSessionController() {
+    _ownedHttpClient = http.Client();
+    return ExchangeSessionController(
+      apiClient: ExchangeApiClient(
+        baseUri: const ExchangeEnvironment().apiBaseUri,
+        httpClient: _ownedHttpClient!,
+      ),
+      sessionStore: MemoryExchangeSessionStore(),
+    );
+  }
+
+  @override
+  void dispose() {
+    if (widget.sessionController == null) {
+      _sessionController.dispose();
+    }
+    _ownedHttpClient?.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -43,11 +86,11 @@ class _ExchangeShellState extends State<ExchangeShell> {
       body: SafeArea(
         child: IndexedStack(
           index: _selectedIndex,
-          children: const [
-            MarketScreen(),
-            PortfolioScreen(),
-            AlertsScreen(),
-            TaxScreen(),
+          children: [
+            MarketScreen(sessionController: _sessionController),
+            PortfolioScreen(sessionController: _sessionController),
+            const AlertsScreen(),
+            const TaxScreen(),
           ],
         ),
       ),
@@ -86,19 +129,24 @@ class _ExchangeShellState extends State<ExchangeShell> {
 }
 
 class MarketScreen extends StatelessWidget {
-  const MarketScreen({super.key});
+  const MarketScreen({
+    super.key,
+    required this.sessionController,
+  });
+
+  final ExchangeSessionController sessionController;
 
   @override
   Widget build(BuildContext context) {
-    return const _ScreenFrame(
+    return _ScreenFrame(
       title: 'Korea Market',
       subtitle: 'Live KRX quotes with KRW and USD pricing.',
       children: [
-        _SessionStatusPanel(),
-        _SearchField(),
-        _MarketFilters(),
-        _StatusStrip(),
-        _InfoPanel(
+        _SessionStatusPanel(sessionController: sessionController),
+        const _SearchField(),
+        const _MarketFilters(),
+        const _StatusStrip(),
+        const _InfoPanel(
           icon: Icons.currency_exchange,
           title: 'FX applied',
           body: 'USD prices use the latest KRW/USD rate from Stock-exchange-BE.',
@@ -126,17 +174,22 @@ class MarketScreen extends StatelessWidget {
 }
 
 class PortfolioScreen extends StatelessWidget {
-  const PortfolioScreen({super.key});
+  const PortfolioScreen({
+    super.key,
+    required this.sessionController,
+  });
+
+  final ExchangeSessionController sessionController;
 
   @override
   Widget build(BuildContext context) {
-    return const _ScreenFrame(
+    return _ScreenFrame(
       title: 'Portfolio',
       subtitle: 'Mock USD trading ledger. No real order is sent.',
       children: [
-        _SessionStatusPanel(),
-        _BalancePanel(),
-        _QuoteRow(
+        _SessionStatusPanel(sessionController: sessionController),
+        const _BalancePanel(),
+        const _QuoteRow(
           symbol: '035420',
           name: 'NAVER',
           priceKrw: 'KRW 183,700',
@@ -250,8 +303,25 @@ class _ScreenFrame extends StatelessWidget {
   }
 }
 
-class _SessionStatusPanel extends StatelessWidget {
-  const _SessionStatusPanel();
+class _SessionStatusPanel extends StatefulWidget {
+  const _SessionStatusPanel({required this.sessionController});
+
+  final ExchangeSessionController sessionController;
+
+  @override
+  State<_SessionStatusPanel> createState() => _SessionStatusPanelState();
+}
+
+class _SessionStatusPanelState extends State<_SessionStatusPanel> {
+  final TextEditingController _usernameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+
+  @override
+  void dispose() {
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -265,26 +335,213 @@ class _SessionStatusPanel extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           color: colorScheme.surface,
         ),
-        child: const Padding(
-          padding: EdgeInsets.all(14),
-          child: Row(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: ValueListenableBuilder<ExchangeSessionState>(
+            valueListenable: widget.sessionController,
+            builder: (context, sessionState, child) {
+              return switch (sessionState.status) {
+                ExchangeSessionStatus.signedIn => _SignedInSessionView(
+                    sessionState: sessionState,
+                    onRefresh: widget.sessionController.refresh,
+                    onSignOut: widget.sessionController.signOut,
+                  ),
+                ExchangeSessionStatus.loading => _AuthFormView(
+                    usernameController: _usernameController,
+                    passwordController: _passwordController,
+                    sessionState: sessionState,
+                    onSignIn: null,
+                    onSignUp: null,
+                  ),
+                _ => _AuthFormView(
+                    usernameController: _usernameController,
+                    passwordController: _passwordController,
+                    sessionState: sessionState,
+                    onSignIn: _signIn,
+                    onSignUp: _signUp,
+                  ),
+              };
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _signIn() {
+    return widget.sessionController.login(
+      username: _usernameController.text,
+      password: _passwordController.text,
+    );
+  }
+
+  Future<void> _signUp() {
+    return widget.sessionController.signUpAndLogin(
+      username: _usernameController.text,
+      password: _passwordController.text,
+    );
+  }
+}
+
+class _AuthFormView extends StatelessWidget {
+  const _AuthFormView({
+    required this.usernameController,
+    required this.passwordController,
+    required this.sessionState,
+    required this.onSignIn,
+    required this.onSignUp,
+  });
+
+  final TextEditingController usernameController;
+  final TextEditingController passwordController;
+  final ExchangeSessionState sessionState;
+  final VoidCallback? onSignIn;
+  final VoidCallback? onSignUp;
+
+  @override
+  Widget build(BuildContext context) {
+    final isLoading = sessionState.status == ExchangeSessionStatus.loading;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Icon(Icons.lock_outline, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Sign in with username and password',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Session uses bearer auth from Stock-exchange-BE.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        TextField(
+          controller: usernameController,
+          enabled: !isLoading,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Username',
+          ),
+          textInputAction: TextInputAction.next,
+        ),
+        const SizedBox(height: 10),
+        TextField(
+          controller: passwordController,
+          enabled: !isLoading,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            labelText: 'Password',
+          ),
+          obscureText: true,
+          textInputAction: TextInputAction.done,
+        ),
+        if (sessionState.errorMessage != null) ...[
+          const SizedBox(height: 8),
+          Text(
+            sessionState.errorMessage!,
+            style: TextStyle(color: colorScheme.error),
+          ),
+        ],
+        const SizedBox(height: 12),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              onPressed: onSignIn,
+              icon: isLoading
+                  ? const SizedBox.square(
+                      dimension: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.login),
+              label: const Text('Sign in'),
+            ),
+            OutlinedButton.icon(
+              onPressed: onSignUp,
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              label: const Text('Create account'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _SignedInSessionView extends StatelessWidget {
+  const _SignedInSessionView({
+    required this.sessionState,
+    required this.onRefresh,
+    required this.onSignOut,
+  });
+
+  final ExchangeSessionState sessionState;
+  final VoidCallback onRefresh;
+  final VoidCallback onSignOut;
+
+  @override
+  Widget build(BuildContext context) {
+    final session = sessionState.session!;
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(Icons.verified_user_outlined, color: colorScheme.primary),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.lock_outline, size: 20),
-              SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Sign in with username and password'),
-                    SizedBox(height: 4),
-                    Text('Session uses bearer auth from Stock-exchange-BE.'),
-                  ],
-                ),
+              Text(
+                'Signed in as ${session.username}',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text('Account ${session.accountId}'),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: onRefresh,
+                    icon: const Icon(Icons.refresh),
+                    label: const Text('Refresh session'),
+                  ),
+                  TextButton.icon(
+                    onPressed: onSignOut,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Sign out'),
+                  ),
+                ],
               ),
             ],
           ),
         ),
-      ),
+      ],
     );
   }
 }

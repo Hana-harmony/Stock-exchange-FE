@@ -94,10 +94,15 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     required String username,
     required String password,
   }) async {
+    if (_hasInvalidCredentials(username: username, password: password)) {
+      value = ExchangeSessionState.failure('Username and password are required.');
+      return;
+    }
+
     value = ExchangeSessionState.loading(session: value.session);
     try {
       final nextSession = await _apiClient.login(
-        username: username,
+        username: username.trim(),
         password: password,
       );
       await _sessionStore.write(nextSession);
@@ -107,6 +112,37 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     } on Object {
       value = ExchangeSessionState.failure(
         'Unable to sign in. Please try again.',
+        session: session,
+      );
+    }
+  }
+
+  Future<void> signUpAndLogin({
+    required String username,
+    required String password,
+  }) async {
+    if (_hasInvalidCredentials(username: username, password: password)) {
+      value = ExchangeSessionState.failure('Username and password are required.');
+      return;
+    }
+
+    value = ExchangeSessionState.loading(session: value.session);
+    try {
+      await _apiClient.signUp(
+        username: username.trim(),
+        password: password,
+      );
+      final nextSession = await _apiClient.login(
+        username: username.trim(),
+        password: password,
+      );
+      await _sessionStore.write(nextSession);
+      value = ExchangeSessionState.signedIn(nextSession);
+    } on ExchangeApiException catch (error) {
+      value = ExchangeSessionState.failure(error.message, session: session);
+    } on Object {
+      value = ExchangeSessionState.failure(
+        'Unable to create the account. Please try again.',
         session: session,
       );
     }
@@ -134,5 +170,12 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
   Future<void> signOut() async {
     await _sessionStore.clear();
     value = const ExchangeSessionState.signedOut();
+  }
+
+  bool _hasInvalidCredentials({
+    required String username,
+    required String password,
+  }) {
+    return username.trim().isEmpty || password.isEmpty;
   }
 }

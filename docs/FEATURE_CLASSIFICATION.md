@@ -12,6 +12,7 @@
 | USD 기본 표시·충전·모의 주문 화폐 | Stock-exchange-FE | Partial |
 | Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Partial |
 | 인증 세션 controller와 session store 경계 | Stock-exchange-FE | Partial |
+| 로그인/회원가입 form과 session controller 화면 바인딩 | Stock-exchange-FE | Partial |
 
 ## 1. 한국 주식 주문 지원
 
