@@ -16,6 +16,14 @@ flutter test
 
 로컬 앱 실행과 검증은 [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)를 따른다. `Stock-exchange-FE`는 iOS/Android 앱이므로 Docker로 앱을 띄우는 방식을 표준으로 두지 않는다.
 
+## 현재 구현 상태
+- Material 3 앱 shell과 Market, Portfolio, Alerts, Tax 하단 탭이 구현되어 있다.
+- Market 화면은 KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
+- Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
+- Alerts 화면은 AI 번역 뉴스·공시, 원문 링크, My Portfolio/Watchlist 필터 영역을 가진다.
+- Tax 화면은 서류 상태, 환급 추정, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
+- API client, WebSocket client, 인증 세션, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
+
 ## 범위
 - 한국 주식 종목 검색과 종목 상세 화면
 - 전체 종목, 시장별 종목, watchlist, 보유종목의 실시간 시세 조회 화면
