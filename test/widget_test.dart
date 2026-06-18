@@ -575,7 +575,7 @@ void main() {
                 'quantity': 1,
                 'canPlaceMockOrder': true,
                 'blockingReasons': [],
-                'warnings': ['VI_ACTIVE'],
+                'warnings': ['VI_ACTIVE', 'BUY_AT_UPPER_LIMIT'],
                 'orderabilitySource': 'Hana-OmniLens-API',
                 'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
               },
@@ -628,7 +628,14 @@ void main() {
 
     await tester.tap(find.text('Check orderability'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Warnings: VI_ACTIVE'), findsOneWidget);
+    expect(
+      find.textContaining('Volatility interruption is active'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Buy order is at the upper price limit'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Place mock order'));
     await tester.pumpAndSettle();

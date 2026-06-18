@@ -50,7 +50,7 @@
 - `TaxController`는 Stock-exchange-BE `GET /api/v1/accounts/{accountId}/tax/refund-status`를 조회해 세무 케이스, 정부 검증 상태, 참조번호, 예상 환급 금액을 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 바인딩한다.
 - Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액을 `amountUsd`로 보내 실제 결제 없는 mock deposit ledger를 생성한다.
-- Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 상·하한가 warning/blocking reason을 표시하고, `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다.
+- Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 상·하한가 warning/blocking reason을 조회하고, backend code를 영어 사용자 문구로 변환해 표시한 뒤 `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다.
 - `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, quote/cache/FX metadata를 Market 화면에 바인딩한다.
 - `MarketDetailController`는 Stock-exchange-BE `GET /api/v1/stocks/{stockCode}`, `GET /api/v1/market/stocks/{stockCode}/chart`, `GET /api/v1/market/stocks/{stockCode}/orderbook`을 함께 조회해 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 Market 화면에 바인딩한다.
 - Market 종목 상세 패널은 현재가 KRW와 USD 환산 가격, 외국인 보유율/한도소진율, VI/상·하한가 상태 badge, 최근 차트 종가, ask/bid 호가를 표시한다.
