@@ -43,6 +43,13 @@ docker compose -f compose.local.yml up --build
 
 앱은 `Stock-exchange-BE` API만 호출한다. iOS Simulator는 호스트의 `localhost:3000`을 사용할 수 있고, Android Emulator는 일반적으로 `10.0.2.2:3000`을 사용한다.
 
+API base URL은 Flutter compile-time 환경값으로 지정한다.
+
+```bash
+flutter run -d ios --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
+flutter run -d android --dart-define=EXCHANGE_API_BASE_URL=http://10.0.2.2:3000
+```
+
 ## Docker 사용 경계
 
 - iOS 앱 빌드와 Simulator 실행은 Docker에서 처리하지 않는다.
