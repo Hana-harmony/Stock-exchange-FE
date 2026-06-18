@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
 import 'core/market_quote_controller.dart';
+import 'core/market_quote_live_client.dart';
 
 class StockExchangeApp extends StatelessWidget {
   const StockExchangeApp({
@@ -60,6 +61,7 @@ class ExchangeShell extends StatefulWidget {
 class _ExchangeShellState extends State<ExchangeShell> {
   int _selectedIndex = 0;
   http.Client? _ownedHttpClient;
+  late final ExchangeEnvironment _environment;
   late final ExchangeApiClient _apiClient;
   late final ExchangeSessionController _sessionController;
   late final MarketQuoteController _marketQuoteController;
@@ -69,6 +71,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   @override
   void initState() {
     super.initState();
+    _environment = const ExchangeEnvironment();
     _apiClient = _createApiClient();
     _sessionController = widget.sessionController ?? _createSessionController();
     _marketQuoteController =
@@ -83,7 +86,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   ExchangeApiClient _createApiClient() {
     _ownedHttpClient = http.Client();
     return ExchangeApiClient(
-      baseUri: const ExchangeEnvironment().apiBaseUri,
+      baseUri: _environment.apiBaseUri,
       httpClient: _ownedHttpClient!,
       sessionProvider: () => _sessionController.session,
     );
@@ -99,6 +102,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   MarketQuoteController _createMarketQuoteController() {
     return MarketQuoteController(
       apiClient: _apiClient,
+      liveClient: MarketQuoteLiveClient(baseUri: _environment.apiBaseUri),
       seedQuotes: seedMarketQuotes,
     );
   }
@@ -702,6 +706,8 @@ class _QuoteSnapshotPanel extends StatelessWidget {
             _QuoteSnapshotActions(
               quoteState: quoteState,
               onRefresh: () => marketQuoteController.loadSnapshot(),
+              onStartLive: () => marketQuoteController.subscribeLive(),
+              onStopLive: () => marketQuoteController.unsubscribeLive(),
             ),
             const _StatusStrip(),
             _InfoPanel(
@@ -871,19 +877,33 @@ class _QuoteSnapshotActions extends StatelessWidget {
   const _QuoteSnapshotActions({
     required this.quoteState,
     required this.onRefresh,
+    required this.onStartLive,
+    required this.onStopLive,
   });
 
   final MarketQuoteState quoteState;
   final VoidCallback onRefresh;
+  final VoidCallback onStartLive;
+  final VoidCallback onStopLive;
 
   @override
   Widget build(BuildContext context) {
     final isLoading = quoteState.status == MarketQuoteStatus.loading;
+    final isConnecting =
+        quoteState.liveStatus == MarketQuoteLiveStatus.connecting;
+    final isLive = quoteState.liveStatus == MarketQuoteLiveStatus.live;
     final snapshot = quoteState.snapshot;
     final cacheStatus = snapshot?.cacheStatus ?? 'seed';
     final transport = snapshot == null
         ? 'REST snapshot / WebSocket later'
         : '${snapshot.transportSnapshot} snapshot / ${snapshot.transportRealtime} live';
+    final liveLabel = switch (quoteState.liveStatus) {
+      MarketQuoteLiveStatus.disconnected => 'WebSocket disconnected',
+      MarketQuoteLiveStatus.connecting => 'WebSocket connecting',
+      MarketQuoteLiveStatus.live => 'WebSocket live',
+      MarketQuoteLiveStatus.failure => 'WebSocket unavailable',
+    };
+    final liveMessage = quoteState.liveMessage ?? liveLabel;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -909,18 +929,41 @@ class _QuoteSnapshotActions extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text('Cache $cacheStatus / $transport'),
+                    const SizedBox(height: 4),
+                    Text(liveMessage),
                   ],
                 ),
               ),
-              FilledButton.icon(
-                onPressed: isLoading ? null : onRefresh,
-                icon: isLoading
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync),
-                label: const Text('Refresh'),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: isLive
+                        ? quoteState.status == MarketQuoteStatus.loading
+                            ? null
+                            : onStopLive
+                        : isConnecting
+                            ? null
+                            : onStartLive,
+                    icon: isConnecting
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(isLive ? Icons.wifi_off : Icons.wifi_tethering),
+                    label: Text(isLive ? 'Stop' : 'Start live'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: isLoading ? null : onRefresh,
+                    icon: isLoading
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync),
+                    label: const Text('Refresh'),
+                  ),
+                ],
               ),
             ],
           ),

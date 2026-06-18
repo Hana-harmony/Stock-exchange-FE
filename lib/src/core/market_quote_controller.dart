@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'exchange_api_client.dart';
+import 'market_quote_live_client.dart';
 
 enum MarketQuoteStatus {
   idle,
@@ -9,27 +12,48 @@ enum MarketQuoteStatus {
   failure,
 }
 
+enum MarketQuoteLiveStatus {
+  disconnected,
+  connecting,
+  live,
+  failure,
+}
+
 class MarketQuoteState {
   const MarketQuoteState({
     required this.status,
     required this.quotes,
+    this.liveStatus = MarketQuoteLiveStatus.disconnected,
     this.snapshot,
     this.errorMessage,
+    this.liveMessage,
+    this.lastTickAt,
   });
 
   const MarketQuoteState.idle({List<MarketQuote> seedQuotes = const []})
       : status = MarketQuoteStatus.idle,
         quotes = seedQuotes,
+        liveStatus = MarketQuoteLiveStatus.disconnected,
         snapshot = null,
-        errorMessage = null;
+        errorMessage = null,
+        liveMessage = null,
+        lastTickAt = null;
 
   const MarketQuoteState.loading({
     required this.quotes,
+    this.liveStatus = MarketQuoteLiveStatus.disconnected,
     this.snapshot,
+    this.liveMessage,
+    this.lastTickAt,
   })  : status = MarketQuoteStatus.loading,
         errorMessage = null;
 
-  MarketQuoteState.loaded(MarketQuoteSnapshot loadedSnapshot)
+  MarketQuoteState.loaded(
+    MarketQuoteSnapshot loadedSnapshot, {
+    this.liveStatus = MarketQuoteLiveStatus.disconnected,
+    this.liveMessage,
+    this.lastTickAt,
+  })
       : status = MarketQuoteStatus.loaded,
         quotes = loadedSnapshot.quotes,
         snapshot = loadedSnapshot,
@@ -38,13 +62,42 @@ class MarketQuoteState {
   const MarketQuoteState.failure({
     required this.errorMessage,
     required this.quotes,
+    this.liveStatus = MarketQuoteLiveStatus.disconnected,
     this.snapshot,
+    this.liveMessage,
+    this.lastTickAt,
   }) : status = MarketQuoteStatus.failure;
 
   final MarketQuoteStatus status;
   final List<MarketQuote> quotes;
+  final MarketQuoteLiveStatus liveStatus;
   final MarketQuoteSnapshot? snapshot;
   final String? errorMessage;
+  final String? liveMessage;
+  final DateTime? lastTickAt;
+
+  MarketQuoteState copyWith({
+    MarketQuoteStatus? status,
+    List<MarketQuote>? quotes,
+    MarketQuoteLiveStatus? liveStatus,
+    MarketQuoteSnapshot? snapshot,
+    String? errorMessage,
+    String? liveMessage,
+    DateTime? lastTickAt,
+    bool clearErrorMessage = false,
+    bool clearLiveMessage = false,
+  }) {
+    return MarketQuoteState(
+      status: status ?? this.status,
+      quotes: quotes ?? this.quotes,
+      liveStatus: liveStatus ?? this.liveStatus,
+      snapshot: snapshot ?? this.snapshot,
+      errorMessage:
+          clearErrorMessage ? null : errorMessage ?? this.errorMessage,
+      liveMessage: clearLiveMessage ? null : liveMessage ?? this.liveMessage,
+      lastTickAt: lastTickAt ?? this.lastTickAt,
+    );
+  }
 }
 
 class MarketQuoteSnapshot {
@@ -154,11 +207,15 @@ class MarketQuote {
 class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   MarketQuoteController({
     required ExchangeApiClient apiClient,
+    MarketQuoteLiveClient? liveClient,
     List<MarketQuote> seedQuotes = const [],
   })  : _apiClient = apiClient,
+        _liveClient = liveClient,
         super(MarketQuoteState.idle(seedQuotes: seedQuotes));
 
   final ExchangeApiClient _apiClient;
+  final MarketQuoteLiveClient? _liveClient;
+  StreamSubscription<Map<String, dynamic>>? _liveSubscription;
 
   Future<void> loadSnapshot({
     String? market,
@@ -223,26 +280,126 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   }) async {
     value = MarketQuoteState.loading(
       quotes: value.quotes,
+      liveStatus: value.liveStatus,
       snapshot: value.snapshot,
+      liveMessage: value.liveMessage,
+      lastTickAt: value.lastTickAt,
     );
 
     try {
       final response = await loader();
       final snapshot = MarketQuoteSnapshot.fromJson(response.data ?? {});
-      value = MarketQuoteState.loaded(snapshot);
+      value = MarketQuoteState.loaded(
+        snapshot,
+        liveStatus: value.liveStatus,
+        liveMessage: value.liveMessage,
+        lastTickAt: value.lastTickAt,
+      );
     } on ExchangeApiException catch (error) {
       value = MarketQuoteState.failure(
         errorMessage: error.message,
         quotes: value.quotes,
+        liveStatus: value.liveStatus,
         snapshot: value.snapshot,
+        liveMessage: value.liveMessage,
+        lastTickAt: value.lastTickAt,
       );
     } on Object {
       value = MarketQuoteState.failure(
         errorMessage: 'Unable to load market quotes.',
         quotes: value.quotes,
+        liveStatus: value.liveStatus,
         snapshot: value.snapshot,
+        liveMessage: value.liveMessage,
+        lastTickAt: value.lastTickAt,
       );
     }
+  }
+
+  Future<void> subscribeLive({
+    String? market,
+    List<String> stockCodes = const [],
+    String? accountId,
+    MarketQuoteAccountScope? accountScope,
+  }) async {
+    final liveClient = _liveClient;
+    if (liveClient == null) {
+      value = value.copyWith(
+        liveStatus: MarketQuoteLiveStatus.failure,
+        liveMessage: 'Quote WebSocket client is not configured.',
+      );
+      return;
+    }
+
+    await unsubscribeLive();
+    value = value.copyWith(
+      liveStatus: MarketQuoteLiveStatus.connecting,
+      liveMessage: 'Connecting quote WebSocket.',
+      clearErrorMessage: true,
+    );
+
+    _liveSubscription = liveClient
+        .subscribe(
+          MarketQuoteLiveSubscription(
+            market: market,
+            stockCodes: stockCodes,
+            accountId: accountId,
+            accountScope: accountScope,
+          ),
+        )
+        .listen(
+          (tick) => _applyLiveTick(MarketQuote.fromJson(tick)),
+          onError: (_) {
+            value = value.copyWith(
+              liveStatus: MarketQuoteLiveStatus.failure,
+              liveMessage: 'Quote WebSocket disconnected.',
+            );
+          },
+          onDone: () {
+            if (value.liveStatus != MarketQuoteLiveStatus.failure) {
+              value = value.copyWith(
+                liveStatus: MarketQuoteLiveStatus.disconnected,
+                liveMessage: 'Quote WebSocket closed.',
+              );
+            }
+          },
+        );
+  }
+
+  Future<void> unsubscribeLive() async {
+    await _liveSubscription?.cancel();
+    _liveSubscription = null;
+    if (value.liveStatus != MarketQuoteLiveStatus.disconnected) {
+      value = value.copyWith(
+        liveStatus: MarketQuoteLiveStatus.disconnected,
+        liveMessage: 'Quote WebSocket disconnected.',
+      );
+    }
+  }
+
+  void _applyLiveTick(MarketQuote tick) {
+    final nextQuotes = List<MarketQuote>.of(value.quotes);
+    final index =
+        nextQuotes.indexWhere((quote) => quote.stockCode == tick.stockCode);
+    if (index >= 0) {
+      nextQuotes[index] = tick;
+    } else {
+      nextQuotes.insert(0, tick);
+    }
+
+    value = value.copyWith(
+      quotes: nextQuotes,
+      liveStatus: MarketQuoteLiveStatus.live,
+      liveMessage: 'Live tick ${tick.stockCode} received.',
+      lastTickAt: DateTime.now().toUtc(),
+      clearErrorMessage: true,
+    );
+  }
+
+  @override
+  void dispose() {
+    _liveSubscription?.cancel();
+    super.dispose();
   }
 }
 

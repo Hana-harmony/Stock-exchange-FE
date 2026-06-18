@@ -26,8 +26,9 @@ flutter test
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이와 session store 경계를 제공한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 연결한다.
 - `MarketQuoteController`는 Stock-exchange-BE REST snapshot을 조회해 Market 화면의 KRW/USD quote와 FX metadata를 갱신한다.
+- `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list에 병합한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신한다.
-- WebSocket client, token secure storage, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
+- WebSocket reconnect 자동화, token secure storage, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
 
 ## 범위
 - 한국 주식 종목 검색과 종목 상세 화면
