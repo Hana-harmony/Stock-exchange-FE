@@ -24,7 +24,7 @@
 - 종목 상세 현재가/호가
 - 외국인 보유율 게이지와 예측 boundary
 - VI/상·하한가 배지
-- 아이디/비밀번호 회원가입·로그인과 mock USD 계좌 화면: Partial
+- 아이디/비밀번호 회원가입·로그인 form과 mock USD 계좌 화면: Partial
 - 실제 결제 없는 달러 충전 화면: Partial
 - 자체 mock ledger 모의 주문 패드와 제한 안내 팝업
 - 매도 실현손익 표시: Partial

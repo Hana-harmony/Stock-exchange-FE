@@ -1,10 +1,20 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:stock_exchange_fe/src/app.dart';
+import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
+import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 
 void main() {
   testWidgets('renders market shell with USD quote context', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(const StockExchangeApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('Hana Local Exchange'), findsOneWidget);
     expect(find.text('Korea Market'), findsOneWidget);
@@ -12,8 +22,6 @@ void main() {
     expect(find.text('Search all Korean stocks'), findsOneWidget);
     expect(find.text('WebSocket live'), findsOneWidget);
     expect(find.text('REST snapshot ready'), findsOneWidget);
-    await tester.drag(find.byType(ListView).first, const Offset(0, -260));
-    await tester.pumpAndSettle();
     expect(find.text('USD 54.00'), findsOneWidget);
     expect(
       find.text('FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API'),
@@ -22,7 +30,11 @@ void main() {
   });
 
   testWidgets('navigates portfolio, alerts, and tax tabs', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
     await tester.pumpWidget(const StockExchangeApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
@@ -42,10 +54,58 @@ void main() {
     expect(find.text('Tax Refund'), findsOneWidget);
     expect(find.text('Estimated refund USD 84.30'), findsOneWidget);
   });
+
+  testWidgets('signs in with the injected session controller', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final controller = ExchangeSessionController(
+      sessionStore: MemoryExchangeSessionStore(),
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/v1/auth/login');
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'username': 'hana',
+              'accountId': 'ACC-ABC123456789',
+              'tokenType': 'Bearer',
+              'accessToken': 'access-token',
+              'refreshToken': 'refresh-token',
+            },
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(StockExchangeApp(sessionController: controller));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).at(0), 'hana');
+    await tester.enterText(find.byType(TextField).at(1), 'secret');
+    await tester.tap(find.text('Sign in'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Signed in as hana'), findsOneWidget);
+    expect(find.text('Account ACC-ABC123456789'), findsOneWidget);
+  });
 }
 
 Finder _navigationDestination(String label) {
   return find.byWidgetPredicate(
     (widget) => widget is NavigationDestination && widget.label == label,
+  );
+}
+
+http.Response _jsonResponse(Map<String, Object?> body) {
+  return http.Response(
+    jsonEncode(body),
+    200,
+    headers: {'content-type': 'application/json'},
   );
 }
