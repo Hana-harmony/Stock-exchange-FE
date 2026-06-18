@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:stock_exchange_fe/src/app.dart';
+import 'package:stock_exchange_fe/src/core/account_controller.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
@@ -83,9 +84,32 @@ void main() {
         }),
       ),
     );
+    final accountController = AccountController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '0.00',
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
     addTearDown(controller.dispose);
+    addTearDown(accountController.dispose);
 
-    await tester.pumpWidget(StockExchangeApp(sessionController: controller));
+    await tester.pumpWidget(
+      StockExchangeApp(
+        sessionController: controller,
+        accountController: accountController,
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).at(0), 'hana');
     await tester.enterText(find.byType(TextField).at(1), 'secret');
@@ -218,6 +242,52 @@ void main() {
         }),
       ),
     );
+    var accountRequestCount = 0;
+    final accountController = AccountController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          accountRequestCount++;
+          if (request.method == 'GET') {
+            expect(request.url.path, '/api/v1/accounts/ACC-ABC123456789');
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '125.50',
+                'updatedAt': '2026-06-18T06:00:00Z',
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            });
+          }
+
+          expect(request.method, 'POST');
+          expect(
+            request.url.path,
+            '/api/v1/accounts/ACC-ABC123456789/deposits',
+          );
+          expect(jsonDecode(request.body), {'amountUsd': 1000});
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'accountId': 'ACC-ABC123456789',
+              'currency': 'USD',
+              'cashBalanceUsd': '1125.50',
+              'lastLedgerEntryId': 'CASH-123',
+              'updatedAt': '2026-06-18T06:00:00Z',
+            },
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
+      ),
+    );
     final sessionController = ExchangeSessionController(
       sessionStore: store,
       apiClient: ExchangeApiClient(
@@ -225,27 +295,37 @@ void main() {
         httpClient: MockClient((request) async => _jsonResponse({})),
       ),
     );
+    addTearDown(accountController.dispose);
     addTearDown(portfolioQuoteController.dispose);
     addTearDown(sessionController.dispose);
 
     await tester.pumpWidget(
       StockExchangeApp(
         sessionController: sessionController,
+        accountController: accountController,
         portfolioQuoteController: portfolioQuoteController,
       ),
     );
     await tester.pumpAndSettle();
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Refresh').first);
+    await tester.tap(find.widgetWithText(FilledButton, 'Refresh').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Signed in as hana'), findsOneWidget);
+    expect(find.text('USD 125.50'), findsWidgets);
     expect(find.text('NAVER'), findsOneWidget);
     expect(
       find.text('Cache FRESH_CACHE / account REST + WebSocket'),
       findsOneWidget,
     );
+    expect(accountRequestCount, greaterThanOrEqualTo(1));
+
+    await tester.tap(find.text('Deposit'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('USD 1125.50'), findsWidgets);
+    expect(find.text('Last ledger entry CASH-123'), findsOneWidget);
   });
 }
 
