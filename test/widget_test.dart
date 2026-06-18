@@ -309,7 +309,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Refresh').first);
+    await tester.tap(find.widgetWithText(FilledButton, 'Refresh').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Signed in as hana'), findsOneWidget);
