@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
+import 'core/account_controller.dart';
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
 import 'core/market_quote_controller.dart';
@@ -10,12 +11,14 @@ class StockExchangeApp extends StatelessWidget {
   const StockExchangeApp({
     super.key,
     this.sessionController,
+    this.accountController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
   });
 
   final ExchangeSessionController? sessionController;
+  final AccountController? accountController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -32,6 +35,7 @@ class StockExchangeApp extends StatelessWidget {
       ),
       home: ExchangeShell(
         sessionController: sessionController,
+        accountController: accountController,
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
@@ -44,12 +48,14 @@ class ExchangeShell extends StatefulWidget {
   const ExchangeShell({
     super.key,
     this.sessionController,
+    this.accountController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
   });
 
   final ExchangeSessionController? sessionController;
+  final AccountController? accountController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -64,6 +70,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final ExchangeEnvironment _environment;
   late final ExchangeApiClient _apiClient;
   late final ExchangeSessionController _sessionController;
+  late final AccountController _accountController;
   late final MarketQuoteController _marketQuoteController;
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
@@ -74,6 +81,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _environment = const ExchangeEnvironment();
     _apiClient = _createApiClient();
     _sessionController = widget.sessionController ?? _createSessionController();
+    _accountController = widget.accountController ?? _createAccountController();
     _marketQuoteController =
         widget.marketQuoteController ?? _createMarketQuoteController();
     _watchlistQuoteController =
@@ -99,6 +107,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
+  AccountController _createAccountController() {
+    return AccountController(apiClient: _apiClient);
+  }
+
   MarketQuoteController _createMarketQuoteController() {
     return MarketQuoteController(
       apiClient: _apiClient,
@@ -119,6 +131,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     if (widget.sessionController == null) {
       _sessionController.dispose();
     }
+    if (widget.accountController == null) {
+      _accountController.dispose();
+    }
     if (widget.marketQuoteController == null) {
       _marketQuoteController.dispose();
     }
@@ -137,10 +152,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Hana Local Exchange'),
-        actions: const [
+        actions: [
           Padding(
-            padding: EdgeInsets.only(right: 16),
-            child: _WalletBadge(),
+            padding: const EdgeInsets.only(right: 16),
+            child: _WalletBadge(accountController: _accountController),
           ),
         ],
       ),
@@ -154,6 +169,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
             ),
             PortfolioScreen(
               sessionController: _sessionController,
+              accountController: _accountController,
               watchlistQuoteController: _watchlistQuoteController,
               portfolioQuoteController: _portfolioQuoteController,
             ),
@@ -225,11 +241,13 @@ class PortfolioScreen extends StatelessWidget {
   const PortfolioScreen({
     super.key,
     required this.sessionController,
+    required this.accountController,
     required this.watchlistQuoteController,
     required this.portfolioQuoteController,
   });
 
   final ExchangeSessionController sessionController;
+  final AccountController accountController;
   final MarketQuoteController watchlistQuoteController;
   final MarketQuoteController portfolioQuoteController;
 
@@ -240,7 +258,10 @@ class PortfolioScreen extends StatelessWidget {
       subtitle: 'Mock USD trading ledger. No real order is sent.',
       children: [
         _SessionStatusPanel(sessionController: sessionController),
-        const _BalancePanel(),
+        _BalancePanel(
+          sessionController: sessionController,
+          accountController: accountController,
+        ),
         _AccountQuoteSnapshotPanel(
           title: 'Portfolio quote snapshot',
           emptyTitle: 'No holdings quotes',
@@ -1195,73 +1216,197 @@ class _InfoPanel extends StatelessWidget {
   }
 }
 
-class _BalancePanel extends StatelessWidget {
-  const _BalancePanel();
+class _BalancePanel extends StatefulWidget {
+  const _BalancePanel({
+    required this.sessionController,
+    required this.accountController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final AccountController accountController;
+
+  @override
+  State<_BalancePanel> createState() => _BalancePanelState();
+}
+
+class _BalancePanelState extends State<_BalancePanel> {
+  final TextEditingController _amountController =
+      TextEditingController(text: '1000.00');
+
+  @override
+  void initState() {
+    super.initState();
+    widget.sessionController.addListener(_loadSignedInAccount);
+    _loadSignedInAccount();
+  }
+
+  @override
+  void dispose() {
+    widget.sessionController.removeListener(_loadSignedInAccount);
+    _amountController.dispose();
+    super.dispose();
+  }
+
+  void _loadSignedInAccount() {
+    final session = widget.sessionController.session;
+    if (session != null) {
+      widget.accountController.loadAccount(session.accountId);
+    } else {
+      widget.accountController.clear();
+    }
+  }
+
+  Future<void> _deposit() async {
+    final amount = num.tryParse(_amountController.text.trim());
+    await widget.accountController.depositUsd(
+      accountId: widget.sessionController.session?.accountId,
+      amount: amount ?? 0,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(8),
-          color: colorScheme.primaryContainer,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Mock USD cash'),
-                    SizedBox(height: 4),
-                    Text(
-                      'USD 12,450.00',
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.w700,
+    return ValueListenableBuilder<ExchangeSessionState>(
+      valueListenable: widget.sessionController,
+      builder: (context, sessionState, child) {
+        return ValueListenableBuilder<AccountState>(
+          valueListenable: widget.accountController,
+          builder: (context, accountState, child) {
+            final isSignedIn = sessionState.isSignedIn;
+            final isLoading = accountState.status == AccountStatus.loading;
+            final cashDisplay =
+                accountState.account?.cashDisplay ?? 'USD 0.00';
+            final ledgerId = accountState.account?.lastLedgerEntryId;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  color: colorScheme.primaryContainer,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text('Mock USD cash'),
+                                const SizedBox(height: 4),
+                                Text(
+                                  cashDisplay,
+                                  style: const TextStyle(
+                                    fontSize: 24,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(isSignedIn
+                                    ? 'No real payment settlement. Ledger only.'
+                                    : 'Sign in to load your mock USD account.'),
+                              ],
+                            ),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: isSignedIn && !isLoading
+                                ? () => widget.accountController.loadAccount(
+                                      sessionState.session?.accountId,
+                                    )
+                                : null,
+                            icon: isLoading
+                                ? const SizedBox.square(
+                                    dimension: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                    ),
+                                  )
+                                : const Icon(Icons.sync),
+                            label: const Text('Refresh'),
+                          ),
+                        ],
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextField(
+                              controller: _amountController,
+                              enabled: isSignedIn && !isLoading,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Mock USD deposit amount',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          FilledButton.icon(
+                            onPressed: isSignedIn && !isLoading ? _deposit : null,
+                            icon: const Icon(Icons.add),
+                            label: const Text('Deposit'),
+                          ),
+                        ],
+                      ),
+                      if (ledgerId != null) ...[
+                        const SizedBox(height: 8),
+                        Text('Last ledger entry $ledgerId'),
+                      ],
+                      if (accountState.errorMessage != null) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          accountState.errorMessage!,
+                          style: TextStyle(color: colorScheme.error),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
               ),
-              FilledButton.icon(
-                onPressed: null,
-                icon: const Icon(Icons.add),
-                label: const Text('Deposit'),
-              ),
-            ],
-          ),
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 }
 
 class _WalletBadge extends StatelessWidget {
-  const _WalletBadge();
+  const _WalletBadge({required this.accountController});
+
+  final AccountController accountController;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Padding(
-        padding: EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-        child: Row(
-          children: [
-            Icon(Icons.account_balance_wallet_outlined, size: 16),
-            SizedBox(width: 6),
-            Text('USD 12,450'),
-          ],
-        ),
-      ),
+    return ValueListenableBuilder<AccountState>(
+      valueListenable: accountController,
+      builder: (context, accountState, child) {
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            child: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_outlined, size: 16),
+                const SizedBox(width: 6),
+                Text(accountState.account?.cashDisplay ?? 'USD 0.00'),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

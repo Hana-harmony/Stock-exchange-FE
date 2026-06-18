@@ -13,6 +13,7 @@
 | Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Partial |
 | 인증 세션 controller와 session store 경계 | Stock-exchange-FE | Partial |
 | 로그인/회원가입 form과 session controller 화면 바인딩 | Stock-exchange-FE | Partial |
+| Mock USD account 조회와 deposit 화면 바인딩 | Stock-exchange-FE | Partial |
 | Market quote REST snapshot controller와 화면 바인딩 | Stock-exchange-FE | Partial |
 | Watchlist/portfolio quote REST snapshot 화면 바인딩 | Stock-exchange-FE | Partial |
 | Market quote STOMP WebSocket client와 tick 병합 | Stock-exchange-FE | Partial |

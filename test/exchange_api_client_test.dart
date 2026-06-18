@@ -93,6 +93,50 @@ void main() {
     expect(response.data?['fxRateSource'], 'Hana-OmniLens-API');
   });
 
+  test('deposit sends amountUsd and bearer token', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.path,
+          '/api/v1/accounts/ACC-ABC123456789/deposits',
+        );
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+        expect(jsonDecode(request.body), {'amountUsd': 500});
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {
+            'accountId': 'ACC-ABC123456789',
+            'currency': 'USD',
+            'cashBalanceUsd': '500.00',
+            'lastLedgerEntryId': 'CASH-1',
+          },
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    final response = await client.depositUsd(
+      accountId: 'ACC-ABC123456789',
+      amount: 500,
+    );
+
+    expect(response.data?['cashBalanceUsd'], '500.00');
+  });
+
   test('throws ExchangeApiException for common envelope failure', () async {
     final client = ExchangeApiClient(
       baseUri: Uri.parse('http://localhost:3000'),
