@@ -12,6 +12,8 @@ void main() {
     expect(find.text('Search all Korean stocks'), findsOneWidget);
     expect(find.text('WebSocket live'), findsOneWidget);
     expect(find.text('REST snapshot ready'), findsOneWidget);
+    await tester.drag(find.byType(ListView).first, const Offset(0, -260));
+    await tester.pumpAndSettle();
     expect(find.text('USD 54.00'), findsOneWidget);
     expect(
       find.text('FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API'),
