@@ -205,6 +205,55 @@ void main() {
     ]);
   });
 
+  test('stock detail chart and order book APIs use USD query contracts', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final requests = <String>[];
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        requests.add('${request.method} ${request.url.path}');
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+        expect(request.url.queryParameters['currency'], 'USD');
+
+        if (request.url.path.endsWith('/chart')) {
+          expect(request.url.queryParameters['from'], '2026-06-01');
+          expect(request.url.queryParameters['to'], '2026-06-18');
+          expect(request.url.queryParameters['interval'], '1d');
+        }
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await client.getStockDetail(stockCode: '005930');
+    await client.getMarketChart(
+      stockCode: '005930',
+      from: '2026-06-01',
+      to: '2026-06-18',
+    );
+    await client.getOrderBook(stockCode: '005930');
+
+    expect(requests, [
+      'GET /api/v1/stocks/005930',
+      'GET /api/v1/market/stocks/005930/chart',
+      'GET /api/v1/market/stocks/005930/orderbook',
+    ]);
+  });
+
   test('trade APIs send mock ledger contracts and bearer token', () async {
     const session = AuthSession(
       username: 'hana',
