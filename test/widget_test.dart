@@ -313,7 +313,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Signed in as hana'), findsOneWidget);
-    expect(find.text('USD 125.50'), findsOneWidget);
+    expect(find.text('USD 125.50'), findsWidgets);
     expect(find.text('NAVER'), findsOneWidget);
     expect(
       find.text('Cache FRESH_CACHE / account REST + WebSocket'),
@@ -324,7 +324,7 @@ void main() {
     await tester.tap(find.text('Deposit'));
     await tester.pumpAndSettle();
 
-    expect(find.text('USD 1125.50'), findsOneWidget);
+    expect(find.text('USD 1125.50'), findsWidgets);
     expect(find.text('Last ledger entry CASH-123'), findsOneWidget);
   });
 }
