@@ -76,6 +76,61 @@ void main() {
     expect(controller.value.session, isNull);
   });
 
+  test('login validates blank credentials before API call', () async {
+    var requestCount = 0;
+    final controller = ExchangeSessionController(
+      sessionStore: MemoryExchangeSessionStore(),
+      apiClient: _client((request) async {
+        requestCount++;
+        return _jsonResponse({});
+      }),
+    );
+
+    await controller.login(username: ' ', password: '');
+
+    expect(requestCount, 0);
+    expect(controller.value.status, ExchangeSessionStatus.failure);
+    expect(controller.value.errorMessage, 'Username and password are required.');
+  });
+
+  test('sign up creates an account and then signs in', () async {
+    final paths = <String>[];
+    final store = MemoryExchangeSessionStore();
+    final controller = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: _client((request) async {
+        paths.add(request.url.path);
+        if (request.url.path == '/api/v1/auth/signup') {
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'username': 'hana',
+              'accountId': 'ACC-ABC123456789',
+            },
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _sessionJson(accessToken: 'signup-access-token'),
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await controller.signUpAndLogin(username: ' hana ', password: 'secret');
+
+    expect(paths, ['/api/v1/auth/signup', '/api/v1/auth/login']);
+    expect(controller.value.status, ExchangeSessionStatus.signedIn);
+    expect((await store.read())?.accessToken, 'signup-access-token');
+  });
+
   test('refresh rotates the stored auth session', () async {
     const storedSession = AuthSession(
       username: 'hana',

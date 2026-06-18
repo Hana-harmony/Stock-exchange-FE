@@ -24,7 +24,8 @@ flutter test
 - Tax 화면은 서류 상태, 환급 추정, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope와 bearer auth session header를 처리한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이와 session store 경계를 제공한다.
-- 실제 로그인/회원가입 form, API client 화면 바인딩, WebSocket client, token secure storage, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
+- Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 연결한다.
+- API client 시장/계좌 화면 바인딩, WebSocket client, token secure storage, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
 
 ## 범위
 - 한국 주식 종목 검색과 종목 상세 화면
