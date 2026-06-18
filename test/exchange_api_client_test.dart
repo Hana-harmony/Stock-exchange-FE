@@ -331,6 +331,41 @@ void main() {
       'GET /api/v1/accounts/ACC-ABC123456789/portfolio',
     ]);
   });
+
+  test('tax refund status sends account scoped bearer contract', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(
+          request.url.path,
+          '/api/v1/accounts/ACC-ABC123456789/tax/refund-status',
+        );
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {'status': 'REFUND_APPROVED'},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    final response = await client.getTaxRefundStatus('ACC-ABC123456789');
+
+    expect(response.data?['status'], 'REFUND_APPROVED');
+  });
 }
 
 String? _header(http.Request request, String name) {

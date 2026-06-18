@@ -34,6 +34,7 @@ flutter test
 - `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic을 구독한다.
 - Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 KRW 가격과 USD 환산 가격, 외국인 한도, VI/상·하한가 상태를 표시한다.
+- Tax 화면은 bearer auth session의 accountId로 세무 환급 상태를 조회하고, 정부 검증 상태/참조번호와 원천징수세 대비 조세조약세·환급 가능분 비중을 표시한다.
 - token secure storage, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
 
 ## 범위

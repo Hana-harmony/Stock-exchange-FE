@@ -10,6 +10,7 @@ import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/core/tax_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 
 void main() {
@@ -56,7 +57,7 @@ void main() {
     await tester.tap(_navigationDestination('Tax'));
     await tester.pumpAndSettle();
     expect(find.text('Tax Refund'), findsOneWidget);
-    expect(find.text('Estimated refund USD 84.30'), findsOneWidget);
+    expect(find.text('Government verification'), findsOneWidget);
   });
 
   testWidgets('signs in with the injected session controller', (tester) async {
@@ -637,6 +638,74 @@ void main() {
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 150.00'), findsWidgets);
   });
+
+  testWidgets('loads tax refund status with government reference', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = MemoryExchangeSessionStore();
+    await store.write(
+      const AuthSession(
+        username: 'hana',
+        accountId: 'ACC-ABC123456789',
+        tokenType: 'Bearer',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final sessionController = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({})),
+      ),
+    );
+    final taxController = TaxController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(
+            request.url.path,
+            '/api/v1/accounts/ACC-ABC123456789/tax/refund-status',
+          );
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': _taxCaseJson(),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
+      ),
+    );
+    addTearDown(sessionController.dispose);
+    addTearDown(taxController.dispose);
+
+    await tester.pumpWidget(
+      StockExchangeApp(
+        sessionController: sessionController,
+        taxController: taxController,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_navigationDestination('Tax'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Refresh tax status'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Government verification'), findsOneWidget);
+    expect(find.text('REFUND_APPROVED'), findsWidgets);
+    expect(find.text('TAX-CASE-1'), findsWidgets);
+    expect(find.text('Withholding tax split'), findsOneWidget);
+    expect(find.text('Refundable difference'), findsOneWidget);
+    expect(find.text('Matched sell trade'), findsOneWidget);
+    expect(
+      find.textContaining('Samsung Electronics 1 shares'),
+      findsOneWidget,
+    );
+  });
 }
 
 Finder _navigationDestination(String label) {
@@ -693,5 +762,43 @@ Map<String, Object?> _portfolioJson() {
       }
     ],
     'recentTrades': [_tradeJson()],
+  };
+}
+
+Map<String, Object?> _taxCaseJson() {
+  return {
+    'caseId': 'TAX-CASE-1',
+    'accountId': 'ACC-ABC123456789',
+    'taxYear': 2026,
+    'treatyCountry': 'US',
+    'residenceCertificateFileName': 'residence.pdf',
+    'reducedTaxApplicationFileName': 'reduced-tax.pdf',
+    'advancePaymentRequested': true,
+    'status': 'REFUND_APPROVED',
+    'currency': 'USD',
+    'totalSellAmountUsd': '70.00',
+    'realizedProfitUsd': '20.00',
+    'realizedLossUsd': '0.00',
+    'netRealizedPnlUsd': '20.00',
+    'taxableRealizedPnlUsd': '20.00',
+    'estimatedWithholdingTaxUsd': '4.40',
+    'estimatedTreatyTaxUsd': '3.00',
+    'estimatedRefundUsd': '1.40',
+    'advancePaymentEligible': true,
+    'matchedTradeCount': 1,
+    'matchedTrades': [
+      {
+        'tradeId': 'TRD-1',
+        'stockCode': '005930',
+        'stockName': 'Samsung Electronics',
+        'quantity': 1,
+        'grossAmountUsd': '70.00',
+        'realizedPnlUsd': '20.00',
+        'executedAt': '2026-06-18T06:00:00Z',
+      }
+    ],
+    'dataSource': 'EXCHANGE_MOCK_LEDGER_REALIZED_PNL',
+    'createdAt': '2026-06-18T06:00:00Z',
+    'updatedAt': '2026-06-18T06:30:00Z',
   };
 }

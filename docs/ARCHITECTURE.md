@@ -46,6 +46,7 @@
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이를 관리하고, `ExchangeSessionStore` 경계를 통해 session 저장소를 분리한다.
 - `AccountController`는 Stock-exchange-BE account REST 조회와 mock USD deposit 상태를 관리한다.
 - `TradeController`는 Stock-exchange-BE orderability, mock trade execution, portfolio REST 상태를 관리한다.
+- `TaxController`는 Stock-exchange-BE `GET /api/v1/accounts/{accountId}/tax/refund-status`를 조회해 세무 케이스, 정부 검증 상태, 참조번호, 예상 환급 금액을 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 바인딩한다.
 - Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액을 `amountUsd`로 보내 실제 결제 없는 mock deposit ledger를 생성한다.
 - Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 상·하한가 warning/blocking reason을 표시하고, `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다.
@@ -56,5 +57,6 @@
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list에 병합한다.
 - `MarketQuoteController`는 WebSocket onDone/onError 시 마지막 구독 조건을 유지하고 backoff 지연 후 동일 topic을 재구독하며, 사용자가 `Stop`을 누르면 재연결 timer를 중단한다.
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic을 구독한다.
+- Tax 화면은 bearer auth session의 accountId로 refund status를 조회하고, caseId를 정부 검증 참조번호로 표시하며, 원천징수세 대비 조세조약세와 환급 가능분 비중을 시각화한다.
 - 현재 저장소 구현은 테스트와 앱 하네스용 memory store이며, 운영 token secure storage는 후속 구현 대상이다.
 - token secure storage, iOS/Android 플랫폼 세부 설정은 미구현이다.
