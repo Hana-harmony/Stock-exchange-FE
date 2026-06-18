@@ -1,0 +1,11 @@
+.DS_Store
+.dart_tool/
+.idea/
+.packages
+.pub-cache/
+.pub/
+build/
+coverage/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+pubspec.lock
