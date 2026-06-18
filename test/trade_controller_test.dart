@@ -46,7 +46,48 @@ void main() {
     );
 
     expect(controller.value.status, TradeStatus.loaded);
-    expect(controller.value.orderability?.summary, contains('VI_ACTIVE'));
+    expect(
+      controller.value.orderability?.summary,
+      contains('Volatility interruption is active'),
+    );
+    expect(
+      controller.value.orderability?.summary,
+      contains('Buy order is at the upper price limit'),
+    );
+  });
+
+  test('formats blocking reasons for users', () async {
+    final controller = TradeController(
+      apiClient: _client((request) async => _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'stockCode': '005930',
+              'side': 'BUY',
+              'quantity': 1,
+              'canPlaceMockOrder': false,
+              'blockingReasons': ['FOREIGN_LIMIT_EXCEEDED'],
+              'warnings': [],
+              'orderabilitySource': 'Hana-OmniLens-API',
+              'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+            },
+            'timestamp': '2026-06-18T06:00:00Z',
+          })),
+    );
+
+    await controller.checkOrderability(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 1,
+    );
+
+    expect(
+      controller.value.orderability?.summary,
+      'Blocked: Foreign ownership limit would be exceeded',
+    );
   });
 
   test('executes mock trade and refreshes portfolio', () async {
