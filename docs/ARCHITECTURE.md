@@ -41,4 +41,6 @@
 - Portfolio 탭은 mock USD cash, 실제 주문이 아닌 자체 ledger 기반 거래, 보유종목과 실현손익 연결 영역을 가진다.
 - Alerts 탭은 AI 번역 뉴스·공시, 원문 링크, My Portfolio/Watchlist 필터, 실시간 push timeline 영역을 가진다.
 - Tax 탭은 서류 상태, 환급 추정, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
-- 실제 API client, WebSocket client, 인증 세션, 상태 관리, iOS/Android 플랫폼 세부 설정은 미구현이다.
+- `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope(`success/status/code/message/data`)를 파싱하고, bearer auth session header를 REST 요청에 적용한다.
+- Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
+- 화면 상태 관리, token secure storage, API client 화면 바인딩, WebSocket client, iOS/Android 플랫폼 세부 설정은 미구현이다.
