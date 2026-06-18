@@ -10,10 +10,14 @@ class StockExchangeApp extends StatelessWidget {
     super.key,
     this.sessionController,
     this.marketQuoteController,
+    this.watchlistQuoteController,
+    this.portfolioQuoteController,
   });
 
   final ExchangeSessionController? sessionController;
   final MarketQuoteController? marketQuoteController;
+  final MarketQuoteController? watchlistQuoteController;
+  final MarketQuoteController? portfolioQuoteController;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +32,8 @@ class StockExchangeApp extends StatelessWidget {
       home: ExchangeShell(
         sessionController: sessionController,
         marketQuoteController: marketQuoteController,
+        watchlistQuoteController: watchlistQuoteController,
+        portfolioQuoteController: portfolioQuoteController,
       ),
     );
   }
@@ -38,10 +44,14 @@ class ExchangeShell extends StatefulWidget {
     super.key,
     this.sessionController,
     this.marketQuoteController,
+    this.watchlistQuoteController,
+    this.portfolioQuoteController,
   });
 
   final ExchangeSessionController? sessionController;
   final MarketQuoteController? marketQuoteController;
+  final MarketQuoteController? watchlistQuoteController;
+  final MarketQuoteController? portfolioQuoteController;
 
   @override
   State<ExchangeShell> createState() => _ExchangeShellState();
@@ -53,6 +63,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final ExchangeApiClient _apiClient;
   late final ExchangeSessionController _sessionController;
   late final MarketQuoteController _marketQuoteController;
+  late final MarketQuoteController _watchlistQuoteController;
+  late final MarketQuoteController _portfolioQuoteController;
 
   @override
   void initState() {
@@ -61,6 +73,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _sessionController = widget.sessionController ?? _createSessionController();
     _marketQuoteController =
         widget.marketQuoteController ?? _createMarketQuoteController();
+    _watchlistQuoteController =
+        widget.watchlistQuoteController ?? _createAccountQuoteController();
+    _portfolioQuoteController =
+        widget.portfolioQuoteController ?? _createAccountQuoteController();
     _sessionController.restore();
   }
 
@@ -87,6 +103,12 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
+  MarketQuoteController _createAccountQuoteController() {
+    return MarketQuoteController(
+      apiClient: _apiClient,
+    );
+  }
+
   @override
   void dispose() {
     if (widget.sessionController == null) {
@@ -94,6 +116,12 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.marketQuoteController == null) {
       _marketQuoteController.dispose();
+    }
+    if (widget.watchlistQuoteController == null) {
+      _watchlistQuoteController.dispose();
+    }
+    if (widget.portfolioQuoteController == null) {
+      _portfolioQuoteController.dispose();
     }
     _ownedHttpClient?.close();
     super.dispose();
@@ -119,7 +147,11 @@ class _ExchangeShellState extends State<ExchangeShell> {
               sessionController: _sessionController,
               marketQuoteController: _marketQuoteController,
             ),
-            PortfolioScreen(sessionController: _sessionController),
+            PortfolioScreen(
+              sessionController: _sessionController,
+              watchlistQuoteController: _watchlistQuoteController,
+              portfolioQuoteController: _portfolioQuoteController,
+            ),
             const AlertsScreen(),
             const TaxScreen(),
           ],
@@ -188,9 +220,13 @@ class PortfolioScreen extends StatelessWidget {
   const PortfolioScreen({
     super.key,
     required this.sessionController,
+    required this.watchlistQuoteController,
+    required this.portfolioQuoteController,
   });
 
   final ExchangeSessionController sessionController;
+  final MarketQuoteController watchlistQuoteController;
+  final MarketQuoteController portfolioQuoteController;
 
   @override
   Widget build(BuildContext context) {
@@ -200,13 +236,25 @@ class PortfolioScreen extends StatelessWidget {
       children: [
         _SessionStatusPanel(sessionController: sessionController),
         const _BalancePanel(),
-        const _QuoteRow(
-          symbol: '035420',
-          name: 'NAVER',
-          priceKrw: 'KRW 183,700',
-          priceUsd: 'USD 120.41',
-          change: '+USD 318.20',
-          badge: 'Holding',
+        _AccountQuoteSnapshotPanel(
+          title: 'Portfolio quote snapshot',
+          emptyTitle: 'No holdings quotes',
+          emptyBody: 'No holding quote snapshot is available yet.',
+          marketQuoteController: portfolioQuoteController,
+          sessionController: sessionController,
+          onRefresh: (accountId) => portfolioQuoteController.loadPortfolioSnapshot(
+            accountId: accountId,
+          ),
+        ),
+        _AccountQuoteSnapshotPanel(
+          title: 'Watchlist quote snapshot',
+          emptyTitle: 'No watchlist quotes',
+          emptyBody: 'No watchlist quote snapshot is available yet.',
+          marketQuoteController: watchlistQuoteController,
+          sessionController: sessionController,
+          onRefresh: (accountId) => watchlistQuoteController.loadWatchlistSnapshot(
+            accountId: accountId,
+          ),
         ),
         _InfoPanel(
           icon: Icons.point_of_sale,
@@ -684,6 +732,137 @@ class _QuoteSnapshotPanel extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _AccountQuoteSnapshotPanel extends StatelessWidget {
+  const _AccountQuoteSnapshotPanel({
+    required this.title,
+    required this.emptyTitle,
+    required this.emptyBody,
+    required this.marketQuoteController,
+    required this.sessionController,
+    required this.onRefresh,
+  });
+
+  final String title;
+  final String emptyTitle;
+  final String emptyBody;
+  final MarketQuoteController marketQuoteController;
+  final ExchangeSessionController sessionController;
+  final Future<void> Function(String? accountId) onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ExchangeSessionState>(
+      valueListenable: sessionController,
+      builder: (context, sessionState, child) {
+        return ValueListenableBuilder<MarketQuoteState>(
+          valueListenable: marketQuoteController,
+          builder: (context, quoteState, child) {
+            final accountId = sessionState.session?.accountId;
+            final isSignedIn = sessionState.isSignedIn;
+            final isLoading = quoteState.status == MarketQuoteStatus.loading;
+            final snapshot = quoteState.snapshot;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _AccountQuoteSnapshotActions(
+                  title: title,
+                  isSignedIn: isSignedIn,
+                  isLoading: isLoading,
+                  cacheStatus: snapshot?.cacheStatus ?? 'idle',
+                  onRefresh: isLoading ? null : () => onRefresh(accountId),
+                ),
+                if (quoteState.errorMessage != null)
+                  _InfoPanel(
+                    icon: Icons.error_outline,
+                    title: 'Snapshot unavailable',
+                    body: quoteState.errorMessage!,
+                    meta: 'Account scoped quote snapshot uses bearer auth.',
+                  ),
+                if (quoteState.quotes.isEmpty)
+                  _InfoPanel(
+                    icon: Icons.list_alt_outlined,
+                    title: emptyTitle,
+                    body: isSignedIn ? emptyBody : 'Sign in to load this account scope.',
+                    meta: snapshot == null
+                        ? 'REST snapshot pending'
+                        : '${snapshot.quoteCount} quotes from ${snapshot.dataSource}',
+                  )
+                else
+                  ...quoteState.quotes.map(_QuoteRow.fromMarketQuote),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _AccountQuoteSnapshotActions extends StatelessWidget {
+  const _AccountQuoteSnapshotActions({
+    required this.title,
+    required this.isSignedIn,
+    required this.isLoading,
+    required this.cacheStatus,
+    required this.onRefresh,
+  });
+
+  final String title;
+  final bool isSignedIn;
+  final bool isLoading;
+  final String cacheStatus;
+  final VoidCallback? onRefresh;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: Theme.of(context).colorScheme.surface,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(isSignedIn
+                        ? 'Cache $cacheStatus / account REST snapshot'
+                        : 'Sign in required / account REST snapshot'),
+                  ],
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: isSignedIn && !isLoading ? onRefresh : null,
+                icon: isLoading
+                    ? const SizedBox.square(
+                        dimension: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.sync),
+                label: const Text('Refresh'),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

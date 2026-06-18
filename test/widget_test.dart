@@ -157,6 +157,96 @@ void main() {
     expect(find.text('USD 184.16'), findsOneWidget);
     expect(find.text('Cache FRESH_CACHE / REST snapshot / WebSocket live'), findsOneWidget);
   });
+
+  testWidgets('refreshes account portfolio quotes after sign in', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = MemoryExchangeSessionStore();
+    await store.write(
+      const AuthSession(
+        username: 'hana',
+        accountId: 'ACC-ABC123456789',
+        tokenType: 'Bearer',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final portfolioQuoteController = MarketQuoteController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(
+            request.url.path,
+            '/api/v1/accounts/ACC-ABC123456789/market/quotes/portfolio',
+          );
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'dataSource': 'Hana-OmniLens-API',
+              'marketCoverage': 'PORTFOLIO',
+              'displayCurrency': 'USD',
+              'transport': {
+                'snapshot': 'REST',
+                'realtime': 'WebSocket',
+              },
+              'cache': {'status': 'FRESH_CACHE'},
+              'quoteCount': 1,
+              'quotes': [
+                {
+                  'stockCode': '035420',
+                  'stockName': 'NAVER',
+                  'market': 'KOSPI',
+                  'currentPriceKrw': '183700',
+                  'changeRate': '+0.80%',
+                  'volume': 930000,
+                  'localCurrency': 'USD',
+                  'localCurrencyPrice': '120.41',
+                  'fxRate': '1525.59',
+                  'fxRateTime': '2026-06-18T06:00:00Z',
+                  'fxRateSource': 'Hana-OmniLens-API',
+                  'fxStale': false,
+                }
+              ],
+              'servedAt': '2026-06-18T06:00:01Z',
+            },
+            'timestamp': '2026-06-18T06:00:01Z',
+          });
+        }),
+      ),
+    );
+    final sessionController = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({})),
+      ),
+    );
+    addTearDown(portfolioQuoteController.dispose);
+    addTearDown(sessionController.dispose);
+
+    await tester.pumpWidget(
+      StockExchangeApp(
+        sessionController: sessionController,
+        portfolioQuoteController: portfolioQuoteController,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_navigationDestination('Portfolio'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Refresh').first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Signed in as hana'), findsOneWidget);
+    expect(find.text('NAVER'), findsOneWidget);
+    expect(
+      find.text('Cache FRESH_CACHE / account REST snapshot'),
+      findsOneWidget,
+    );
+  });
 }
 
 Finder _navigationDestination(String label) {
