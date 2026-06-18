@@ -97,6 +97,12 @@ class MarketScreen extends StatelessWidget {
         _SearchField(),
         _MarketFilters(),
         _StatusStrip(),
+        _InfoPanel(
+          icon: Icons.currency_exchange,
+          title: 'FX applied',
+          body: 'USD prices use the latest KRW/USD rate from Stock-exchange-BE.',
+          meta: 'FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API',
+        ),
         _QuoteRow(
           symbol: '005930',
           name: 'Samsung Electronics',
@@ -112,12 +118,6 @@ class MarketScreen extends StatelessWidget {
           priceUsd: 'USD 120.41',
           change: '-0.38%',
           badge: 'Portfolio',
-        ),
-        _InfoPanel(
-          icon: Icons.currency_exchange,
-          title: 'FX applied',
-          body: 'USD prices use the latest KRW/USD rate from Stock-exchange-BE.',
-          meta: 'FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API',
         ),
       ],
     );
