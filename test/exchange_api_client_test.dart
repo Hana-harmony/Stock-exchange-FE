@@ -61,7 +61,7 @@ void main() {
         expect(request.url.path, '/api/v1/market/quotes');
         expect(request.url.queryParameters['market'], 'KOSPI');
         expect(request.url.queryParameters['currency'], 'USD');
-        expect(request.url.queryParameters['limit'], '20');
+        expect(request.url.queryParameters.containsKey('limit'), isFalse);
         expect(_header(request, 'authorization'), 'Bearer access-token');
 
         return _jsonResponse({
@@ -87,7 +87,6 @@ void main() {
     final response = await client.getMarketQuotes(
       market: 'KOSPI',
       currency: 'USD',
-      limit: 20,
     );
 
     expect(response.status, 200);
