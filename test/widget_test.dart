@@ -243,7 +243,7 @@ void main() {
     expect(find.text('Signed in as hana'), findsOneWidget);
     expect(find.text('NAVER'), findsOneWidget);
     expect(
-      find.text('Cache FRESH_CACHE / account REST snapshot'),
+      find.text('Cache FRESH_CACHE / account REST + WebSocket'),
       findsOneWidget,
     );
   });
