@@ -202,7 +202,7 @@ class ExchangeApiClient {
   }) {
     return post<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/deposits',
-      body: {'amount': amount},
+      body: {'amountUsd': amount},
     );
   }
 
