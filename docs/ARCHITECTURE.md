@@ -44,6 +44,7 @@
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope(`success/status/code/message/data`)를 파싱하고, bearer auth session header를 REST 요청에 적용한다.
 - Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이를 관리하고, `ExchangeSessionStore` 경계를 통해 session 저장소를 분리한다.
+- `SecureExchangeSessionStore`는 운영 앱 기본 session 저장소이며 `flutter_secure_storage`에 bearer token session을 JSON으로 보관한다.
 - `AccountController`는 Stock-exchange-BE account REST 조회와 mock USD deposit 상태를 관리한다.
 - `TradeController`는 Stock-exchange-BE orderability, mock trade execution, portfolio REST 상태를 관리한다.
 - `TaxController`는 Stock-exchange-BE `GET /api/v1/accounts/{accountId}/tax/refund-status`를 조회해 세무 케이스, 정부 검증 상태, 참조번호, 예상 환급 금액을 관리한다.
@@ -58,5 +59,5 @@
 - `MarketQuoteController`는 WebSocket onDone/onError 시 마지막 구독 조건을 유지하고 backoff 지연 후 동일 topic을 재구독하며, 사용자가 `Stop`을 누르면 재연결 timer를 중단한다.
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic을 구독한다.
 - Tax 화면은 bearer auth session의 accountId로 refund status를 조회하고, caseId를 정부 검증 참조번호로 표시하며, 원천징수세 대비 조세조약세와 환급 가능분 비중을 시각화한다.
-- 현재 저장소 구현은 테스트와 앱 하네스용 memory store이며, 운영 token secure storage는 후속 구현 대상이다.
-- token secure storage, iOS/Android 플랫폼 세부 설정은 미구현이다.
+- 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.
+- iOS/Android 플랫폼 세부 설정은 미구현이다.
