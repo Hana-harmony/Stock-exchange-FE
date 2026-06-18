@@ -18,7 +18,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const StockExchangeApp());
+    await tester.pumpWidget(_stockExchangeTestApp());
     await tester.pumpAndSettle();
 
     expect(find.text('Hana Local Exchange'), findsOneWidget);
@@ -38,7 +38,7 @@ void main() {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(const StockExchangeApp());
+    await tester.pumpWidget(_stockExchangeTestApp());
     await tester.pumpAndSettle();
 
     await tester.tap(_navigationDestination('Portfolio'));
@@ -200,7 +200,7 @@ void main() {
     addTearDown(marketQuoteController.dispose);
 
     await tester.pumpWidget(
-      StockExchangeApp(marketQuoteController: marketQuoteController),
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Refresh'));
@@ -325,7 +325,7 @@ void main() {
     addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
-      StockExchangeApp(marketDetailController: marketDetailController),
+      _stockExchangeTestApp(marketDetailController: marketDetailController),
     );
     await tester.pumpAndSettle();
 
@@ -711,6 +711,17 @@ void main() {
 Finder _navigationDestination(String label) {
   return find.byWidgetPredicate(
     (widget) => widget is NavigationDestination && widget.label == label,
+  );
+}
+
+StockExchangeApp _stockExchangeTestApp({
+  MarketDetailController? marketDetailController,
+  MarketQuoteController? marketQuoteController,
+}) {
+  return StockExchangeApp(
+    sessionStore: MemoryExchangeSessionStore(),
+    marketDetailController: marketDetailController,
+    marketQuoteController: marketQuoteController,
   );
 }
 

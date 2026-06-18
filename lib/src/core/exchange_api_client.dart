@@ -38,6 +38,18 @@ class AuthSession {
         'Authorization': '$tokenType $accessToken',
       };
 
+  Map<String, Object?> toJson() {
+    return {
+      'username': username,
+      'accountId': accountId,
+      'tokenType': tokenType,
+      'accessToken': accessToken,
+      'refreshToken': refreshToken,
+      'accessTokenExpiresAt': accessTokenExpiresAt?.toUtc().toIso8601String(),
+      'refreshTokenExpiresAt': refreshTokenExpiresAt?.toUtc().toIso8601String(),
+    };
+  }
+
   static AuthSession fromJson(Map<String, dynamic> json) {
     return AuthSession(
       username: json['username'] as String,
