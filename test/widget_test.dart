@@ -10,6 +10,7 @@ import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/core/notification_controller.dart';
 import 'package:stock_exchange_fe/src/core/tax_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 
@@ -52,7 +53,8 @@ void main() {
       find.text('AI translated news and disclosures for your stocks.'),
       findsOneWidget,
     );
-    expect(find.text('Original link / My Portfolio / High importance'), findsOneWidget);
+    expect(find.text('Integrated alert inbox'), findsOneWidget);
+    expect(find.text('Sign in to load watchlist and portfolio alerts.'), findsOneWidget);
 
     await tester.tap(_navigationDestination('Tax'));
     await tester.pumpAndSettle();
@@ -713,6 +715,76 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('renders alert inbox and K-News feed after sign in', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1600));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = MemoryExchangeSessionStore();
+    await store.write(
+      const AuthSession(
+        username: 'hana',
+        accountId: 'ACC-ABC123456789',
+        tokenType: 'Bearer',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final sessionController = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({})),
+      ),
+    );
+    final notificationController = NotificationController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        sessionProvider: () => sessionController.session,
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/notifications')) {
+            return _jsonEnvelope(_notificationInboxJson());
+          }
+          if (request.url.path.endsWith('/intelligence')) {
+            return _jsonEnvelope(_stockIntelligenceJson());
+          }
+          if (request.url.path.endsWith('/read')) {
+            return _jsonEnvelope(_readNotificationJson());
+          }
+          return _jsonEnvelope({});
+        }),
+      ),
+    );
+    addTearDown(sessionController.dispose);
+    addTearDown(notificationController.dispose);
+
+    await sessionController.restore();
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        sessionController: sessionController,
+        notificationController: notificationController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(_navigationDestination('Alerts'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Integrated alert inbox'), findsOneWidget);
+    expect(find.text('Samsung disclosure translated'), findsOneWidget);
+    expect(find.text('K-News intelligence feed'), findsOneWidget);
+    expect(find.text('Samsung earnings improve'), findsOneWidget);
+    expect(find.text('https://dart.fss.or.kr/report'), findsOneWidget);
+
+    await tester.tap(find.text('Watchlist'));
+    await tester.pumpAndSettle();
+    expect(find.text('Samsung disclosure translated'), findsOneWidget);
+
+    await tester.tap(find.text('Read'));
+    await tester.pumpAndSettle();
+
+    expect(notificationController.value.inbox?.unreadCount, 0);
+  });
 }
 
 Finder _navigationDestination(String label) {
@@ -722,13 +794,25 @@ Finder _navigationDestination(String label) {
 }
 
 StockExchangeApp _stockExchangeTestApp({
+  ExchangeSessionController? sessionController,
+  AccountController? accountController,
+  TradeController? tradeController,
   MarketDetailController? marketDetailController,
   MarketQuoteController? marketQuoteController,
+  MarketQuoteController? portfolioQuoteController,
+  NotificationController? notificationController,
+  TaxController? taxController,
 }) {
   return StockExchangeApp(
     sessionStore: MemoryExchangeSessionStore(),
+    sessionController: sessionController,
+    accountController: accountController,
+    tradeController: tradeController,
     marketDetailController: marketDetailController,
     marketQuoteController: marketQuoteController,
+    portfolioQuoteController: portfolioQuoteController,
+    notificationController: notificationController,
+    taxController: taxController,
   );
 }
 
@@ -738,6 +822,17 @@ http.Response _jsonResponse(Map<String, Object?> body) {
     200,
     headers: {'content-type': 'application/json'},
   );
+}
+
+http.Response _jsonEnvelope(Map<String, Object?> data) {
+  return _jsonResponse({
+    'success': true,
+    'status': 200,
+    'code': 'COMMON_000',
+    'message': 'OK',
+    'data': data,
+    'timestamp': '2026-06-18T06:00:00Z',
+  });
 }
 
 Map<String, Object?> _tradeJson() {
@@ -818,5 +913,75 @@ Map<String, Object?> _taxCaseJson() {
     'dataSource': 'EXCHANGE_MOCK_LEDGER_REALIZED_PNL',
     'createdAt': '2026-06-18T06:00:00Z',
     'updatedAt': '2026-06-18T06:30:00Z',
+  };
+}
+
+Map<String, Object?> _notificationInboxJson() {
+  return {
+    'accountId': 'ACC-ABC123456789',
+    'unreadCount': 1,
+    'totalCount': 1,
+    'notifications': [
+      {
+        'notificationId': 'NTF-ABC123456789',
+        'eventId': 'ALERT-1',
+        'subjectType': 'STOCK',
+        'subjectId': '005930',
+        'sourceType': 'DISCLOSURE',
+        'title': 'Samsung disclosure translated',
+        'summary': 'AI summary with sentiment and importance.',
+        'originalUrl': 'https://dart.fss.or.kr/report',
+        'primaryStockCode': '005930',
+        'matchedStockCodes': ['005930'],
+        'matchReasons': ['WATCHLIST'],
+        'deliveryStatus': 'DELIVERED',
+        'deliveryProvider': 'LOCAL_INBOX',
+        'deliveryAttemptCount': 1,
+        'deliveredAt': '2026-06-18T06:00:00Z',
+        'lastDeliveryError': null,
+        'read': false,
+        'createdAt': '2026-06-18T06:00:00Z',
+        'readAt': null,
+      }
+    ],
+    'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _readNotificationJson() {
+  final notifications =
+      _notificationInboxJson()['notifications'] as List<Object?>;
+  return {
+    ...(notifications.single as Map<String, Object?>),
+    'read': true,
+    'readAt': '2026-06-18T06:02:00Z',
+  };
+}
+
+Map<String, Object?> _stockIntelligenceJson() {
+  return {
+    'stockCode': '005930',
+    'dataSource': 'ALERT_EVENT_STORE',
+    'itemCount': 1,
+    'items': [
+      {
+        'eventId': 'ALERT-1',
+        'sourceType': 'NEWS',
+        'title': 'Samsung earnings improve',
+        'summary': 'Translated three-line summary.',
+        'originalUrl': 'https://news.example.com/1',
+        'primaryStockCode': '005930',
+        'relatedStocks': ['005930'],
+        'sentiment': 'POSITIVE',
+        'importance': 'HIGH',
+        'riskLevel': 'LOW',
+        'watchlistTarget': true,
+        'holderTarget': false,
+        'publishedAt': '2026-06-18T05:55:00Z',
+        'receivedAt': '2026-06-18T06:00:00Z',
+        'targetCount': 1,
+      }
+    ],
+    'servedAt': '2026-06-18T06:01:00Z',
   };
 }
