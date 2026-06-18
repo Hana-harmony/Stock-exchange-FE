@@ -137,6 +137,47 @@ void main() {
     await controller.unsubscribeLive();
     expect(connection.closed, isTrue);
   });
+
+  test('reconnects live WebSocket with backoff after remote close', () async {
+    final connections = <_FakeQuoteSocketConnection>[];
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async => _jsonResponse({})),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          final connection = _FakeQuoteSocketConnection();
+          connections.add(connection);
+          return connection;
+        },
+      ),
+      liveReconnectDelays: const [Duration.zero],
+      seedQuotes: seedMarketQuotes,
+    );
+
+    await controller.subscribeLive(market: 'KOSPI');
+    expect(connections.length, 1);
+
+    await connections.first.closeRemote();
+    await Future<void>.delayed(Duration.zero);
+    expect(
+      controller.value.liveMessage,
+      'Quote WebSocket closed. Reconnecting quote WebSocket in 0s.',
+    );
+
+    await Future<void>.delayed(Duration.zero);
+    expect(connections.length, 2);
+
+    connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    connections.last.emit('MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
+        '${jsonEncode(_tickJson())}\u0000');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.value.liveStatus, MarketQuoteLiveStatus.live);
+    expect(controller.value.liveMessage, 'Live tick 005930 received.');
+
+    await controller.unsubscribeLive();
+    expect(connections.last.closed, isTrue);
+  });
 }
 
 Map<String, Object?> _tickJson() {
@@ -230,6 +271,10 @@ class _FakeQuoteSocketConnection implements QuoteSocketConnection {
 
   void emit(String message) {
     _streamController.add(message);
+  }
+
+  Future<void> closeRemote() async {
+    await _streamController.close();
   }
 
   @override
