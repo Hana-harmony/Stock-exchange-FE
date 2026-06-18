@@ -10,6 +10,7 @@
 | Flutter Web 운영 서비스 | Out of scope | Out of scope |
 | English 기본 UI | Stock-exchange-FE | Partial |
 | USD 기본 표시·충전·모의 주문 화폐 | Stock-exchange-FE | Partial |
+| Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Partial |
 
 ## 1. 한국 주식 주문 지원
 

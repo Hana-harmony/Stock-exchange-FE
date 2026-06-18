@@ -22,7 +22,8 @@ flutter test
 - Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
 - Alerts 화면은 AI 번역 뉴스·공시, 원문 링크, My Portfolio/Watchlist 필터 영역을 가진다.
 - Tax 화면은 서류 상태, 환급 추정, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
-- API client, WebSocket client, 인증 세션, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
+- `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope와 bearer auth session header를 처리한다.
+- API client 화면 바인딩, WebSocket client, token secure storage, 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
 
 ## 범위
 - 한국 주식 종목 검색과 종목 상세 화면

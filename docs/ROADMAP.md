@@ -7,7 +7,7 @@
 - iOS target 설정
 - Android target 설정
 - 라우팅과 전역 레이아웃: Partial
-- API client와 인증 세션 연동
+- API client와 인증 세션 연동: Partial
 - English 기본 UI와 USD 표시/충전 기준: Partial
 - 디자인 토큰과 공통 컴포넌트: Partial
 - Flutter lint, widget test, integration test 하네스: Partial
