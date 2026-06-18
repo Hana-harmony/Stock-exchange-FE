@@ -12,6 +12,10 @@ void main() {
     expect(find.text('WebSocket live'), findsOneWidget);
     expect(find.text('REST snapshot ready'), findsOneWidget);
     expect(find.text('USD 54.00'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API'),
+      120,
+    );
     expect(
       find.text('FX 2026-06-18 06:00 UTC / source Hana-OmniLens-API'),
       findsOneWidget,
