@@ -37,7 +37,7 @@ flutter test
 - Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 KRW 가격과 USD 환산 가격, 외국인 한도, VI/상·하한가 상태를 표시한다.
 - Tax 화면은 bearer auth session의 accountId로 세무 환급 상태를 조회하고, 정부 검증 상태/참조번호와 원천징수세 대비 조세조약세·환급 가능분 비중을 표시한다.
 - 앱 기본 session 저장소는 `flutter_secure_storage` 기반 token secure storage를 사용한다.
-- 실제 iOS/Android 플랫폼 target 세부 설정은 후속 구현 대상이다.
+- 실제 iOS/Android 플랫폼 target 디렉터리와 앱 ID, 권한, display name 기본 설정이 존재한다.
 
 ## 범위
 - 한국 주식 종목 검색과 종목 상세 화면

@@ -5,8 +5,8 @@
 | 항목 | 책임 | 상태 |
 | --- | --- | --- |
 | Flutter 앱 하네스 | Stock-exchange-FE | Done |
-| Flutter 기반 iOS 앱 | Stock-exchange-FE | Planned |
-| Flutter 기반 Android 앱 | Stock-exchange-FE | Planned |
+| Flutter 기반 iOS 앱 target 설정 | Stock-exchange-FE | Done |
+| Flutter 기반 Android 앱 target 설정 | Stock-exchange-FE | Done |
 | Flutter Web 운영 서비스 | Out of scope | Out of scope |
 | English 기본 UI | Stock-exchange-FE | Partial |
 | USD 기본 표시·충전·모의 주문 화폐 | Stock-exchange-FE | Partial |

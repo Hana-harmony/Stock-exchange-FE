@@ -60,4 +60,4 @@
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic을 구독한다.
 - Tax 화면은 bearer auth session의 accountId로 refund status를 조회하고, caseId를 정부 검증 참조번호로 표시하며, 원천징수세 대비 조세조약세와 환급 가능분 비중을 시각화한다.
 - 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.
-- iOS/Android 플랫폼 세부 설정은 미구현이다.
+- iOS/Android 플랫폼 target 디렉터리와 앱 ID, display name, Android network/push 권한, iOS Runner/Podfile 기본 설정이 존재한다.

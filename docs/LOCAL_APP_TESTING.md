@@ -12,7 +12,7 @@ flutter test
 
 ## iOS Simulator
 
-macOS와 Xcode가 필요하다.
+macOS와 Xcode가 필요하다. `ios/Runner.xcworkspace`와 `ios/Runner.xcodeproj`는 저장소에 포함되어 있으며, CocoaPods 설정은 `ios/Podfile`을 기준으로 한다.
 
 ```bash
 open -a Simulator
@@ -22,7 +22,7 @@ flutter run -d ios
 
 ## Android Emulator
 
-Android Studio 또는 Android SDK/Emulator가 필요하다.
+Android Studio 또는 Android SDK/Emulator가 필요하다. `android/app` target은 `com.hanaharmony.stockexchange` application id와 인터넷/알림 권한을 포함한다.
 
 ```bash
 flutter devices
