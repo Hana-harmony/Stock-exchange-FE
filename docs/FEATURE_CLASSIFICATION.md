@@ -11,6 +11,7 @@
 | English 기본 UI | Stock-exchange-FE | Partial |
 | USD 기본 표시·충전·모의 주문 화폐 | Stock-exchange-FE | Partial |
 | Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Partial |
+| 인증 세션 controller와 session store 경계 | Stock-exchange-FE | Partial |
 
 ## 1. 한국 주식 주문 지원
 
@@ -25,7 +26,7 @@
 | 종목 상세 현재가와 원화 기준 가격 | Stock-exchange-FE | Planned |
 | 외국인 투자한도 게이지와 당일 예상 범위 | Stock-exchange-FE | Planned |
 | VI 발동, 단일가 매매, 상·하한가 배지 | Stock-exchange-FE | Planned |
-| 아이디/비밀번호 회원가입과 로그인 | Stock-exchange-FE | Planned |
+| 아이디/비밀번호 회원가입과 로그인 | Stock-exchange-FE | Partial |
 | mock USD 계좌 잔고와 실제 결제 없는 달러 충전 화면 | Stock-exchange-FE | Partial |
 | 자체 mock ledger 모의 주문 패드와 주문 제한 안내 팝업 | Stock-exchange-FE | Planned |
 | 매도 내역과 실현손익 표시 | Stock-exchange-FE | Partial |
