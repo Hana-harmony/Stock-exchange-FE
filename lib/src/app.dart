@@ -7,6 +7,7 @@ import 'core/exchange_session_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_quote_controller.dart';
 import 'core/market_quote_live_client.dart';
+import 'core/secure_exchange_session_store.dart';
 import 'core/tax_controller.dart';
 import 'core/trade_controller.dart';
 
@@ -21,6 +22,7 @@ class StockExchangeApp extends StatelessWidget {
     this.watchlistQuoteController,
     this.portfolioQuoteController,
     this.taxController,
+    this.sessionStore,
   });
 
   final ExchangeSessionController? sessionController;
@@ -31,6 +33,7 @@ class StockExchangeApp extends StatelessWidget {
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
   final TaxController? taxController;
+  final ExchangeSessionStore? sessionStore;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +54,7 @@ class StockExchangeApp extends StatelessWidget {
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
         taxController: taxController,
+        sessionStore: sessionStore,
       ),
     );
   }
@@ -67,6 +71,7 @@ class ExchangeShell extends StatefulWidget {
     this.watchlistQuoteController,
     this.portfolioQuoteController,
     this.taxController,
+    this.sessionStore,
   });
 
   final ExchangeSessionController? sessionController;
@@ -77,6 +82,7 @@ class ExchangeShell extends StatefulWidget {
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
   final TaxController? taxController;
+  final ExchangeSessionStore? sessionStore;
 
   @override
   State<ExchangeShell> createState() => _ExchangeShellState();
@@ -128,7 +134,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   ExchangeSessionController _createSessionController() {
     return ExchangeSessionController(
       apiClient: _apiClient,
-      sessionStore: MemoryExchangeSessionStore(),
+      sessionStore: widget.sessionStore ?? SecureExchangeSessionStore(),
     );
   }
 

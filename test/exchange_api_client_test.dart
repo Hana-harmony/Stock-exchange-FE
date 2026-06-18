@@ -45,6 +45,28 @@ void main() {
     expect(session.accessTokenExpiresAt?.toUtc().year, 2026);
   });
 
+  test('auth session serializes for secure session storage', () {
+    final session = AuthSession.fromJson({
+      'username': 'hana',
+      'accountId': 'ACC-ABC123456789',
+      'tokenType': 'Bearer',
+      'accessToken': 'access-token',
+      'refreshToken': 'refresh-token',
+      'accessTokenExpiresAt': '2026-06-18T07:00:00Z',
+      'refreshTokenExpiresAt': '2026-06-19T07:00:00Z',
+    });
+
+    expect(session.toJson(), {
+      'username': 'hana',
+      'accountId': 'ACC-ABC123456789',
+      'tokenType': 'Bearer',
+      'accessToken': 'access-token',
+      'refreshToken': 'refresh-token',
+      'accessTokenExpiresAt': '2026-06-18T07:00:00.000Z',
+      'refreshTokenExpiresAt': '2026-06-19T07:00:00.000Z',
+    });
+  });
+
   test('market quote snapshot sends query and bearer token', () async {
     const session = AuthSession(
       username: 'hana',
