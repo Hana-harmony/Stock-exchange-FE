@@ -122,6 +122,44 @@ void main() {
       ),
     );
   });
+
+  test('account scoped quote snapshots send market and bearer token', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final paths = <String>[];
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        paths.add(request.url.path);
+        expect(request.url.queryParameters['market'], 'KOSPI');
+        expect(request.url.queryParameters['currency'], 'USD');
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {'quotes': []},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await client.getWatchlistQuotes('ACC-ABC123456789', market: 'KOSPI');
+    await client.getPortfolioQuotes('ACC-ABC123456789', market: 'KOSPI');
+
+    expect(paths, [
+      '/api/v1/accounts/ACC-ABC123456789/market/quotes/watchlist',
+      '/api/v1/accounts/ACC-ABC123456789/market/quotes/portfolio',
+    ]);
+  });
 }
 
 String? _header(http.Request request, String name) {

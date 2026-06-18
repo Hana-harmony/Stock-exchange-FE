@@ -56,8 +56,54 @@ void main() {
     await controller.loadSnapshot();
 
     expect(controller.value.status, MarketQuoteStatus.failure);
-    expect(controller.value.errorMessage, 'Hana OmniLens market upstream unavailable');
+    expect(
+      controller.value.errorMessage,
+      'Hana OmniLens market upstream unavailable',
+    );
     expect(controller.value.quotes, seedMarketQuotes);
+  });
+
+  test('requires sign in before account scoped snapshots', () async {
+    var requestCount = 0;
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async {
+        requestCount++;
+        return _jsonResponse({});
+      }),
+    );
+
+    await controller.loadPortfolioSnapshot(accountId: null);
+    await controller.loadWatchlistSnapshot(accountId: '');
+
+    expect(requestCount, 0);
+    expect(controller.value.status, MarketQuoteStatus.failure);
+    expect(controller.value.errorMessage, 'Sign in to load watchlist quotes.');
+  });
+
+  test('loads portfolio quote snapshot for signed-in account', () async {
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async {
+        expect(
+          request.url.path,
+          '/api/v1/accounts/ACC-ABC123456789/market/quotes/portfolio',
+        );
+        expect(request.url.queryParameters['currency'], 'USD');
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _snapshotJson(stockName: 'NAVER', stockCode: '035420'),
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await controller.loadPortfolioSnapshot(accountId: 'ACC-ABC123456789');
+
+    expect(controller.value.status, MarketQuoteStatus.loaded);
+    expect(controller.value.quotes.single.stockName, 'NAVER');
   });
 }
 
@@ -70,7 +116,10 @@ ExchangeApiClient _client(
   );
 }
 
-Map<String, Object?> _snapshotJson() {
+Map<String, Object?> _snapshotJson({
+  String stockName = 'Samsung Electronics',
+  String stockCode = '005930',
+}) {
   return {
     'dataSource': 'Hana-OmniLens-API',
     'marketCoverage': 'KOSPI',
@@ -90,8 +139,8 @@ Map<String, Object?> _snapshotJson() {
     'quoteCount': 1,
     'quotes': [
       {
-        'stockCode': '005930',
-        'stockName': 'Samsung Electronics',
+        'stockCode': stockCode,
+        'stockName': stockName,
         'market': 'KOSPI',
         'currentPriceKrw': '82400',
         'changeRate': '+1.23%',
