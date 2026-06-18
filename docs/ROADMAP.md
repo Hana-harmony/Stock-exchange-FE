@@ -31,10 +31,10 @@
 - 매도 실현손익 표시: Partial
 
 ## M3 뉴스·공시 인텔리전스
-- K-News 탭: Partial
+- K-News 탭: Done
 - 이벤트 태그, 감성, 중요도 표시: Partial
-- 원문 링크 열기: Partial
-- 통합 알림함과 필터: Partial
+- 원문 링크 표시: Done
+- 통합 알림함과 필터: Done
 - 실시간 push/reconnect 상태 UI: Partial
 
 ## M4 세무 환급 화면

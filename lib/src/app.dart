@@ -7,6 +7,7 @@ import 'core/exchange_session_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_quote_controller.dart';
 import 'core/market_quote_live_client.dart';
+import 'core/notification_controller.dart';
 import 'core/secure_exchange_session_store.dart';
 import 'core/tax_controller.dart';
 import 'core/trade_controller.dart';
@@ -21,6 +22,7 @@ class StockExchangeApp extends StatelessWidget {
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
+    this.notificationController,
     this.taxController,
     this.sessionStore,
   });
@@ -32,6 +34,7 @@ class StockExchangeApp extends StatelessWidget {
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
+  final NotificationController? notificationController;
   final TaxController? taxController;
   final ExchangeSessionStore? sessionStore;
 
@@ -53,6 +56,7 @@ class StockExchangeApp extends StatelessWidget {
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
+        notificationController: notificationController,
         taxController: taxController,
         sessionStore: sessionStore,
       ),
@@ -70,6 +74,7 @@ class ExchangeShell extends StatefulWidget {
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
+    this.notificationController,
     this.taxController,
     this.sessionStore,
   });
@@ -81,6 +86,7 @@ class ExchangeShell extends StatefulWidget {
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
+  final NotificationController? notificationController;
   final TaxController? taxController;
   final ExchangeSessionStore? sessionStore;
 
@@ -100,6 +106,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final MarketQuoteController _marketQuoteController;
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
+  late final NotificationController _notificationController;
   late final TaxController _taxController;
 
   @override
@@ -118,6 +125,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
         widget.watchlistQuoteController ?? _createAccountQuoteController();
     _portfolioQuoteController =
         widget.portfolioQuoteController ?? _createAccountQuoteController();
+    _notificationController =
+        widget.notificationController ?? _createNotificationController();
     _taxController = widget.taxController ?? _createTaxController();
     _sessionController.restore();
   }
@@ -169,6 +178,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return TaxController(apiClient: _apiClient);
   }
 
+  NotificationController _createNotificationController() {
+    return NotificationController(apiClient: _apiClient);
+  }
+
   @override
   void dispose() {
     if (widget.sessionController == null) {
@@ -191,6 +204,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.portfolioQuoteController == null) {
       _portfolioQuoteController.dispose();
+    }
+    if (widget.notificationController == null) {
+      _notificationController.dispose();
     }
     if (widget.taxController == null) {
       _taxController.dispose();
@@ -227,7 +243,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
               watchlistQuoteController: _watchlistQuoteController,
               portfolioQuoteController: _portfolioQuoteController,
             ),
-            const AlertsScreen(),
+            AlertsScreen(
+              sessionController: _sessionController,
+              notificationController: _notificationController,
+            ),
             TaxScreen(
               sessionController: _sessionController,
               taxController: _taxController,
@@ -361,27 +380,53 @@ class PortfolioScreen extends StatelessWidget {
   }
 }
 
-class AlertsScreen extends StatelessWidget {
-  const AlertsScreen({super.key});
+class AlertsScreen extends StatefulWidget {
+  const AlertsScreen({
+    super.key,
+    required this.sessionController,
+    required this.notificationController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final NotificationController notificationController;
+
+  @override
+  State<AlertsScreen> createState() => _AlertsScreenState();
+}
+
+class _AlertsScreenState extends State<AlertsScreen> {
+  @override
+  void initState() {
+    super.initState();
+    widget.sessionController.addListener(_loadSignedInAlerts);
+    _loadSignedInAlerts();
+  }
+
+  @override
+  void dispose() {
+    widget.sessionController.removeListener(_loadSignedInAlerts);
+    super.dispose();
+  }
+
+  void _loadSignedInAlerts() {
+    final accountId = widget.sessionController.session?.accountId;
+    if (accountId != null && accountId.isNotEmpty) {
+      widget.notificationController.loadAlerts(accountId: accountId);
+    } else {
+      widget.notificationController.clear();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const _ScreenFrame(
+    return _ScreenFrame(
       title: 'Alerts',
       subtitle: 'AI translated news and disclosures for your stocks.',
       children: [
-        _AlertFilters(),
-        _InfoPanel(
-          icon: Icons.article_outlined,
-          title: 'Samsung disclosure translated',
-          body: 'AI summary, sentiment, importance, and event tags appear here.',
-          meta: 'Original link / My Portfolio / High importance',
-        ),
-        _InfoPanel(
-          icon: Icons.link,
-          title: 'K-News timeline',
-          body: 'Watchlist and portfolio filters keep real-time push alerts focused.',
-          meta: 'All / My Portfolio / Watchlist',
+        _SessionStatusPanel(sessionController: widget.sessionController),
+        _AlertInboxPanel(
+          sessionController: widget.sessionController,
+          notificationController: widget.notificationController,
         ),
       ],
     );
@@ -984,22 +1029,268 @@ class _MarketFilters extends StatelessWidget {
   }
 }
 
-class _AlertFilters extends StatelessWidget {
-  const _AlertFilters();
+class _AlertInboxPanel extends StatelessWidget {
+  const _AlertInboxPanel({
+    required this.sessionController,
+    required this.notificationController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final NotificationController notificationController;
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 12),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          ChoiceChip(label: Text('All'), selected: true),
-          ChoiceChip(label: Text('My Portfolio'), selected: false),
-          ChoiceChip(label: Text('Watchlist'), selected: false),
-        ],
+    return ValueListenableBuilder<ExchangeSessionState>(
+      valueListenable: sessionController,
+      builder: (context, sessionState, _) {
+        return ValueListenableBuilder<NotificationState>(
+          valueListenable: notificationController,
+          builder: (context, alertState, _) {
+            final accountId = sessionState.session?.accountId;
+            final isSignedIn = accountId != null && accountId.isNotEmpty;
+            final isLoading = alertState.status == NotificationStatus.loading;
+            final inbox = alertState.inbox;
+            final feed = alertState.feed;
+            final filteredNotifications = alertState.filteredNotifications;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.surface,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(Icons.notifications_active_outlined),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Integrated alert inbox',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          IconButton(
+                            tooltip: 'Refresh alerts',
+                            onPressed: isSignedIn && !isLoading
+                                ? () => notificationController.loadAlerts(
+                                      accountId: accountId,
+                                    )
+                                : null,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      _AlertFilters(
+                        selectedFilter: alertState.selectedFilter,
+                        onSelected: notificationController.setFilter,
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 16,
+                        runSpacing: 8,
+                        children: [
+                          _Metric(
+                            label: 'Unread',
+                            value: '${inbox?.unreadCount ?? 0}',
+                          ),
+                          _Metric(
+                            label: 'Total',
+                            value: '${inbox?.totalCount ?? 0}',
+                          ),
+                          _Metric(
+                            label: 'K-News',
+                            value: '${feed?.itemCount ?? 0}',
+                          ),
+                        ],
+                      ),
+                      if (!isSignedIn) ...[
+                        const SizedBox(height: 12),
+                        const Text('Sign in to load watchlist and portfolio alerts.'),
+                      ] else if (isLoading) ...[
+                        const SizedBox(height: 12),
+                        const LinearProgressIndicator(),
+                      ] else if (alertState.status == NotificationStatus.failure) ...[
+                        const SizedBox(height: 12),
+                        Text(alertState.errorMessage ?? 'Unable to load alerts.'),
+                      ],
+                      const SizedBox(height: 12),
+                      if (filteredNotifications.isEmpty)
+                        const Text('No alert notifications for this filter.')
+                      else
+                        ...filteredNotifications
+                            .take(4)
+                            .map((item) => _NotificationRow(
+                                  accountId: accountId,
+                                  item: item,
+                                  notificationController: notificationController,
+                                )),
+                      const SizedBox(height: 12),
+                      _StockIntelligencePanel(feed: feed),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _AlertFilters extends StatelessWidget {
+  const _AlertFilters({
+    required this.selectedFilter,
+    required this.onSelected,
+  });
+
+  final NotificationFilter selectedFilter;
+  final ValueChanged<NotificationFilter> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: NotificationFilter.values
+          .map(
+            (filter) => ChoiceChip(
+              label: Text(filter.label),
+              selected: selectedFilter == filter,
+              onSelected: (_) => onSelected(filter),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _NotificationRow extends StatelessWidget {
+  const _NotificationRow({
+    required this.accountId,
+    required this.item,
+    required this.notificationController,
+  });
+
+  final String? accountId;
+  final NotificationItem item;
+  final NotificationController notificationController;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                item.read
+                    ? Icons.mark_email_read_outlined
+                    : Icons.mark_email_unread,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      item.title,
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(item.summary),
+                    const SizedBox(height: 8),
+                    Text(
+                      '${item.sourceType} / ${item.targetLabel} / ${item.primaryStockCode}',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                    if (item.originalUrl.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        item.originalUrl,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.primary,
+                            ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: item.read || accountId == null
+                    ? null
+                    : () => notificationController.markRead(
+                          accountId: accountId,
+                          notificationId: item.notificationId,
+                        ),
+                child: const Text('Read'),
+              ),
+            ],
+          ),
+        ),
       ),
+    );
+  }
+}
+
+class _StockIntelligencePanel extends StatelessWidget {
+  const _StockIntelligencePanel({required this.feed});
+
+  final StockIntelligenceFeed? feed;
+
+  @override
+  Widget build(BuildContext context) {
+    final items = feed?.items ?? const <StockIntelligenceItem>[];
+    if (items.isEmpty) {
+      return const Text('No K-News intelligence feed yet.');
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'K-News intelligence feed',
+          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+        ),
+        const SizedBox(height: 8),
+        ...items.take(3).map(
+              (item) => _InfoPanel(
+                icon: Icons.article_outlined,
+                title: item.title,
+                body: item.summary,
+                meta: '${item.importance} / ${item.sentiment} / '
+                    '${item.targetLabel} / ${item.originalUrl}',
+              ),
+            ),
+      ],
     );
   }
 }
