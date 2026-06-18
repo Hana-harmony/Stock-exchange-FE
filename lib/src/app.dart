@@ -94,6 +94,7 @@ class MarketScreen extends StatelessWidget {
       title: 'Korea Market',
       subtitle: 'Live KRX quotes with KRW and USD pricing.',
       children: [
+        _SessionStatusPanel(),
         _SearchField(),
         _MarketFilters(),
         _StatusStrip(),
@@ -133,6 +134,7 @@ class PortfolioScreen extends StatelessWidget {
       title: 'Portfolio',
       subtitle: 'Mock USD trading ledger. No real order is sent.',
       children: [
+        _SessionStatusPanel(),
         _BalancePanel(),
         _QuoteRow(
           symbol: '035420',
@@ -244,6 +246,45 @@ class _ScreenFrame extends StatelessWidget {
         const SizedBox(height: 16),
         ...children,
       ],
+    );
+  }
+}
+
+class _SessionStatusPanel extends StatelessWidget {
+  const _SessionStatusPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surface,
+        ),
+        child: const Padding(
+          padding: EdgeInsets.all(14),
+          child: Row(
+            children: [
+              Icon(Icons.lock_outline, size: 20),
+              SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Sign in with username and password'),
+                    SizedBox(height: 4),
+                    Text('Session uses bearer auth from Stock-exchange-BE.'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
