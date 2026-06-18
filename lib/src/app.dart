@@ -7,6 +7,7 @@ import 'core/exchange_session_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_quote_controller.dart';
 import 'core/market_quote_live_client.dart';
+import 'core/tax_controller.dart';
 import 'core/trade_controller.dart';
 
 class StockExchangeApp extends StatelessWidget {
@@ -19,6 +20,7 @@ class StockExchangeApp extends StatelessWidget {
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
+    this.taxController,
   });
 
   final ExchangeSessionController? sessionController;
@@ -28,6 +30,7 @@ class StockExchangeApp extends StatelessWidget {
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
+  final TaxController? taxController;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +50,7 @@ class StockExchangeApp extends StatelessWidget {
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
+        taxController: taxController,
       ),
     );
   }
@@ -62,6 +66,7 @@ class ExchangeShell extends StatefulWidget {
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
+    this.taxController,
   });
 
   final ExchangeSessionController? sessionController;
@@ -71,6 +76,7 @@ class ExchangeShell extends StatefulWidget {
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
+  final TaxController? taxController;
 
   @override
   State<ExchangeShell> createState() => _ExchangeShellState();
@@ -88,6 +94,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final MarketQuoteController _marketQuoteController;
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
+  late final TaxController _taxController;
 
   @override
   void initState() {
@@ -105,6 +112,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
         widget.watchlistQuoteController ?? _createAccountQuoteController();
     _portfolioQuoteController =
         widget.portfolioQuoteController ?? _createAccountQuoteController();
+    _taxController = widget.taxController ?? _createTaxController();
     _sessionController.restore();
   }
 
@@ -151,6 +159,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
+  TaxController _createTaxController() {
+    return TaxController(apiClient: _apiClient);
+  }
+
   @override
   void dispose() {
     if (widget.sessionController == null) {
@@ -173,6 +185,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.portfolioQuoteController == null) {
       _portfolioQuoteController.dispose();
+    }
+    if (widget.taxController == null) {
+      _taxController.dispose();
     }
     _ownedHttpClient?.close();
     super.dispose();
@@ -207,7 +222,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
               portfolioQuoteController: _portfolioQuoteController,
             ),
             const AlertsScreen(),
-            const TaxScreen(),
+            TaxScreen(
+              sessionController: _sessionController,
+              taxController: _taxController,
+            ),
           ],
         ),
       ),
@@ -365,33 +383,281 @@ class AlertsScreen extends StatelessWidget {
 }
 
 class TaxScreen extends StatelessWidget {
-  const TaxScreen({super.key});
+  const TaxScreen({
+    super.key,
+    required this.sessionController,
+    required this.taxController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final TaxController taxController;
 
   @override
   Widget build(BuildContext context) {
-    return const _ScreenFrame(
+    return _ScreenFrame(
       title: 'Tax Refund',
       subtitle: 'Document status, refund estimate, and recapture risk.',
       children: [
-        _InfoPanel(
+        _SessionStatusPanel(sessionController: sessionController),
+        _TaxRefundStatusPanel(
+          sessionController: sessionController,
+          taxController: taxController,
+        ),
+        const _InfoPanel(
           icon: Icons.upload_file_outlined,
           title: 'Documents',
           body: 'Certificate of residence and tax treaty forms are tracked here.',
           meta: 'Submitted / Verification pending',
         ),
-        _InfoPanel(
-          icon: Icons.payments_outlined,
-          title: 'Refund estimate',
-          body: 'Realized gains from mock sell history feed the refund input data.',
-          meta: 'Estimated refund USD 84.30',
-        ),
-        _InfoPanel(
+        const _InfoPanel(
           icon: Icons.warning_amber_outlined,
           title: 'Recapture risk',
           body: 'Advance refund completion includes a clear post-review risk notice.',
           meta: 'Risk notice required before advance payment',
         ),
       ],
+    );
+  }
+}
+
+class _TaxRefundStatusPanel extends StatelessWidget {
+  const _TaxRefundStatusPanel({
+    required this.sessionController,
+    required this.taxController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final TaxController taxController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ExchangeSessionState>(
+      valueListenable: sessionController,
+      builder: (context, sessionState, child) {
+        return ValueListenableBuilder<TaxState>(
+          valueListenable: taxController,
+          builder: (context, taxState, child) {
+            final accountId = sessionState.session?.accountId;
+            final isSignedIn = sessionState.isSignedIn;
+            final isLoading = taxState.status == TaxStatus.loading;
+            final refundCase = taxState.refundCase;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Theme.of(context).colorScheme.outlineVariant,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  color: Theme.of(context).colorScheme.surface,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Government verification',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                          if (refundCase != null)
+                            _SmallBadge(label: refundCase.status),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        isSignedIn
+                            ? 'Account $accountId / Stock-exchange-BE tax status'
+                            : 'Sign in to load tax refund status.',
+                      ),
+                      const SizedBox(height: 12),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: FilledButton.icon(
+                          onPressed: isSignedIn && !isLoading
+                              ? () => taxController.loadRefundStatus(accountId)
+                              : null,
+                          icon: isLoading
+                              ? const SizedBox.square(
+                                  dimension: 16,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : const Icon(Icons.verified_outlined),
+                          label: const Text('Refresh tax status'),
+                        ),
+                      ),
+                      if (taxState.errorMessage != null) ...[
+                        const SizedBox(height: 12),
+                        _InfoPanel(
+                          icon: Icons.error_outline,
+                          title: 'Tax status unavailable',
+                          body: taxState.errorMessage!,
+                          meta: 'Bearer auth account tax endpoint',
+                        ),
+                      ],
+                      const SizedBox(height: 12),
+                      if (refundCase == null)
+                        const _InfoPanel(
+                          icon: Icons.receipt_long_outlined,
+                          title: 'Refund case pending',
+                          body: 'Tax refund status will show government sync '
+                              'state, reference number, and refund split after loading.',
+                          meta: 'GET /accounts/{accountId}/tax/refund-status',
+                        )
+                      else ...[
+                        Wrap(
+                          spacing: 16,
+                          runSpacing: 10,
+                          children: [
+                            _Metric(
+                              label: 'Reference',
+                              value: refundCase.referenceDisplay,
+                            ),
+                            _Metric(
+                              label: 'Tax year',
+                              value: '${refundCase.taxYear}',
+                            ),
+                            _Metric(
+                              label: 'Treaty country',
+                              value: refundCase.treatyCountry,
+                            ),
+                            _Metric(
+                              label: 'Refund',
+                              value: refundCase.refundDisplay,
+                            ),
+                            _Metric(
+                              label: 'Matched sells',
+                              value: '${refundCase.matchedTradeCount}',
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        _TaxRefundSplit(caseData: refundCase),
+                        const SizedBox(height: 12),
+                        _InfoPanel(
+                          icon: Icons.account_balance_outlined,
+                          title: 'Government verification reference',
+                          body: 'Status ${refundCase.status} / reference '
+                              '${refundCase.referenceDisplay}',
+                          meta:
+                              '${refundCase.dataSource} / updated '
+                              '${refundCase.updatedAt?.toUtc().toIso8601String() ?? 'unknown'}',
+                        ),
+                        if (refundCase.matchedTrades.isNotEmpty)
+                          _TaxMatchedTradeRow(
+                            trade: refundCase.matchedTrades.first,
+                          ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _TaxRefundSplit extends StatelessWidget {
+  const _TaxRefundSplit({required this.caseData});
+
+  final TaxRefundCase caseData;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Withholding tax split',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            _SplitBar(
+              label: 'Treaty tax kept',
+              value: caseData.treatyDisplay,
+              ratio: caseData.treatyRatio,
+            ),
+            const SizedBox(height: 10),
+            _SplitBar(
+              label: 'Refundable difference',
+              value: caseData.refundDisplay,
+              ratio: caseData.refundRatio,
+            ),
+            const SizedBox(height: 10),
+            Text('Original withholding ${caseData.withholdingDisplay}'),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SplitBar extends StatelessWidget {
+  const _SplitBar({
+    required this.label,
+    required this.value,
+    required this.ratio,
+  });
+
+  final String label;
+  final String value;
+  final double ratio;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(child: Text(label)),
+            Text(value),
+          ],
+        ),
+        const SizedBox(height: 4),
+        LinearProgressIndicator(value: ratio),
+      ],
+    );
+  }
+}
+
+class _TaxMatchedTradeRow extends StatelessWidget {
+  const _TaxMatchedTradeRow({required this.trade});
+
+  final TaxMatchedTrade trade;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoPanel(
+      icon: Icons.sell_outlined,
+      title: 'Matched sell trade',
+      body: '${trade.stockName} ${trade.quantity} shares / '
+          'realized PnL USD ${trade.realizedPnlUsd}',
+      meta: '${trade.tradeId} / gross USD ${trade.grossAmountUsd}',
     );
   }
 }
