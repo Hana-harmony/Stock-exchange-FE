@@ -222,6 +222,44 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getStockDetail({
+    required String stockCode,
+    String currency = 'USD',
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/stocks/$stockCode',
+      query: {'currency': currency},
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketChart({
+    required String stockCode,
+    required String from,
+    required String to,
+    String interval = '1d',
+    String currency = 'USD',
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/market/stocks/$stockCode/chart',
+      query: {
+        'from': from,
+        'to': to,
+        'interval': interval,
+        'currency': currency,
+      },
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getOrderBook({
+    required String stockCode,
+    String currency = 'USD',
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/market/stocks/$stockCode/orderbook',
+      query: {'currency': currency},
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getWatchlistQuotes(
     String accountId, {
     String? market,
