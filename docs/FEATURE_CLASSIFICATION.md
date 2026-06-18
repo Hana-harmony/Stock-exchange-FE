@@ -44,10 +44,10 @@
 
 | 화면/기능 | 책임 | 상태 |
 | --- | --- | --- |
-| 종목별 K-News 탭 | Stock-exchange-FE | Partial |
-| 번역 제목, 3줄 요약, 원문 링크 | Stock-exchange-FE | Partial |
+| 종목별 K-News 탭 | Stock-exchange-FE | Done |
+| 번역 제목, 3줄 요약, 원문 링크 | Stock-exchange-FE | Done |
 | 중요도, 감성, 이벤트 태그 표시 | Stock-exchange-FE | Partial |
-| 통합 알림함 All/My Portfolio/Watchlist 필터 | Stock-exchange-FE | Partial |
+| 통합 알림함 All/My Portfolio/Watchlist 필터 | Stock-exchange-FE | Done |
 | 실시간 푸시 타임라인 | Stock-exchange-FE | Partial |
 
 ## 3. 세무 전산화 및 환급금 선지급

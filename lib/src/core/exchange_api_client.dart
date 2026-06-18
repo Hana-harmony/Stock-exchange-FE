@@ -344,6 +344,21 @@ class ExchangeApiClient {
     return get<Map<String, dynamic>>('/api/v1/accounts/$accountId/notifications');
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> markNotificationRead({
+    required String accountId,
+    required String notificationId,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/notifications/$notificationId/read',
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getStockIntelligenceFeed(
+    String stockCode,
+  ) {
+    return get<Map<String, dynamic>>('/api/v1/stocks/$stockCode/intelligence');
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getTaxRefundStatus(
     String accountId,
   ) {
