@@ -110,6 +110,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   MarketQuoteController _createAccountQuoteController() {
     return MarketQuoteController(
       apiClient: _apiClient,
+      liveClient: MarketQuoteLiveClient(baseUri: _environment.apiBaseUri),
     );
   }
 
@@ -246,6 +247,7 @@ class PortfolioScreen extends StatelessWidget {
           emptyBody: 'No holding quote snapshot is available yet.',
           marketQuoteController: portfolioQuoteController,
           sessionController: sessionController,
+          accountScope: MarketQuoteAccountScope.portfolio,
           onRefresh: (accountId) => portfolioQuoteController.loadPortfolioSnapshot(
             accountId: accountId,
           ),
@@ -256,6 +258,7 @@ class PortfolioScreen extends StatelessWidget {
           emptyBody: 'No watchlist quote snapshot is available yet.',
           marketQuoteController: watchlistQuoteController,
           sessionController: sessionController,
+          accountScope: MarketQuoteAccountScope.watchlist,
           onRefresh: (accountId) => watchlistQuoteController.loadWatchlistSnapshot(
             accountId: accountId,
           ),
@@ -749,6 +752,7 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
     required this.emptyBody,
     required this.marketQuoteController,
     required this.sessionController,
+    required this.accountScope,
     required this.onRefresh,
   });
 
@@ -757,6 +761,7 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
   final String emptyBody;
   final MarketQuoteController marketQuoteController;
   final ExchangeSessionController sessionController;
+  final MarketQuoteAccountScope accountScope;
   final Future<void> Function(String? accountId) onRefresh;
 
   @override
@@ -770,6 +775,9 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
             final accountId = sessionState.session?.accountId;
             final isSignedIn = sessionState.isSignedIn;
             final isLoading = quoteState.status == MarketQuoteStatus.loading;
+            final isConnecting =
+                quoteState.liveStatus == MarketQuoteLiveStatus.connecting;
+            final isLive = quoteState.liveStatus == MarketQuoteLiveStatus.live;
             final snapshot = quoteState.snapshot;
 
             return Column(
@@ -779,9 +787,29 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
                   title: title,
                   isSignedIn: isSignedIn,
                   isLoading: isLoading,
+                  isConnecting: isConnecting,
+                  isLive: isLive,
                   cacheStatus: snapshot?.cacheStatus ?? 'idle',
                   onRefresh: isLoading ? null : () => onRefresh(accountId),
+                  onStartLive: isSignedIn && !isConnecting
+                      ? () => marketQuoteController.subscribeLive(
+                            accountId: accountId,
+                            accountScope: accountScope,
+                          )
+                      : null,
+                  onStopLive: isLive
+                      ? () => marketQuoteController.unsubscribeLive()
+                      : null,
                 ),
+                if (quoteState.liveMessage != null)
+                  _InfoPanel(
+                    icon: Icons.wifi_tethering,
+                    title: 'Account live stream',
+                    body: quoteState.liveMessage!,
+                    meta: isSignedIn
+                        ? 'Stock-exchange-BE account quote WebSocket topic'
+                        : 'Sign in before opening account WebSocket topic.',
+                  ),
                 if (quoteState.errorMessage != null)
                   _InfoPanel(
                     icon: Icons.error_outline,
@@ -814,15 +842,23 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
     required this.title,
     required this.isSignedIn,
     required this.isLoading,
+    required this.isConnecting,
+    required this.isLive,
     required this.cacheStatus,
     required this.onRefresh,
+    required this.onStartLive,
+    required this.onStopLive,
   });
 
   final String title;
   final bool isSignedIn;
   final bool isLoading;
+  final bool isConnecting;
+  final bool isLive;
   final String cacheStatus;
   final VoidCallback? onRefresh;
+  final VoidCallback? onStartLive;
+  final VoidCallback? onStopLive;
 
   @override
   Widget build(BuildContext context) {
@@ -850,20 +886,35 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(isSignedIn
-                        ? 'Cache $cacheStatus / account REST snapshot'
-                        : 'Sign in required / account REST snapshot'),
+                        ? 'Cache $cacheStatus / account REST + WebSocket'
+                        : 'Sign in required / account REST + WebSocket'),
                   ],
                 ),
               ),
-              FilledButton.icon(
-                onPressed: isSignedIn && !isLoading ? onRefresh : null,
-                icon: isLoading
-                    ? const SizedBox.square(
-                        dimension: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.sync),
-                label: const Text('Refresh'),
+              Wrap(
+                spacing: 8,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: isLive ? onStopLive : onStartLive,
+                    icon: isConnecting
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(isLive ? Icons.wifi_off : Icons.wifi_tethering),
+                    label: Text(isLive ? 'Stop' : 'Start live'),
+                  ),
+                  FilledButton.icon(
+                    onPressed: isSignedIn && !isLoading ? onRefresh : null,
+                    icon: isLoading
+                        ? const SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.sync),
+                    label: const Text('Refresh'),
+                  ),
+                ],
               ),
             ],
           ),
