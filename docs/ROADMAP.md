@@ -4,8 +4,8 @@
 
 ## M1 프론트엔드 하네스
 - Flutter 앱 scaffold: Done
-- iOS target 설정
-- Android target 설정
+- iOS target 설정: Done
+- Android target 설정: Done
 - 라우팅과 전역 레이아웃: Partial
 - API client와 인증 세션 controller 연동: Partial
 - token secure storage 기반 session 보관: Partial
