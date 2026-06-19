@@ -530,8 +530,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Stock detail, chart, and order book'), findsOneWidget);
+    expect(find.text('Current price and best quote'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 54.01'), findsWidgets);
+    expect(find.textContaining('KRW 82400 / USD 54.01'), findsWidgets);
+    expect(
+      find.textContaining('Best ask KRW 82500 / USD 54.08 x 800'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Best bid KRW 82400 / USD 54.01 x 1200'),
+      findsOneWidget,
+    );
     expect(find.text('Single-price trading'), findsOneWidget);
     expect(find.text('UPPER_LIMIT'), findsWidgets);
     expect(find.text('Foreign ownership gauge'), findsOneWidget);
@@ -548,7 +558,10 @@ void main() {
       find.byKey(const ValueKey('market-history-chart-line')),
       findsOneWidget,
     );
-    expect(find.textContaining('Ask 54.08 x 800'), findsOneWidget);
+    expect(
+      find.textContaining('Ask KRW 82500 / USD 54.08 x 800'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('refreshes account portfolio quotes after sign in', (tester) async {

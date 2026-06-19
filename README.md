@@ -34,7 +34,7 @@ flutter test
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독하고, 마지막 tick 이후 끊긴 feed를 stale로 표시해 REST snapshot refresh를 유도한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic tick을 화면 quote list에 병합한다.
-- Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 KRW 가격과 USD 환산 가격, 환율 meta/stale 상태, 과거 시세 라인 차트, 외국인 보유율/한도소진율 게이지, VI/단일가/상·하한가 상태를 표시한다.
+- Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 현재가 KRW/USD, best ask/bid, 환율 meta/stale 상태, 과거 시세 라인 차트, 외국인 보유율/한도소진율 게이지, VI/단일가/상·하한가 상태를 표시한다.
 - Tax 화면은 bearer auth session의 accountId로 세무 환급 상태를 조회하고, 정부 검증 상태/참조번호, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세·환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 앱 기본 session 저장소는 `flutter_secure_storage` 기반 token secure storage를 사용한다.
 - 실제 iOS/Android 플랫폼 target 디렉터리와 앱 ID, 권한, display name 기본 설정이 존재한다.

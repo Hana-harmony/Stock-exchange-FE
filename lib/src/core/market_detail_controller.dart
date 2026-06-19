@@ -266,6 +266,10 @@ class MarketOrderBook {
   final DateTime? marketDataTime;
   final DateTime? servedAt;
 
+  OrderBookLevel? get bestAsk => asks.isEmpty ? null : asks.first;
+
+  OrderBookLevel? get bestBid => bids.isEmpty ? null : bids.first;
+
   static MarketOrderBook fromJson(Map<String, dynamic> json) {
     final askValues = json['asks'];
     final bidValues = json['bids'];
@@ -304,6 +308,10 @@ class OrderBookLevel {
   final String localCurrencyPrice;
   final int quantity;
   final int orderCount;
+
+  String displayPrice(String baseCurrency, String displayCurrency) {
+    return '$baseCurrency $priceKrw / $displayCurrency $localCurrencyPrice';
+  }
 
   static OrderBookLevel fromJson(Map<String, dynamic> json) {
     return OrderBookLevel(
