@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -54,6 +55,83 @@ void main() {
     expect(called, isFalse);
     expect(controller.value.status, TaxStatus.failure);
     expect(controller.value.errorMessage, 'Sign in to load tax refund status.');
+  });
+
+  test('uploads tax documents submits refund case and syncs status', () async {
+    final paths = <String>[];
+    final controller = TaxController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          paths.add('${request.method} ${request.url.path}');
+          if (request.url.path.endsWith('/tax/documents')) {
+            final isResidence = request.body.contains('RESIDENCE_CERTIFICATE');
+            return _jsonResponse({
+              'documentId': isResidence ? 'DOC-RES' : 'DOC-RED',
+              'documentType': isResidence
+                  ? 'RESIDENCE_CERTIFICATE'
+                  : 'REDUCED_TAX_APPLICATION',
+              'originalFileName':
+                  isResidence ? 'residence.pdf' : 'reduced-tax.pdf',
+              'sizeBytes': 12,
+              'createdAt': '2026-06-18T06:00:00Z',
+            });
+          }
+          if (request.url.path.endsWith('/tax/refund-cases')) {
+            expect(jsonDecode(request.body), {
+              'taxYear': 2026,
+              'treatyCountry': 'US',
+              'residenceCertificateFileName': 'residence.pdf',
+              'reducedTaxApplicationFileName': 'reduced-tax.pdf',
+              'residenceCertificateDocumentId': 'DOC-RES',
+              'reducedTaxApplicationDocumentId': 'DOC-RED',
+              'advancePaymentRequested': true,
+            });
+            return _jsonResponse({
+              ..._taxCaseJson(),
+              'status': 'READY_FOR_HANA_SYNC',
+            });
+          }
+          return _jsonResponse({
+            ..._taxCaseJson(),
+            'status': 'ADVANCE_PAID',
+          });
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.uploadDocument(
+      accountId: 'ACC-ABC123456789',
+      documentType: 'RESIDENCE_CERTIFICATE',
+      fileName: 'residence.pdf',
+      bytes: Uint8List.fromList(utf8.encode('residence')),
+    );
+    await controller.uploadDocument(
+      accountId: 'ACC-ABC123456789',
+      documentType: 'REDUCED_TAX_APPLICATION',
+      fileName: 'reduced-tax.pdf',
+      bytes: Uint8List.fromList(utf8.encode('reduced')),
+    );
+    await controller.submitRefundCase(
+      accountId: 'ACC-ABC123456789',
+      taxYear: 2026,
+      treatyCountry: 'us',
+      residenceCertificateFileName: 'residence.pdf',
+      reducedTaxApplicationFileName: 'reduced-tax.pdf',
+      advancePaymentRequested: true,
+    );
+    await controller.syncRefundStatus('ACC-ABC123456789');
+
+    expect(controller.value.status, TaxStatus.loaded);
+    expect(controller.value.uploadedDocuments, hasLength(2));
+    expect(controller.value.refundCase?.status, 'ADVANCE_PAID');
+    expect(paths, [
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-cases',
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-status/sync',
+    ]);
   });
 }
 

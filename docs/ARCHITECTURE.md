@@ -40,14 +40,14 @@
 - Market 탭은 종목명/종목코드/시장 검색, All/KOSPI/KOSDAQ 시장 필터, KRW/USD 가격, WebSocket/REST 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 탭은 mock USD cash, 실제 주문이 아닌 자체 ledger 기반 거래, 보유종목과 실현손익 연결 영역을 가진다.
 - Alerts 탭은 Stock-exchange-BE의 `/api/v1/accounts/{accountId}/notifications`와 `/api/v1/stocks/{stockCode}/intelligence`를 호출해 AI 번역 뉴스·공시, 원문 링크, glossary/quality flag, My Portfolio/Watchlist 필터, 읽음 처리 상태를 표시한다.
-- Tax 탭은 서류 checklist, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
+- Tax 탭은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope(`success/status/code/message/data`)를 파싱하고, bearer auth session header를 REST 요청에 적용한다.
 - Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이를 관리하고, `ExchangeSessionStore` 경계를 통해 session 저장소를 분리한다.
 - `SecureExchangeSessionStore`는 운영 앱 기본 session 저장소이며 `flutter_secure_storage`에 bearer token session을 JSON으로 보관한다.
 - `AccountController`는 Stock-exchange-BE account REST 조회와 mock USD deposit 상태를 관리한다.
 - `TradeController`는 Stock-exchange-BE orderability, mock trade execution, portfolio REST 상태를 관리한다.
-- `TaxController`는 Stock-exchange-BE `GET /api/v1/accounts/{accountId}/tax/refund-status`를 조회해 세무 케이스, 정부 검증 상태, 참조번호, 예상 환급 금액을 관리한다.
+- `TaxController`는 Stock-exchange-BE `POST /api/v1/accounts/{accountId}/tax/documents`, `POST /api/v1/accounts/{accountId}/tax/refund-cases`, `GET /api/v1/accounts/{accountId}/tax/refund-status`, `POST /api/v1/accounts/{accountId}/tax/refund-status/sync`를 호출해 세무 서류 metadata, 환급 신청, 정부 검증 상태, 참조번호, 예상 환급 금액을 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 바인딩한다.
 - Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액을 `amountUsd`로 보내 실제 결제 없는 mock deposit ledger를 생성한다.
 - Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 단일가, 상·하한가 warning/blocking reason을 조회하고, backend code를 영어 사용자 문구로 변환해 표시한 뒤 `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다. 최근 SELL 체결의 realized PnL은 세무 환급 입력과 연결되는 화면 영역에 표시한다.
@@ -58,6 +58,6 @@
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket onDone/onError 시 마지막 구독 조건을 유지하고 backoff 지연 후 동일 topic을 재구독하며, 마지막 tick 이후 끊긴 live feed는 stale로 표시해 REST snapshot refresh를 유도한다. 사용자가 `Stop`을 누르면 재연결 timer를 중단한다.
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic tick을 quote list에 병합한다.
-- Tax 화면은 bearer auth session의 accountId로 refund status를 조회하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
+- Tax 화면은 bearer auth session의 accountId로 tax document multipart upload, refund case 생성, Hana status sync, refund status 조회를 실행하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.
 - iOS/Android 플랫폼 target 디렉터리와 앱 ID, display name, Android network/push 권한, iOS Runner/Podfile 기본 설정이 존재한다.

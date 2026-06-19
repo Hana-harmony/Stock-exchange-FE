@@ -13,30 +13,64 @@ class TaxState {
   const TaxState({
     required this.status,
     this.refundCase,
+    this.uploadedDocuments = const [],
     this.errorMessage,
   });
 
   const TaxState.idle()
       : status = TaxStatus.idle,
         refundCase = null,
+        uploadedDocuments = const [],
         errorMessage = null;
 
-  const TaxState.loading({this.refundCase})
-      : status = TaxStatus.loading,
+  const TaxState.loading({
+    this.refundCase,
+    this.uploadedDocuments = const [],
+  })  : status = TaxStatus.loading,
         errorMessage = null;
 
-  const TaxState.loaded(this.refundCase)
-      : status = TaxStatus.loaded,
+  const TaxState.loaded(
+    this.refundCase, {
+    this.uploadedDocuments = const [],
+  })  : status = TaxStatus.loaded,
         errorMessage = null;
 
   const TaxState.failure({
     required this.errorMessage,
     this.refundCase,
+    this.uploadedDocuments = const [],
   }) : status = TaxStatus.failure;
 
   final TaxStatus status;
   final TaxRefundCase? refundCase;
+  final List<TaxDocumentUpload> uploadedDocuments;
   final String? errorMessage;
+}
+
+class TaxDocumentUpload {
+  const TaxDocumentUpload({
+    required this.documentId,
+    required this.documentType,
+    required this.originalFileName,
+    required this.sizeBytes,
+    required this.createdAt,
+  });
+
+  final String documentId;
+  final String documentType;
+  final String originalFileName;
+  final int sizeBytes;
+  final DateTime? createdAt;
+
+  static TaxDocumentUpload fromJson(Map<String, dynamic> json) {
+    return TaxDocumentUpload(
+      documentId: _string(json['documentId'], fallback: ''),
+      documentType: _string(json['documentType'], fallback: ''),
+      originalFileName: _string(json['originalFileName'], fallback: ''),
+      sizeBytes: _int(json['sizeBytes']),
+      createdAt: _dateTime(json['createdAt']),
+    );
+  }
 }
 
 class TaxRefundCase {
@@ -206,23 +240,192 @@ class TaxController extends ValueNotifier<TaxState> {
       return;
     }
 
-    value = TaxState.loading(refundCase: value.refundCase);
+    value = TaxState.loading(
+      refundCase: value.refundCase,
+      uploadedDocuments: value.uploadedDocuments,
+    );
     try {
       final response = await _apiClient.getTaxRefundStatus(accountId);
       value = TaxState.loaded(
         TaxRefundCase.fromJson(response.data ?? {}),
+        uploadedDocuments: value.uploadedDocuments,
       );
     } on ExchangeApiException catch (error) {
       value = TaxState.failure(
         errorMessage: error.message,
         refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
       );
     } on Object {
       value = TaxState.failure(
         errorMessage: 'Unable to load tax refund status.',
         refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
       );
     }
+  }
+
+  Future<void> uploadDocument({
+    required String? accountId,
+    required String documentType,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = TaxState.failure(
+        errorMessage: 'Sign in to upload tax documents.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+      return;
+    }
+    if (fileName.trim().isEmpty || bytes.isEmpty) {
+      value = TaxState.failure(
+        errorMessage: 'Select a non-empty tax document file.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+      return;
+    }
+
+    value = TaxState.loading(
+      refundCase: value.refundCase,
+      uploadedDocuments: value.uploadedDocuments,
+    );
+    try {
+      final response = await _apiClient.uploadTaxDocument(
+        accountId: accountId,
+        documentType: documentType,
+        fileName: fileName.trim(),
+        bytes: bytes,
+      );
+      final uploaded = TaxDocumentUpload.fromJson(response.data ?? {});
+      value = TaxState.loaded(
+        value.refundCase,
+        uploadedDocuments: [
+          ...value.uploadedDocuments
+              .where((item) => item.documentType != documentType),
+          uploaded,
+        ],
+      );
+    } on ExchangeApiException catch (error) {
+      value = TaxState.failure(
+        errorMessage: error.message,
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    } on Object {
+      value = TaxState.failure(
+        errorMessage: 'Unable to upload tax document.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    }
+  }
+
+  Future<void> submitRefundCase({
+    required String? accountId,
+    required int taxYear,
+    required String treatyCountry,
+    required String residenceCertificateFileName,
+    required String reducedTaxApplicationFileName,
+    required bool advancePaymentRequested,
+  }) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = TaxState.failure(
+        errorMessage: 'Sign in to submit a tax refund request.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+      return;
+    }
+
+    final residenceDocument = _document('RESIDENCE_CERTIFICATE');
+    final reducedTaxDocument = _document('REDUCED_TAX_APPLICATION');
+    value = TaxState.loading(
+      refundCase: value.refundCase,
+      uploadedDocuments: value.uploadedDocuments,
+    );
+    try {
+      final response = await _apiClient.createTaxRefundCase(
+        accountId: accountId,
+        taxYear: taxYear,
+        treatyCountry: treatyCountry.trim().isEmpty
+            ? 'US'
+            : treatyCountry.trim().toUpperCase(),
+        residenceCertificateFileName:
+            residenceCertificateFileName.trim().isEmpty
+                ? residenceDocument?.originalFileName ?? 'residence.pdf'
+                : residenceCertificateFileName.trim(),
+        reducedTaxApplicationFileName:
+            reducedTaxApplicationFileName.trim().isEmpty
+                ? reducedTaxDocument?.originalFileName ?? 'reduced-tax.pdf'
+                : reducedTaxApplicationFileName.trim(),
+        residenceCertificateDocumentId: residenceDocument?.documentId,
+        reducedTaxApplicationDocumentId: reducedTaxDocument?.documentId,
+        advancePaymentRequested: advancePaymentRequested,
+      );
+      value = TaxState.loaded(
+        TaxRefundCase.fromJson(response.data ?? {}),
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    } on ExchangeApiException catch (error) {
+      value = TaxState.failure(
+        errorMessage: error.message,
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    } on Object {
+      value = TaxState.failure(
+        errorMessage: 'Unable to submit tax refund request.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    }
+  }
+
+  Future<void> syncRefundStatus(String? accountId) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = TaxState.failure(
+        errorMessage: 'Sign in to sync tax refund status.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+      return;
+    }
+
+    value = TaxState.loading(
+      refundCase: value.refundCase,
+      uploadedDocuments: value.uploadedDocuments,
+    );
+    try {
+      final response = await _apiClient.syncTaxRefundStatus(accountId);
+      value = TaxState.loaded(
+        TaxRefundCase.fromJson(response.data ?? {}),
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    } on ExchangeApiException catch (error) {
+      value = TaxState.failure(
+        errorMessage: error.message,
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    } on Object {
+      value = TaxState.failure(
+        errorMessage: 'Unable to sync tax refund status.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+    }
+  }
+
+  TaxDocumentUpload? _document(String documentType) {
+    for (final document in value.uploadedDocuments) {
+      if (document.documentType == documentType) {
+        return document;
+      }
+    }
+    return null;
   }
 }
 

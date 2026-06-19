@@ -43,13 +43,13 @@
 - 실시간 push/reconnect 상태 UI: Partial
 
 ## M4 세무 환급 화면
-- 서류 업로드와 파일 validation: Partial
+- 서류 업로드와 파일 validation: Done for Stock-exchange-BE multipart metadata upload from Tax UI; native file picker hardening remains
 - 단계별 상태 타임라인: Done
-- 환급 대상 안내와 정산 상세: Partial
+- 환급 대상 안내와 정산 상세: Done
 - 정부 검증 상태와 참조 번호 표시: Done
 - 국세/지방세 환급 금액 비중 시각화: Done
 - 매도 실현손익 기반 환급 입력 데이터 확인: Done
-- 환급 신청
+- 환급 신청: Done
 - 선지급 완료 영수증과 사후 환수 리스크 고지: 사후 환수 리스크 고지 Done, 영수증 Partial
 
 ## M5 품질/운영
