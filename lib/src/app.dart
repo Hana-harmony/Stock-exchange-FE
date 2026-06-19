@@ -290,7 +290,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   }
 }
 
-class MarketScreen extends StatelessWidget {
+class MarketScreen extends StatefulWidget {
   const MarketScreen({
     super.key,
     required this.sessionController,
@@ -303,16 +303,43 @@ class MarketScreen extends StatelessWidget {
   final MarketQuoteController marketQuoteController;
 
   @override
+  State<MarketScreen> createState() => _MarketScreenState();
+}
+
+class _MarketScreenState extends State<MarketScreen> {
+  String _selectedMarket = 'ALL';
+
+  String? get _marketQuery =>
+      _selectedMarket == 'ALL' ? null : _selectedMarket;
+
+  void _selectMarket(String market) {
+    if (_selectedMarket == market) {
+      return;
+    }
+    setState(() {
+      _selectedMarket = market;
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return _ScreenFrame(
       title: 'Korea Market',
       subtitle: 'Live KRX quotes with KRW and USD pricing.',
       children: [
-        _SessionStatusPanel(sessionController: sessionController),
+        _SessionStatusPanel(sessionController: widget.sessionController),
         const _SearchField(),
-        const _MarketFilters(),
-        _QuoteSnapshotPanel(marketQuoteController: marketQuoteController),
-        _StockDetailPanel(marketDetailController: marketDetailController),
+        _MarketFilters(
+          selectedMarket: _selectedMarket,
+          onSelected: _selectMarket,
+        ),
+        _QuoteSnapshotPanel(
+          marketQuoteController: widget.marketQuoteController,
+          selectedMarket: _marketQuery,
+        ),
+        _StockDetailPanel(
+          marketDetailController: widget.marketDetailController,
+        ),
       ],
     );
   }
@@ -1151,22 +1178,32 @@ class _SearchField extends StatelessWidget {
 }
 
 class _MarketFilters extends StatelessWidget {
-  const _MarketFilters();
+  const _MarketFilters({
+    required this.selectedMarket,
+    required this.onSelected,
+  });
+
+  final String selectedMarket;
+  final ValueChanged<String> onSelected;
+
+  static const _markets = ['ALL', 'KOSPI', 'KOSDAQ'];
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 12),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
       child: Wrap(
         spacing: 8,
         runSpacing: 8,
-        children: [
-          ChoiceChip(label: Text('All'), selected: true),
-          ChoiceChip(label: Text('KOSPI'), selected: false),
-          ChoiceChip(label: Text('KOSDAQ'), selected: false),
-          ChoiceChip(label: Text('Watchlist'), selected: false),
-          ChoiceChip(label: Text('Portfolio'), selected: false),
-        ],
+        children: _markets
+            .map(
+              (market) => ChoiceChip(
+                label: Text(market == 'ALL' ? 'All' : market),
+                selected: selectedMarket == market,
+                onSelected: (_) => onSelected(market),
+              ),
+            )
+            .toList(),
       ),
     );
   }
@@ -1662,9 +1699,13 @@ class _StatusStrip extends StatelessWidget {
 }
 
 class _QuoteSnapshotPanel extends StatelessWidget {
-  const _QuoteSnapshotPanel({required this.marketQuoteController});
+  const _QuoteSnapshotPanel({
+    required this.marketQuoteController,
+    required this.selectedMarket,
+  });
 
   final MarketQuoteController marketQuoteController;
+  final String? selectedMarket;
 
   @override
   Widget build(BuildContext context) {
@@ -1680,8 +1721,13 @@ class _QuoteSnapshotPanel extends StatelessWidget {
           children: [
             _QuoteSnapshotActions(
               quoteState: quoteState,
-              onRefresh: () => marketQuoteController.loadSnapshot(),
-              onStartLive: () => marketQuoteController.subscribeLive(),
+              selectedMarket: selectedMarket,
+              onRefresh: () => marketQuoteController.loadSnapshot(
+                market: selectedMarket,
+              ),
+              onStartLive: () => marketQuoteController.subscribeLive(
+                market: selectedMarket,
+              ),
               onStopLive: () => marketQuoteController.unsubscribeLive(),
             ),
             const _StatusStrip(),
@@ -1899,12 +1945,14 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
 class _QuoteSnapshotActions extends StatelessWidget {
   const _QuoteSnapshotActions({
     required this.quoteState,
+    required this.selectedMarket,
     required this.onRefresh,
     required this.onStartLive,
     required this.onStopLive,
   });
 
   final MarketQuoteState quoteState;
+  final String? selectedMarket;
   final VoidCallback onRefresh;
   final VoidCallback onStartLive;
   final VoidCallback onStopLive;
@@ -1917,6 +1965,7 @@ class _QuoteSnapshotActions extends StatelessWidget {
     final isLive = quoteState.liveStatus == MarketQuoteLiveStatus.live;
     final snapshot = quoteState.snapshot;
     final cacheStatus = snapshot?.cacheStatus ?? 'seed';
+    final marketLabel = selectedMarket ?? snapshot?.marketCoverage ?? 'ALL';
     final transport = snapshot == null
         ? 'REST snapshot / WebSocket later'
         : '${snapshot.transportSnapshot} snapshot / ${snapshot.transportRealtime} live';
@@ -1951,7 +2000,9 @@ class _QuoteSnapshotActions extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 4),
-                    Text('Cache $cacheStatus / $transport'),
+                    Text(
+                      'Market $marketLabel / Cache $cacheStatus / $transport',
+                    ),
                     const SizedBox(height: 4),
                     Text(liveMessage),
                   ],

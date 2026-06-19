@@ -15,7 +15,7 @@
 
 ## M2 시장/주문 화면
 - 종목 검색: Partial
-- 전체 종목 REST snapshot 시세 목록: Partial
+- 전체/시장별 종목 REST snapshot 시세 목록: Done
 - 시장별, watchlist, 보유종목 REST snapshot/WebSocket 시세 목록: Partial
 - 실시간 시세 WebSocket 구독과 tick 반영: Partial
 - WebSocket 재연결, stale 표시, REST snapshot refresh: Partial
