@@ -65,7 +65,7 @@ flutter test
 - 종목 상세: 현재가 KRW, USD 환산 가격, 적용 환율 기준시각, 외국인 투자한도 게이지, 당일 예상 범위, VI/단일가/상·하한가 배지
 - 주문/자산: mock USD 잔고, 모의 매수·매도 기준 가격, 평가금액, 매도 실현손익, 외국인 한도 도달 주의
 - 주문 패드: VI 발동, 단일가 매매 또는 상·하한가 도달 시 즉시 체결 불가능 안내
-- K-News: 번역 제목, 요약, 감성, 중요도, 이벤트 태그, 원문 링크, glossary/quality flag
+- K-News: 번역 제목, 요약, 감성, 중요도, 리스크, 이벤트 태그, 원문 링크, glossary/quality flag
 - 알림함: All, My Portfolio, Watchlist 필터, push device registration, 실시간 푸시 타임라인
 - 세무: 서류 등록, 정부 검증 상태, 정산 상세, 환급 신청, 선지급 완료/사후 환수 리스크 고지
 

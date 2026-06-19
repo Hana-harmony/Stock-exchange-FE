@@ -786,11 +786,16 @@ void main() {
     expect(find.text('K-News intelligence feed'), findsOneWidget);
     expect(find.text('Samsung earnings improve'), findsOneWidget);
     expect(find.text('https://dart.fss.or.kr/report'), findsOneWidget);
+    expect(find.text('DISCLOSURE'), findsOneWidget);
+    expect(find.text('NEWS'), findsOneWidget);
+    expect(find.text('HIGH'), findsOneWidget);
+    expect(find.text('POSITIVE'), findsOneWidget);
+    expect(find.text('LOW'), findsOneWidget);
     expect(find.text('GLOSSARY_MATCHED'), findsWidgets);
     expect(find.text('공시 -> disclosure'), findsOneWidget);
     expect(find.text('실적 -> earnings'), findsOneWidget);
 
-    await tester.tap(find.text('Watchlist'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Watchlist'));
     await tester.pumpAndSettle();
     expect(find.text('Samsung disclosure translated'), findsOneWidget);
 

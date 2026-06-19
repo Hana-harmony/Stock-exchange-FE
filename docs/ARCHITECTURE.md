@@ -17,7 +17,7 @@
 - `account`: mock USD 계좌 잔고, 실제 결제 없는 달러 충전
 - `order`: 자체 mock ledger 모의 주문 패드, 주문 가능 여부, VI/상·하한가 제한 안내
 - `portfolio`: 보유종목, USD 평가금액, watchlist, 매도 실현손익
-- `intelligence`: K-News 피드, 원문 링크, 감성/중요도/이벤트 태그, AI 번역 glossary/quality flag
+- `intelligence`: K-News 피드, 원문 링크, 감성/중요도/리스크/이벤트 태그, AI 번역 glossary/quality flag
 - `notifications`: All, My Portfolio, Watchlist 필터가 있는 통합 알림함과 push device registration
 - `tax`: 서류 업로드, 검증 상태, 환급 대상 안내, 정산 상세, 선지급 완료와 리스크 고지
 

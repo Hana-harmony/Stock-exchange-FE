@@ -32,7 +32,7 @@
 
 ## M3 뉴스·공시 인텔리전스
 - K-News 탭: Done
-- 이벤트 태그, 감성, 중요도 표시: Partial
+- 이벤트 태그, 감성, 중요도, 리스크 chip 표시: Done
 - 원문 링크 표시: Done
 - AI 번역 glossary와 quality flag chip 표시: Done
 - 통합 알림함과 필터: Done
