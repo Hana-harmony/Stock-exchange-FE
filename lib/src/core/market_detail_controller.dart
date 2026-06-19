@@ -70,6 +70,7 @@ class StockDetail {
     required this.foreignLimitExhaustionRate,
     required this.foreignOwnershipBaseDate,
     required this.viActive,
+    required this.singlePriceTrading,
     required this.priceLimitState,
     required this.tradingHalted,
     required this.orderable,
@@ -92,6 +93,7 @@ class StockDetail {
   final String foreignLimitExhaustionRate;
   final String foreignOwnershipBaseDate;
   final bool viActive;
+  final bool singlePriceTrading;
   final String priceLimitState;
   final bool tradingHalted;
   final bool orderable;
@@ -108,6 +110,9 @@ class StockDetail {
     }
     if (viActive) {
       return 'VI active';
+    }
+    if (singlePriceTrading) {
+      return 'Single-price trading';
     }
     if (priceLimitState != 'NORMAL') {
       return priceLimitState;
@@ -135,6 +140,7 @@ class StockDetail {
       foreignOwnershipBaseDate:
           _string(json['foreignOwnershipBaseDate'], fallback: 'unknown'),
       viActive: json['viActive'] as bool? ?? false,
+      singlePriceTrading: json['singlePriceTrading'] as bool? ?? false,
       priceLimitState: _string(json['priceLimitState'], fallback: 'NORMAL'),
       tradingHalted: json['tradingHalted'] as bool? ?? false,
       orderable: json['orderable'] as bool? ?? true,

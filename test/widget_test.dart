@@ -313,6 +313,7 @@ void main() {
               'foreignLimitExhaustionRate': '55.31',
               'foreignOwnershipBaseDate': '2026-06-18',
               'viActive': false,
+              'singlePriceTrading': true,
               'priceLimitState': 'UPPER_LIMIT',
               'tradingHalted': false,
               'orderable': true,
@@ -338,6 +339,7 @@ void main() {
     expect(find.text('Stock detail, chart, and order book'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 54.01'), findsWidgets);
+    expect(find.text('Single-price trading'), findsOneWidget);
     expect(find.text('UPPER_LIMIT'), findsWidgets);
     expect(find.text('Historical chart snapshot'), findsOneWidget);
     expect(find.textContaining('Ask 54.08 x 800'), findsOneWidget);
@@ -577,7 +579,11 @@ void main() {
                 'quantity': 1,
                 'canPlaceMockOrder': true,
                 'blockingReasons': [],
-                'warnings': ['VI_ACTIVE', 'BUY_AT_UPPER_LIMIT'],
+                'warnings': [
+                  'VI_ACTIVE',
+                  'SINGLE_PRICE_TRADING',
+                  'BUY_AT_UPPER_LIMIT',
+                ],
                 'orderabilitySource': 'Hana-OmniLens-API',
                 'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
               },
