@@ -308,6 +308,7 @@ class MarketScreen extends StatefulWidget {
 
 class _MarketScreenState extends State<MarketScreen> {
   String _selectedMarket = 'ALL';
+  String _searchQuery = '';
 
   String? get _marketQuery =>
       _selectedMarket == 'ALL' ? null : _selectedMarket;
@@ -321,6 +322,12 @@ class _MarketScreenState extends State<MarketScreen> {
     });
   }
 
+  void _searchStocks(String query) {
+    setState(() {
+      _searchQuery = query.trim();
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return _ScreenFrame(
@@ -328,7 +335,7 @@ class _MarketScreenState extends State<MarketScreen> {
       subtitle: 'Live KRX quotes with KRW and USD pricing.',
       children: [
         _SessionStatusPanel(sessionController: widget.sessionController),
-        const _SearchField(),
+        _SearchField(onChanged: _searchStocks),
         _MarketFilters(
           selectedMarket: _selectedMarket,
           onSelected: _selectMarket,
@@ -336,6 +343,7 @@ class _MarketScreenState extends State<MarketScreen> {
         _QuoteSnapshotPanel(
           marketQuoteController: widget.marketQuoteController,
           selectedMarket: _marketQuery,
+          searchQuery: _searchQuery,
         ),
         _StockDetailPanel(
           marketDetailController: widget.marketDetailController,
@@ -1163,15 +1171,22 @@ class _SignedInSessionView extends StatelessWidget {
 }
 
 class _SearchField extends StatelessWidget {
-  const _SearchField();
+  const _SearchField({required this.onChanged});
+
+  final ValueChanged<String> onChanged;
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 12),
-      child: SearchBar(
-        leading: Icon(Icons.search),
-        hintText: 'Search all Korean stocks',
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: TextField(
+        key: const ValueKey('market-stock-search-field'),
+        decoration: const InputDecoration(
+          prefixIcon: Icon(Icons.search),
+          hintText: 'Search all Korean stocks',
+          border: OutlineInputBorder(),
+        ),
+        onChanged: onChanged,
       ),
     );
   }
@@ -1702,10 +1717,12 @@ class _QuoteSnapshotPanel extends StatelessWidget {
   const _QuoteSnapshotPanel({
     required this.marketQuoteController,
     required this.selectedMarket,
+    required this.searchQuery,
   });
 
   final MarketQuoteController marketQuoteController;
   final String? selectedMarket;
+  final String searchQuery;
 
   @override
   Widget build(BuildContext context) {
@@ -1715,6 +1732,7 @@ class _QuoteSnapshotPanel extends StatelessWidget {
         final snapshot = quoteState.snapshot;
         final firstQuote =
             quoteState.quotes.isNotEmpty ? quoteState.quotes.first : null;
+        final visibleQuotes = _filterQuotes(quoteState.quotes, searchQuery);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1754,12 +1772,37 @@ class _QuoteSnapshotPanel extends StatelessWidget {
                 body: 'No Korean stock quote snapshot is available yet.',
                 meta: 'Use REST snapshot refresh after the backend is running.',
               )
+            else if (visibleQuotes.isEmpty)
+              _InfoPanel(
+                icon: Icons.search_off,
+                title: 'No matching stocks',
+                body: 'No visible quote matches "$searchQuery".',
+                meta: 'Search checks stock code, name, and market.',
+              )
             else
-              ...quoteState.quotes.map(_QuoteRow.fromMarketQuote),
+              ...visibleQuotes.map(_QuoteRow.fromMarketQuote),
           ],
         );
       },
     );
+  }
+
+  static List<MarketQuote> _filterQuotes(
+    List<MarketQuote> quotes,
+    String query,
+  ) {
+    final normalized = query.toLowerCase();
+    if (normalized.isEmpty) {
+      return quotes;
+    }
+    return quotes
+        .where(
+          (quote) =>
+              quote.stockCode.toLowerCase().contains(normalized) ||
+              quote.stockName.toLowerCase().contains(normalized) ||
+              quote.market.toLowerCase().contains(normalized),
+        )
+        .toList();
   }
 }
 

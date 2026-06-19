@@ -18,7 +18,7 @@ flutter test
 
 ## 현재 구현 상태
 - Material 3 앱 shell과 Market, Portfolio, Alerts, Tax 하단 탭이 구현되어 있다.
-- Market 화면은 All/KOSPI/KOSDAQ 필터, KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
+- Market 화면은 종목명/종목코드 검색, All/KOSPI/KOSDAQ 필터, KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
 - Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, AI 번역 glossary/quality flag, 읽음 처리, push device 등록/비활성화 액션을 제공한다.
 - Tax 화면은 서류 checklist, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.

@@ -37,7 +37,7 @@
 ## 현재 구현 상태
 - Flutter 앱 하네스, Material 3 기반 앱 shell, 하단 탭 navigation, widget test, GitHub Actions CI가 존재한다.
 - Market, Portfolio, Alerts, Tax 탭의 영어 UI skeleton이 존재한다.
-- Market 탭은 종목 검색, All/KOSPI/KOSDAQ 시장 필터, KRW/USD 가격, WebSocket/REST 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
+- Market 탭은 종목명/종목코드/시장 검색, All/KOSPI/KOSDAQ 시장 필터, KRW/USD 가격, WebSocket/REST 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 탭은 mock USD cash, 실제 주문이 아닌 자체 ledger 기반 거래, 보유종목과 실현손익 연결 영역을 가진다.
 - Alerts 탭은 Stock-exchange-BE의 `/api/v1/accounts/{accountId}/notifications`와 `/api/v1/stocks/{stockCode}/intelligence`를 호출해 AI 번역 뉴스·공시, 원문 링크, glossary/quality flag, My Portfolio/Watchlist 필터, 읽음 처리 상태를 표시한다.
 - Tax 탭은 서류 checklist, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
