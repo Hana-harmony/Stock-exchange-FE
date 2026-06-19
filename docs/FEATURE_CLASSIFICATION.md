@@ -30,7 +30,7 @@
 | 실시간 시세 WebSocket 구독과 재연결/복구 UI | Stock-exchange-FE | Partial |
 | KRW 가격과 USD 환산 가격 동시 표시 | Stock-exchange-FE | Partial |
 | 적용 환율 기준시각/출처와 stale 상태 표시 | Stock-exchange-FE | Partial |
-| 과거 시세 차트 | Stock-exchange-FE | Partial |
+| 과거 시세 차트 | Stock-exchange-FE | Done |
 | 종목 상세 현재가와 원화 기준 가격 | Stock-exchange-FE | Partial |
 | 외국인 투자한도 게이지와 당일 예상 범위 | Stock-exchange-FE | Partial |
 | VI 발동, 단일가 매매, 상·하한가 배지 | Stock-exchange-FE | Done |
