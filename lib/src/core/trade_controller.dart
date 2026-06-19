@@ -227,6 +227,10 @@ class TradeExecution {
   final String cashBalanceUsdAfter;
   final String tradingMode;
 
+  bool get isSell => side.toUpperCase() == 'SELL';
+
+  String get realizedPnlDisplay => 'USD $realizedPnlUsd';
+
   String get summary =>
       '$side $quantity $stockName at USD $executionPriceUsd / gross USD $grossAmountUsd';
 

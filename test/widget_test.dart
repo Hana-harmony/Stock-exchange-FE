@@ -1267,6 +1267,90 @@ void main() {
     expect(find.text('USD 150.00'), findsWidgets);
   });
 
+  testWidgets('shows sell trade realized PnL for tax refund input', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = MemoryExchangeSessionStore();
+    await store.write(
+      const AuthSession(
+        username: 'hana',
+        accountId: 'ACC-ABC123456789',
+        tokenType: 'Bearer',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final sessionController = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({})),
+      ),
+    );
+    final accountController = AccountController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '170.00',
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
+    final tradeController = TradeController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': _portfolioJson(
+                realizedPnlUsd: '20.00',
+                recentTrades: [_sellTradeJson()],
+              ),
+              'timestamp': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
+    addTearDown(sessionController.dispose);
+    addTearDown(accountController.dispose);
+    addTearDown(tradeController.dispose);
+
+    await sessionController.restore();
+    await tester.pumpWidget(
+      StockExchangeApp(
+        sessionController: sessionController,
+        accountController: accountController,
+        tradeController: tradeController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(_navigationDestination('Portfolio'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sell trades and realized PnL'), findsOneWidget);
+    expect(
+      find.text('Portfolio realized PnL USD 20.00 feeds tax refund input.'),
+      findsOneWidget,
+    );
+    expect(find.text('Realized sell trade'), findsOneWidget);
+    expect(
+      find.text('Samsung Electronics 1 shares / realized PnL USD 20.00'),
+      findsOneWidget,
+    );
+    expect(find.text('USD 20.00'), findsWidgets);
+  });
+
   testWidgets('loads tax refund status with government reference', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -1522,14 +1606,29 @@ Map<String, Object?> _tradeJson() {
   };
 }
 
-Map<String, Object?> _portfolioJson() {
+Map<String, Object?> _sellTradeJson() {
+  return {
+    ..._tradeJson(),
+    'side': 'SELL',
+    'quantity': 1,
+    'grossAmountUsd': '70.00',
+    'realizedPnlUsd': '20.00',
+    'remainingQuantity': 0,
+    'cashBalanceUsdAfter': '170.00',
+  };
+}
+
+Map<String, Object?> _portfolioJson({
+  String realizedPnlUsd = '0.00',
+  List<Map<String, Object?>>? recentTrades,
+}) {
   return {
     'accountId': 'ACC-ABC123456789',
     'currency': 'USD',
     'cashBalanceUsd': '150.00',
     'totalMarketValueUsd': '55.00',
     'totalAssetValueUsd': '205.00',
-    'realizedPnlUsd': '0.00',
+    'realizedPnlUsd': realizedPnlUsd,
     'unrealizedPnlUsd': '5.00',
     'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
     'holdings': [
@@ -1544,7 +1643,7 @@ Map<String, Object?> _portfolioJson() {
         'unrealizedPnlRate': '10.00',
       }
     ],
-    'recentTrades': [_tradeJson()],
+    'recentTrades': recentTrades ?? [_tradeJson()],
   };
 }
 

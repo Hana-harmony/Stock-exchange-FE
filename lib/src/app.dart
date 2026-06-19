@@ -3201,13 +3201,19 @@ class _MockTradePanelState extends State<_MockTradePanel> {
                           icon: Icons.receipt_long,
                           title: 'Last mock trade',
                           body: tradeState.lastTrade!.summary,
-                          meta:
-                              'Cash after USD ${tradeState.lastTrade!.cashBalanceUsdAfter}',
+                          meta: 'Realized PnL '
+                              '${tradeState.lastTrade!.realizedPnlDisplay} / '
+                              'cash after USD '
+                              '${tradeState.lastTrade!.cashBalanceUsdAfter}',
                         ),
                       ],
                       if (portfolio != null && portfolio.holdings.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         ...portfolio.holdings.take(3).map(_HoldingRow.new),
+                      ],
+                      if (portfolio != null) ...[
+                        const SizedBox(height: 12),
+                        _RealizedPnlPanel(portfolio: portfolio),
                       ],
                       if (tradeState.errorMessage != null) ...[
                         const SizedBox(height: 12),
@@ -3256,6 +3262,62 @@ class _TradeMetricStrip extends StatelessWidget {
           value: 'USD ${portfolio?.unrealizedPnlUsd ?? '0.00'}',
         ),
       ],
+    );
+  }
+}
+
+class _RealizedPnlPanel extends StatelessWidget {
+  const _RealizedPnlPanel({required this.portfolio});
+
+  final PortfolioSnapshot portfolio;
+
+  @override
+  Widget build(BuildContext context) {
+    final sellTrades = portfolio.recentTrades
+        .where((trade) => trade.isSell)
+        .take(3)
+        .toList();
+
+    if (sellTrades.isEmpty) {
+      return _InfoPanel(
+        icon: Icons.receipt_long_outlined,
+        title: 'Sell trades and realized PnL',
+        body: 'No sell trade has realized profit or loss yet.',
+        meta: 'Tax refund input waits for a completed mock sell trade.',
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _InfoPanel(
+          icon: Icons.request_quote_outlined,
+          title: 'Sell trades and realized PnL',
+          body:
+              'Portfolio realized PnL USD ${portfolio.realizedPnlUsd} feeds tax refund input.',
+          meta:
+              'Recent sell trades are from Stock-exchange-BE mock ledger only.',
+        ),
+        ...sellTrades.map(_SellTradeRow.new),
+      ],
+    );
+  }
+}
+
+class _SellTradeRow extends StatelessWidget {
+  const _SellTradeRow(this.trade);
+
+  final TradeExecution trade;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoPanel(
+      icon: Icons.trending_up,
+      title: 'Realized sell trade',
+      body: '${trade.stockName} ${trade.quantity} shares / '
+          'realized PnL ${trade.realizedPnlDisplay}',
+      meta: '${trade.tradeId} / gross USD ${trade.grossAmountUsd} / '
+          'remaining ${trade.remainingQuantity}',
     );
   }
 }
