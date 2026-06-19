@@ -211,7 +211,9 @@ void main() {
     expect(find.text('SK hynix'), findsOneWidget);
     expect(find.text('USD 184.16'), findsOneWidget);
     expect(
-      find.text('Cache FRESH_CACHE / REST snapshot / WebSocket live'),
+      find.text(
+        'Market ALL / Cache FRESH_CACHE / REST snapshot / WebSocket live',
+      ),
       findsOneWidget,
     );
     expect(find.text('FX stale'), findsOneWidget);
@@ -220,6 +222,76 @@ void main() {
         'FX 1525.80 / 2026-06-18T06:00:00.000Z / source Hana-OmniLens-API / stale',
       ),
       findsWidgets,
+    );
+  });
+
+  testWidgets('filters market quote snapshot by selected market', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = MarketQuoteController(
+      seedQuotes: seedMarketQuotes,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/v1/market/quotes');
+          expect(request.url.queryParameters['market'], 'KOSPI');
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'dataSource': 'Hana-OmniLens-API',
+              'marketCoverage': 'KOSPI',
+              'displayCurrency': 'USD',
+              'transport': {
+                'snapshot': 'REST',
+                'realtime': 'WebSocket',
+              },
+              'cache': {'status': 'FRESH_CACHE'},
+              'quoteCount': 1,
+              'quotes': [
+                {
+                  'stockCode': '005930',
+                  'stockName': 'Samsung Electronics',
+                  'market': 'KOSPI',
+                  'currentPriceKrw': '82400',
+                  'changeRate': '+1.23%',
+                  'volume': 18300000,
+                  'localCurrency': 'USD',
+                  'localCurrencyPrice': '54.01',
+                  'fxRate': '1525.80',
+                  'fxRateTime': '2026-06-18T06:00:00Z',
+                  'fxRateSource': 'Hana-OmniLens-API',
+                  'fxStale': false,
+                }
+              ],
+              'servedAt': '2026-06-18T06:00:01Z',
+            },
+            'timestamp': '2026-06-18T06:00:01Z',
+          });
+        }),
+      ),
+    );
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ChoiceChip, 'KOSPI'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Refresh'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Samsung Electronics'), findsOneWidget);
+    expect(
+      find.text(
+        'Market KOSPI / Cache FRESH_CACHE / REST snapshot / WebSocket live',
+      ),
+      findsOneWidget,
     );
   });
 
