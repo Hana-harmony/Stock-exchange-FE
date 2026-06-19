@@ -786,6 +786,9 @@ void main() {
     expect(find.text('K-News intelligence feed'), findsOneWidget);
     expect(find.text('Samsung earnings improve'), findsOneWidget);
     expect(find.text('https://dart.fss.or.kr/report'), findsOneWidget);
+    expect(find.text('GLOSSARY_MATCHED'), findsWidgets);
+    expect(find.text('공시 -> disclosure'), findsOneWidget);
+    expect(find.text('실적 -> earnings'), findsOneWidget);
 
     await tester.tap(find.text('Watchlist'));
     await tester.pumpAndSettle();
@@ -945,6 +948,8 @@ Map<String, Object?> _notificationInboxJson() {
         'primaryStockCode': '005930',
         'matchedStockCodes': ['005930'],
         'matchReasons': ['WATCHLIST'],
+        'glossaryTerms': [_glossaryTerm('공시', 'disclosure', 'DISCLOSURE')],
+        'translationQualityFlags': ['GLOSSARY_MATCHED'],
         'deliveryStatus': 'DELIVERED',
         'deliveryProvider': 'LOCAL_INBOX',
         'deliveryAttemptCount': 1,
@@ -1010,6 +1015,8 @@ Map<String, Object?> _stockIntelligenceJson() {
         'sentiment': 'POSITIVE',
         'importance': 'HIGH',
         'riskLevel': 'LOW',
+        'glossaryTerms': [_glossaryTerm('실적', 'earnings', 'ACCOUNTING')],
+        'translationQualityFlags': ['GLOSSARY_MATCHED'],
         'watchlistTarget': true,
         'holderTarget': false,
         'publishedAt': '2026-06-18T05:55:00Z',
@@ -1018,5 +1025,18 @@ Map<String, Object?> _stockIntelligenceJson() {
       }
     ],
     'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _glossaryTerm(
+  String sourceTerm,
+  String englishTerm,
+  String category,
+) {
+  return {
+    'sourceTerm': sourceTerm,
+    'normalizedTerm': sourceTerm,
+    'englishTerm': englishTerm,
+    'category': category,
   };
 }

@@ -17,7 +17,7 @@
 - `account`: mock USD 계좌 잔고, 실제 결제 없는 달러 충전
 - `order`: 자체 mock ledger 모의 주문 패드, 주문 가능 여부, VI/상·하한가 제한 안내
 - `portfolio`: 보유종목, USD 평가금액, watchlist, 매도 실현손익
-- `intelligence`: K-News 피드, 원문 링크, 감성/중요도/이벤트 태그
+- `intelligence`: K-News 피드, 원문 링크, 감성/중요도/이벤트 태그, AI 번역 glossary/quality flag
 - `notifications`: All, My Portfolio, Watchlist 필터가 있는 통합 알림함과 push device registration
 - `tax`: 서류 업로드, 검증 상태, 환급 대상 안내, 정산 상세, 선지급 완료와 리스크 고지
 
@@ -39,7 +39,7 @@
 - Market, Portfolio, Alerts, Tax 탭의 영어 UI skeleton이 존재한다.
 - Market 탭은 종목 검색, 시장/watchlist/portfolio 필터, KRW/USD 가격, WebSocket/REST 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 탭은 mock USD cash, 실제 주문이 아닌 자체 ledger 기반 거래, 보유종목과 실현손익 연결 영역을 가진다.
-- Alerts 탭은 Stock-exchange-BE의 `/api/v1/accounts/{accountId}/notifications`와 `/api/v1/stocks/{stockCode}/intelligence`를 호출해 AI 번역 뉴스·공시, 원문 링크, My Portfolio/Watchlist 필터, 읽음 처리 상태를 표시한다.
+- Alerts 탭은 Stock-exchange-BE의 `/api/v1/accounts/{accountId}/notifications`와 `/api/v1/stocks/{stockCode}/intelligence`를 호출해 AI 번역 뉴스·공시, 원문 링크, glossary/quality flag, My Portfolio/Watchlist 필터, 읽음 처리 상태를 표시한다.
 - Tax 탭은 서류 상태, 환급 추정, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope(`success/status/code/message/data`)를 파싱하고, bearer auth session header를 REST 요청에 적용한다.
 - Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
