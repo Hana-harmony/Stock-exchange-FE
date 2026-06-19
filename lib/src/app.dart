@@ -1850,6 +1850,7 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
                   isLoading: isLoading,
                   isConnecting: isConnecting,
                   isLive: isLive,
+                  liveStale: quoteState.liveStale,
                   cacheStatus: snapshot?.cacheStatus ?? 'idle',
                   onRefresh: isLoading ? null : () => onRefresh(accountId),
                   onStartLive: isSignedIn && !isConnecting
@@ -1905,6 +1906,7 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
     required this.isLoading,
     required this.isConnecting,
     required this.isLive,
+    required this.liveStale,
     required this.cacheStatus,
     required this.onRefresh,
     required this.onStartLive,
@@ -1916,6 +1918,7 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
   final bool isLoading;
   final bool isConnecting;
   final bool isLive;
+  final bool liveStale;
   final String cacheStatus;
   final VoidCallback? onRefresh;
   final VoidCallback? onStartLive;
@@ -1923,6 +1926,10 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final accountTransportLabel = liveStale
+        ? 'Cache $cacheStatus / account REST + WebSocket / live stale'
+        : 'Cache $cacheStatus / account REST + WebSocket';
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: DecoratedBox(
@@ -1946,9 +1953,11 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
                           ),
                     ),
                     const SizedBox(height: 4),
-                    Text(isSignedIn
-                        ? 'Cache $cacheStatus / account REST + WebSocket'
-                        : 'Sign in required / account REST + WebSocket'),
+                    Text(
+                      isSignedIn
+                          ? accountTransportLabel
+                          : 'Sign in required / account REST + WebSocket',
+                    ),
                   ],
                 ),
               ),
@@ -2048,6 +2057,10 @@ class _QuoteSnapshotActions extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(liveMessage),
+                    if (quoteState.liveStale) ...[
+                      const SizedBox(height: 4),
+                      const Text('Live feed stale / REST refresh recommended'),
+                    ],
                   ],
                 ),
               ),

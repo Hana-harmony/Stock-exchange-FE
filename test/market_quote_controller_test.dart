@@ -178,6 +178,61 @@ void main() {
     await controller.unsubscribeLive();
     expect(connections.last.closed, isTrue);
   });
+
+  test('marks live quotes stale while reconnecting after a received tick', () async {
+    late _FakeQuoteSocketConnection connection;
+    var snapshotRequestCount = 0;
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async {
+        snapshotRequestCount++;
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _snapshotJson(stockName: 'NAVER', stockCode: '035420'),
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          connection = _FakeQuoteSocketConnection();
+          return connection;
+        },
+      ),
+      liveReconnectDelays: const [Duration(seconds: 30)],
+      seedQuotes: seedMarketQuotes,
+    );
+
+    await controller.subscribeLive(market: 'KOSPI');
+    connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    connection.emit('MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
+        '${jsonEncode(_tickJson())}\u0000');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.value.liveStale, isFalse);
+
+    await connection.closeRemote();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
+    expect(controller.value.liveStale, isTrue);
+    expect(
+      controller.value.liveMessage,
+      'Quote WebSocket closed. Reconnecting quote WebSocket in 30s.',
+    );
+
+    await controller.loadSnapshot(market: 'KOSPI');
+
+    expect(snapshotRequestCount, 1);
+    expect(controller.value.status, MarketQuoteStatus.loaded);
+    expect(controller.value.quotes.single.stockName, 'NAVER');
+    expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
+    expect(controller.value.liveStale, isTrue);
+
+    await controller.unsubscribeLive();
+  });
 }
 
 Map<String, Object?> _tickJson() {
@@ -274,12 +329,16 @@ class _FakeQuoteSocketConnection implements QuoteSocketConnection {
   }
 
   Future<void> closeRemote() async {
-    await _streamController.close();
+    if (!_streamController.isClosed) {
+      await _streamController.close();
+    }
   }
 
   @override
   Future<void> close() async {
     closed = true;
-    await _streamController.close();
+    if (!_streamController.isClosed) {
+      await _streamController.close();
+    }
   }
 }
