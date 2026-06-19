@@ -2316,6 +2316,10 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                       meta: 'Source path: Stock-exchange-BE to Hana-OmniLens-API',
                     )
                   else ...[
+                    _CurrentPriceSummaryPanel(
+                      detail: detail,
+                      orderBook: orderBook,
+                    ),
                     Wrap(
                       spacing: 16,
                       runSpacing: 10,
@@ -2365,6 +2369,43 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
         );
       },
     );
+  }
+}
+
+class _CurrentPriceSummaryPanel extends StatelessWidget {
+  const _CurrentPriceSummaryPanel({
+    required this.detail,
+    required this.orderBook,
+  });
+
+  final StockDetail detail;
+  final MarketOrderBook? orderBook;
+
+  @override
+  Widget build(BuildContext context) {
+    final bestAsk = orderBook?.bestAsk;
+    final bestBid = orderBook?.bestBid;
+    final orderBookTime =
+        orderBook?.marketDataTime?.toUtc().toIso8601String() ?? 'pending';
+
+    return _InfoPanel(
+      icon: Icons.price_change_outlined,
+      title: 'Current price and best quote',
+      body:
+          '${detail.krwDisplay} / ${detail.localCurrencyDisplay} / ${detail.changeRate}',
+      meta:
+          'Best ask ${_levelDisplay(bestAsk, orderBook)} / Best bid ${_levelDisplay(bestBid, orderBook)} / $orderBookTime',
+    );
+  }
+
+  static String _levelDisplay(
+    OrderBookLevel? level,
+    MarketOrderBook? orderBook,
+  ) {
+    if (level == null || orderBook == null) {
+      return 'pending';
+    }
+    return '${level.displayPrice(orderBook.baseCurrency, orderBook.displayCurrency)} x ${level.quantity}';
   }
 }
 
@@ -2700,18 +2741,23 @@ class _OrderBookPreview extends StatelessWidget {
     return _InfoPanel(
       icon: Icons.stacked_bar_chart,
       title: 'Order book snapshot',
-      body: 'Ask ${_levelText(asks)} / Bid ${_levelText(bids)}',
+      body: 'Ask ${_levelText(asks, orderBook!)} / '
+          'Bid ${_levelText(bids, orderBook!)}',
       meta: '${orderBook!.dataSource} / '
           '${orderBook!.displayCurrency} converted levels',
     );
   }
 
-  static String _levelText(List<OrderBookLevel> levels) {
+  static String _levelText(
+    List<OrderBookLevel> levels,
+    MarketOrderBook orderBook,
+  ) {
     if (levels.isEmpty) {
       return 'none';
     }
     return levels
-        .map((level) => '${level.localCurrencyPrice} x ${level.quantity}')
+        .map((level) =>
+            '${level.displayPrice(orderBook.baseCurrency, orderBook.displayCurrency)} x ${level.quantity}')
         .join(', ');
   }
 }
