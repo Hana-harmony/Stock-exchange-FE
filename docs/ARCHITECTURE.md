@@ -56,7 +56,7 @@
 - Market 종목 상세 패널은 현재가 KRW와 USD 환산 가격, 외국인 보유율/한도소진율 게이지, VI/단일가/상·하한가 상태 badge, 과거 시세 라인 차트, 최근 KRW/USD 종가, ask/bid 호가를 표시한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list와 live status에 병합한다.
-- `MarketQuoteController`는 WebSocket onDone/onError 시 마지막 구독 조건을 유지하고 backoff 지연 후 동일 topic을 재구독하며, 사용자가 `Stop`을 누르면 재연결 timer를 중단한다.
+- `MarketQuoteController`는 WebSocket onDone/onError 시 마지막 구독 조건을 유지하고 backoff 지연 후 동일 topic을 재구독하며, 마지막 tick 이후 끊긴 live feed는 stale로 표시해 REST snapshot refresh를 유도한다. 사용자가 `Stop`을 누르면 재연결 timer를 중단한다.
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic tick을 quote list에 병합한다.
 - Tax 화면은 bearer auth session의 accountId로 refund status를 조회하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.

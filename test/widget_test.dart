@@ -376,6 +376,23 @@ void main() {
     expect(find.text('+3.10%'), findsOneWidget);
     expect(find.text('Live tick 005930 received.'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
+
+    await connection.closeRemote();
+    await tester.runAsync(() async {
+      await Future<void>.delayed(Duration.zero);
+    });
+    await tester.pump();
+
+    expect(
+      find.text('Live feed stale / REST refresh recommended'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Quote WebSocket closed. Reconnecting quote WebSocket in 1s.'),
+      findsOneWidget,
+    );
+
+    await marketQuoteController.unsubscribeLive();
   });
 
   testWidgets('loads stock detail chart and order book from REST', (tester) async {
@@ -1330,9 +1347,17 @@ class _FakeQuoteSocketConnection implements QuoteSocketConnection {
     _streamController.add(message);
   }
 
+  Future<void> closeRemote() async {
+    if (!_streamController.isClosed) {
+      await _streamController.close();
+    }
+  }
+
   @override
   Future<void> close() async {
-    await _streamController.close();
+    if (!_streamController.isClosed) {
+      await _streamController.close();
+    }
   }
 }
 
