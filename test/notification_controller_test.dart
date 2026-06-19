@@ -33,7 +33,19 @@ void main() {
     expect(controller.value.inbox?.unreadCount, 1);
     expect(controller.value.devices?.activeCount, 1);
     expect(controller.value.filteredNotifications.single.targetLabel, 'Watchlist');
+    expect(
+      controller.value.filteredNotifications.single.glossaryTerms.single.displayLabel,
+      '공시 -> disclosure',
+    );
+    expect(
+      controller.value.filteredNotifications.single.translationQualityFlags,
+      ['GLOSSARY_MATCHED'],
+    );
     expect(controller.value.feed?.items.single.title, 'Samsung earnings improve');
+    expect(
+      controller.value.feed?.items.single.glossaryTerms.single.englishTerm,
+      'earnings',
+    );
   });
 
   test('filters watchlist notifications and marks read', () async {
@@ -169,6 +181,8 @@ Map<String, Object?> _notificationInboxJson() {
         'primaryStockCode': '005930',
         'matchedStockCodes': ['005930'],
         'matchReasons': ['WATCHLIST'],
+        'glossaryTerms': [_glossaryTerm('공시', 'disclosure', 'DISCLOSURE')],
+        'translationQualityFlags': ['GLOSSARY_MATCHED'],
         'deliveryStatus': 'DELIVERED',
         'deliveryProvider': 'LOCAL_INBOX',
         'deliveryAttemptCount': 1,
@@ -209,6 +223,8 @@ Map<String, Object?> _stockIntelligenceJson() {
         'sentiment': 'POSITIVE',
         'importance': 'HIGH',
         'riskLevel': 'LOW',
+        'glossaryTerms': [_glossaryTerm('실적', 'earnings', 'ACCOUNTING')],
+        'translationQualityFlags': ['GLOSSARY_MATCHED'],
         'watchlistTarget': true,
         'holderTarget': false,
         'publishedAt': '2026-06-18T05:55:00Z',
@@ -217,6 +233,19 @@ Map<String, Object?> _stockIntelligenceJson() {
       }
     ],
     'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _glossaryTerm(
+  String sourceTerm,
+  String englishTerm,
+  String category,
+) {
+  return {
+    'sourceTerm': sourceTerm,
+    'normalizedTerm': sourceTerm,
+    'englishTerm': englishTerm,
+    'category': category,
   };
 }
 

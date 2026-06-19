@@ -138,6 +138,8 @@ class NotificationItem {
     required this.primaryStockCode,
     required this.matchedStockCodes,
     required this.matchReasons,
+    required this.glossaryTerms,
+    required this.translationQualityFlags,
     required this.deliveryStatus,
     required this.deliveryProvider,
     required this.deliveryAttemptCount,
@@ -159,6 +161,8 @@ class NotificationItem {
   final String primaryStockCode;
   final List<String> matchedStockCodes;
   final List<String> matchReasons;
+  final List<AlertGlossaryTerm> glossaryTerms;
+  final List<String> translationQualityFlags;
   final String deliveryStatus;
   final String deliveryProvider;
   final int deliveryAttemptCount;
@@ -191,6 +195,8 @@ class NotificationItem {
       primaryStockCode: _string(json['primaryStockCode'], fallback: ''),
       matchedStockCodes: _stringList(json['matchedStockCodes']),
       matchReasons: _stringList(json['matchReasons']),
+      glossaryTerms: _glossaryTerms(json['glossaryTerms']),
+      translationQualityFlags: _stringList(json['translationQualityFlags']),
       deliveryStatus: _string(json['deliveryStatus'], fallback: ''),
       deliveryProvider: _string(json['deliveryProvider'], fallback: ''),
       deliveryAttemptCount: _int(json['deliveryAttemptCount']),
@@ -246,6 +252,8 @@ class StockIntelligenceItem {
     required this.sentiment,
     required this.importance,
     required this.riskLevel,
+    required this.glossaryTerms,
+    required this.translationQualityFlags,
     required this.watchlistTarget,
     required this.holderTarget,
     required this.targetCount,
@@ -263,6 +271,8 @@ class StockIntelligenceItem {
   final String sentiment;
   final String importance;
   final String riskLevel;
+  final List<AlertGlossaryTerm> glossaryTerms;
+  final List<String> translationQualityFlags;
   final bool watchlistTarget;
   final bool holderTarget;
   final DateTime? publishedAt;
@@ -291,11 +301,49 @@ class StockIntelligenceItem {
       sentiment: _string(json['sentiment'], fallback: 'NEUTRAL'),
       importance: _string(json['importance'], fallback: 'NORMAL'),
       riskLevel: _string(json['riskLevel'], fallback: 'LOW'),
+      glossaryTerms: _glossaryTerms(json['glossaryTerms']),
+      translationQualityFlags: _stringList(json['translationQualityFlags']),
       watchlistTarget: json['watchlistTarget'] as bool? ?? false,
       holderTarget: json['holderTarget'] as bool? ?? false,
       publishedAt: _dateTime(json['publishedAt']),
       receivedAt: _dateTime(json['receivedAt']),
       targetCount: _int(json['targetCount']),
+    );
+  }
+}
+
+class AlertGlossaryTerm {
+  const AlertGlossaryTerm({
+    required this.sourceTerm,
+    required this.normalizedTerm,
+    required this.englishTerm,
+    required this.category,
+  });
+
+  final String sourceTerm;
+  final String normalizedTerm;
+  final String englishTerm;
+  final String category;
+
+  String get displayLabel {
+    if (sourceTerm.isEmpty && englishTerm.isEmpty) {
+      return category;
+    }
+    if (sourceTerm.isEmpty) {
+      return englishTerm;
+    }
+    if (englishTerm.isEmpty) {
+      return sourceTerm;
+    }
+    return '$sourceTerm -> $englishTerm';
+  }
+
+  static AlertGlossaryTerm fromJson(Map<String, dynamic> json) {
+    return AlertGlossaryTerm(
+      sourceTerm: _string(json['sourceTerm'], fallback: ''),
+      normalizedTerm: _string(json['normalizedTerm'], fallback: ''),
+      englishTerm: _string(json['englishTerm'], fallback: ''),
+      category: _string(json['category'], fallback: ''),
     );
   }
 }
@@ -668,6 +716,16 @@ List<String> _stringList(Object? value) {
     return const [];
   }
   return value.map((item) => item.toString()).toList();
+}
+
+List<AlertGlossaryTerm> _glossaryTerms(Object? value) {
+  if (value is! List) {
+    return const [];
+  }
+  return value
+      .map((item) => AlertGlossaryTerm.fromJson(_map(item)))
+      .where((term) => term.displayLabel.isNotEmpty)
+      .toList();
 }
 
 DateTime? _dateTime(Object? value) {

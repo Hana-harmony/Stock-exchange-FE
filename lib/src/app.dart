@@ -1338,6 +1338,10 @@ class _NotificationRow extends StatelessWidget {
                             ),
                       ),
                     ],
+                    _TranslationQualityWrap(
+                      glossaryTerms: item.glossaryTerms,
+                      qualityFlags: item.translationQualityFlags,
+                    ),
                   ],
                 ),
               ),
@@ -1379,16 +1383,68 @@ class _StockIntelligencePanel extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 8),
-        ...items.take(3).map(
-              (item) => _InfoPanel(
-                icon: Icons.article_outlined,
-                title: item.title,
-                body: item.summary,
-                meta: '${item.importance} / ${item.sentiment} / '
-                    '${item.targetLabel} / ${item.originalUrl}',
-              ),
+        ...items.take(3).expand(
+              (item) => [
+                _InfoPanel(
+                  icon: Icons.article_outlined,
+                  title: item.title,
+                  body: item.summary,
+                  meta: '${item.importance} / ${item.sentiment} / '
+                      '${item.targetLabel} / ${item.originalUrl}',
+                ),
+                _TranslationQualityWrap(
+                  glossaryTerms: item.glossaryTerms,
+                  qualityFlags: item.translationQualityFlags,
+                  bottomPadding: 12,
+                ),
+              ],
             ),
       ],
+    );
+  }
+}
+
+class _TranslationQualityWrap extends StatelessWidget {
+  const _TranslationQualityWrap({
+    required this.glossaryTerms,
+    required this.qualityFlags,
+    this.bottomPadding = 0,
+  });
+
+  final List<AlertGlossaryTerm> glossaryTerms;
+  final List<String> qualityFlags;
+  final double bottomPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final labels = [
+      ...qualityFlags.where((flag) => flag.isNotEmpty),
+      ...glossaryTerms.map((term) => term.displayLabel),
+    ];
+    if (labels.isEmpty) {
+      return SizedBox(height: bottomPadding);
+    }
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: EdgeInsets.only(top: 8, bottom: bottomPadding),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: labels
+            .take(4)
+            .map(
+              (label) => Chip(
+                avatar: Icon(
+                  Icons.translate_outlined,
+                  size: 16,
+                  color: colorScheme.primary,
+                ),
+                label: Text(label),
+                visualDensity: VisualDensity.compact,
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 }

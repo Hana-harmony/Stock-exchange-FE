@@ -46,6 +46,7 @@
 | --- | --- | --- |
 | 종목별 K-News 탭 | Stock-exchange-FE | Done |
 | 번역 제목, 3줄 요약, 원문 링크 | Stock-exchange-FE | Done |
+| AI 번역 glossary와 quality flag 표시 | Stock-exchange-FE | Done |
 | 중요도, 감성, 이벤트 태그 표시 | Stock-exchange-FE | Partial |
 | 통합 알림함 All/My Portfolio/Watchlist 필터 | Stock-exchange-FE | Done |
 | Push device 등록·조회·비활성화 UI | Stock-exchange-FE | Done |
