@@ -2252,6 +2252,7 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                       meta:
                           '${detail.dataSource} / foreign base ${detail.foreignOwnershipBaseDate}',
                     ),
+                    _ForeignOwnershipGaugePanel(detail: detail),
                     _MarketHistoryChartPanel(chart: chart),
                     _OrderBookPreview(orderBook: orderBook),
                   ],
@@ -2261,6 +2262,135 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
           ),
         );
       },
+    );
+  }
+}
+
+class _ForeignOwnershipGaugePanel extends StatelessWidget {
+  const _ForeignOwnershipGaugePanel({required this.detail});
+
+  final StockDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final ownershipRate = _percentValue(detail.foreignOwnershipRate);
+    final limitRate = _percentValue(detail.foreignLimitExhaustionRate);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surface,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.speed_outlined, color: colorScheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Foreign ownership gauge',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  _SmallBadge(label: detail.foreignOwnershipBaseDate),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _GaugeLine(
+                key: const ValueKey('foreign-ownership-rate-gauge'),
+                label: 'Ownership',
+                valueLabel: '${detail.foreignOwnershipRate}%',
+                value: ownershipRate,
+                color: colorScheme.primary,
+              ),
+              const SizedBox(height: 12),
+              _GaugeLine(
+                key: const ValueKey('foreign-limit-rate-gauge'),
+                label: 'Limit exhaustion',
+                valueLabel: '${detail.foreignLimitExhaustionRate}%',
+                value: limitRate,
+                color: colorScheme.tertiary,
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Source ${detail.dataSource} / order state ${detail.riskBadge}',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static double _percentValue(String value) {
+    final parsed = double.tryParse(value.replaceAll(',', '').trim()) ?? 0.0;
+    return (parsed / 100).clamp(0.0, 1.0).toDouble();
+  }
+}
+
+class _GaugeLine extends StatelessWidget {
+  const _GaugeLine({
+    super.key,
+    required this.label,
+    required this.valueLabel,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String valueLabel;
+  final double value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                label,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            Text(
+              valueLabel,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: value,
+            minHeight: 10,
+            backgroundColor: colorScheme.surfaceContainerHighest,
+            valueColor: AlwaysStoppedAnimation<Color>(color),
+          ),
+        ),
+      ],
     );
   }
 }
