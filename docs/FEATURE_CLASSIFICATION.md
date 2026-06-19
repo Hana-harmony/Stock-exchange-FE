@@ -13,8 +13,8 @@
 | Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Partial |
 | 인증 세션 controller와 session store 경계 | Stock-exchange-FE | Partial |
 | token secure storage 기반 session 보관 | Stock-exchange-FE | Partial |
-| 로그인/회원가입 form과 session controller 화면 바인딩 | Stock-exchange-FE | Partial |
-| Mock USD account 조회와 deposit 화면 바인딩 | Stock-exchange-FE | Partial |
+| 로그인/회원가입 form과 session controller 화면 바인딩 | Stock-exchange-FE | Done |
+| Mock USD account 조회와 deposit 화면 바인딩 | Stock-exchange-FE | Done |
 | 자체 mock ledger orderability/trade/portfolio 화면 바인딩 | Stock-exchange-FE | Done |
 | Market quote REST snapshot controller와 화면 바인딩 | Stock-exchange-FE | Done |
 | Watchlist/portfolio quote REST snapshot 화면 바인딩 | Stock-exchange-FE | Done |
@@ -35,8 +35,8 @@
 | 외국인 투자한도 게이지 | Stock-exchange-FE | Done |
 | 당일 예상 지분율 범위 | Stock-exchange-FE | Partial |
 | VI 발동, 단일가 매매, 상·하한가 배지 | Stock-exchange-FE | Done |
-| 아이디/비밀번호 회원가입과 로그인 | Stock-exchange-FE | Partial |
-| mock USD 계좌 잔고와 실제 결제 없는 달러 충전 화면 | Stock-exchange-FE | Partial |
+| 아이디/비밀번호 회원가입과 로그인 | Stock-exchange-FE | Done |
+| mock USD 계좌 잔고와 실제 결제 없는 달러 충전 화면 | Stock-exchange-FE | Done |
 | 자체 mock ledger 모의 주문 패드와 주문 제한 안내 | Stock-exchange-FE | Done |
 | 매도 내역과 실현손익 표시 | Stock-exchange-FE | Partial |
 | 실제 주문 체결 | Out of scope | Out of scope |
