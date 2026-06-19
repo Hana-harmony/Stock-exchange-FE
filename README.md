@@ -20,13 +20,13 @@ flutter test
 - Material 3 앱 shell과 Market, Portfolio, Alerts, Tax 하단 탭이 구현되어 있다.
 - Market 화면은 종목명/종목코드 검색, All/KOSPI/KOSDAQ 필터, KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
-- Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, AI 번역 glossary/quality flag, 읽음 처리, push device 등록/비활성화 액션을 제공한다.
+- Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, AI 번역 glossary/quality flag, 읽음 처리, push device 등록/비활성화 액션, push delivery/retry timeline을 제공한다.
 - Tax 화면은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 완료 영수증, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope와 bearer auth session header를 처리한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이와 session store 경계를 제공한다.
 - `AccountController`는 mock USD account REST 조회와 실제 결제 없는 deposit API 호출 상태를 관리한다.
 - `TradeController`는 orderability 확인, 자체 mock ledger 주문 실행, portfolio/holding/recent trade 조회 상태를 관리한다.
-- `NotificationController`는 로그인된 accountId의 통합 알림함, 종목별 K-News feed, 읽음 처리, push device 등록 상태를 관리한다.
+- `NotificationController`는 로그인된 accountId의 통합 알림함, 종목별 K-News feed, 읽음 처리, push device 등록 상태, delivery provider/status/attempt/read 상태를 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 연결한다.
 - Portfolio 화면은 로그인된 accountId로 mock USD cash balance를 조회하고, 입력한 금액으로 실제 결제 없는 mock USD deposit을 실행한다.
 - Portfolio 화면은 KIS 주문을 보내지 않는 자체 mock order pad와 orderability 경고/차단 표시를 영어 사용자 문구로 제공하고, 최근 매도 내역의 realized PnL을 세무 환급 입력으로 확인할 수 있게 표시한다.
@@ -66,7 +66,7 @@ flutter test
 - 주문/자산: mock USD 잔고, 모의 매수·매도 기준 가격, 평가금액, 매도 실현손익, 외국인 한도 도달 주의
 - 주문 패드: VI 발동, 단일가 매매 또는 상·하한가 도달 시 즉시 체결 불가능 안내
 - K-News: 번역 제목, 요약, 감성, 중요도, 리스크, 이벤트 태그, 원문 링크, glossary/quality flag
-- 알림함: All, My Portfolio, Watchlist 필터, push device registration, 실시간 푸시 타임라인
+- 알림함: All, My Portfolio, Watchlist 필터, push device registration, delivery/retry/read timeline
 - 세무: 서류 등록, 정부 검증 상태, 정산 상세, 환급 신청, 선지급 완료/사후 환수 리스크 고지
 
 ## 문서

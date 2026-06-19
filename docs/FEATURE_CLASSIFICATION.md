@@ -51,7 +51,7 @@
 | 중요도, 감성, 리스크, 이벤트 태그 표시 | Stock-exchange-FE | Done |
 | 통합 알림함 All/My Portfolio/Watchlist 필터 | Stock-exchange-FE | Done |
 | Push device 등록·조회·비활성화 UI | Stock-exchange-FE | Done |
-| 실시간 푸시 타임라인 | Stock-exchange-FE | Partial |
+| 실시간 푸시 타임라인 | Stock-exchange-FE | Done |
 
 ## 3. 세무 전산화 및 환급금 선지급
 

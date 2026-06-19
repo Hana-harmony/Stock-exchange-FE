@@ -1811,6 +1811,8 @@ class _NotificationRow extends StatelessWidget {
                       glossaryTerms: item.glossaryTerms,
                       qualityFlags: item.translationQualityFlags,
                     ),
+                    const SizedBox(height: 10),
+                    _PushDeliveryTimeline(item: item),
                   ],
                 ),
               ),
@@ -1829,6 +1831,110 @@ class _NotificationRow extends StatelessWidget {
       ),
     );
   }
+}
+
+class _PushDeliveryTimeline extends StatelessWidget {
+  const _PushDeliveryTimeline({required this.item});
+
+  final NotificationItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final lastDeliveryError = item.lastDeliveryError;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Divider(color: colorScheme.outlineVariant),
+        Row(
+          children: [
+            Icon(
+              item.deliveryNeedsAttention
+                  ? Icons.sync_problem_outlined
+                  : Icons.notifications_active_outlined,
+              size: 18,
+              color: item.deliveryNeedsAttention
+                  ? colorScheme.error
+                  : colorScheme.primary,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              'Push delivery timeline',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            _StatusChip(
+              icon: Icons.schedule_outlined,
+              label: 'Created ${_compactTimestamp(item.createdAt)}',
+            ),
+            _StatusChip(
+              icon: _deliveryStatusIcon(item.deliveryStatusLabel),
+              label: item.deliveryStatusLabel,
+            ),
+            _StatusChip(
+              icon: Icons.cloud_queue_outlined,
+              label: item.deliveryProviderLabel,
+            ),
+            _StatusChip(
+              icon: Icons.replay_outlined,
+              label: item.deliveryAttemptLabel,
+            ),
+            _StatusChip(
+              icon: item.read
+                  ? Icons.mark_email_read_outlined
+                  : Icons.mark_email_unread_outlined,
+              label: item.read
+                  ? 'Read ${_compactTimestamp(item.readAt)}'
+                  : 'Unread',
+            ),
+            if (item.deliveredAt != null)
+              _StatusChip(
+                icon: Icons.done_all_outlined,
+                label: 'Delivered ${_compactTimestamp(item.deliveredAt)}',
+              ),
+          ],
+        ),
+        if (lastDeliveryError != null && lastDeliveryError.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Text(
+            lastDeliveryError,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: colorScheme.error,
+                ),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+IconData _deliveryStatusIcon(String status) {
+  switch (status.toUpperCase()) {
+    case 'DELIVERED':
+      return Icons.done_all_outlined;
+    case 'FAILED':
+      return Icons.error_outline;
+    case 'RETRYING':
+      return Icons.sync_problem_outlined;
+    default:
+      return Icons.schedule_outlined;
+  }
+}
+
+String _compactTimestamp(DateTime? value) {
+  if (value == null) {
+    return '-';
+  }
+  final iso = value.toUtc().toIso8601String();
+  return iso.replaceFirst('T', ' ').replaceFirst(RegExp(r'\.\d+Z$'), 'Z');
 }
 
 class _StockIntelligencePanel extends StatelessWidget {
