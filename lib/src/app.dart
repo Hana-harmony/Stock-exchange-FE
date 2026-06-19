@@ -334,7 +334,7 @@ class _MarketScreenState extends State<MarketScreen> {
   Widget build(BuildContext context) {
     return _ScreenFrame(
       title: 'Korea Market',
-      subtitle: 'Live KRX quotes with KRW and USD pricing.',
+      subtitle: 'Live Korea stock quotes with KRW and USD pricing.',
       children: [
         _SessionStatusPanel(sessionController: widget.sessionController),
         _SearchField(onChanged: _searchStocks),

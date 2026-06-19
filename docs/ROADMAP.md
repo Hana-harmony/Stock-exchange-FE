@@ -6,12 +6,12 @@
 - Flutter 앱 scaffold: Done
 - iOS target 설정: Done
 - Android target 설정: Done
-- 라우팅과 전역 레이아웃: Partial
-- API client와 인증 세션 controller 연동: Partial
-- token secure storage 기반 session 보관: Partial
-- English 기본 UI와 USD 표시/충전 기준: Partial
-- 디자인 토큰과 공통 컴포넌트: Partial
-- Flutter lint, widget test, integration test 하네스: Partial
+- 라우팅과 전역 레이아웃: Done
+- API client와 인증 세션 controller 연동: Done
+- token secure storage 기반 session 보관: Done
+- English 기본 UI와 USD 표시/충전 기준: Done
+- 디자인 토큰과 공통 컴포넌트: Done
+- Flutter lint와 widget test 하네스: Done; device integration smoke는 LOCAL_APP_TESTING 절차에서 검증
 
 ## M2 시장/주문 화면
 - 종목 검색: Done
