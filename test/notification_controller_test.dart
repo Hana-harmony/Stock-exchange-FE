@@ -41,6 +41,18 @@ void main() {
       controller.value.filteredNotifications.single.translationQualityFlags,
       ['GLOSSARY_MATCHED'],
     );
+    expect(
+      controller.value.filteredNotifications.single.deliveryProviderLabel,
+      'LOCAL_NOOP_PUSH',
+    );
+    expect(
+      controller.value.filteredNotifications.single.deliveryAttemptLabel,
+      'Attempt 1',
+    );
+    expect(
+      controller.value.filteredNotifications.single.deliveryNeedsAttention,
+      isFalse,
+    );
     expect(controller.value.feed?.items.single.title, 'Samsung earnings improve');
     expect(
       controller.value.feed?.items.single.glossaryTerms.single.englishTerm,
@@ -184,7 +196,7 @@ Map<String, Object?> _notificationInboxJson() {
         'glossaryTerms': [_glossaryTerm('공시', 'disclosure', 'DISCLOSURE')],
         'translationQualityFlags': ['GLOSSARY_MATCHED'],
         'deliveryStatus': 'DELIVERED',
-        'deliveryProvider': 'LOCAL_INBOX',
+        'deliveryProvider': 'LOCAL_NOOP_PUSH',
         'deliveryAttemptCount': 1,
         'deliveredAt': '2026-06-18T06:00:00Z',
         'lastDeliveryError': null,
