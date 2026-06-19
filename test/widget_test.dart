@@ -237,8 +237,19 @@ void main() {
                 'to': '2026-06-18',
                 'baseCurrency': 'KRW',
                 'displayCurrency': 'USD',
-                'pointCount': 1,
+                'pointCount': 2,
                 'points': [
+                  {
+                    'tradeDate': '2026-06-17',
+                    'openPriceKrw': '80000',
+                    'highPriceKrw': '81800',
+                    'lowPriceKrw': '79800',
+                    'closePriceKrw': '81200',
+                    'localCurrency': 'USD',
+                    'closeLocalCurrencyPrice': '53.22',
+                    'volume': 17100000,
+                    'adjusted': false,
+                  },
                   {
                     'tradeDate': '2026-06-18',
                     'openPriceKrw': '81000',
@@ -341,7 +352,11 @@ void main() {
     expect(find.text('USD 54.01'), findsWidgets);
     expect(find.text('Single-price trading'), findsOneWidget);
     expect(find.text('UPPER_LIMIT'), findsWidgets);
-    expect(find.text('Historical chart snapshot'), findsOneWidget);
+    expect(find.text('Historical price line'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('market-history-chart-line')),
+      findsOneWidget,
+    );
     expect(find.textContaining('Ask 54.08 x 800'), findsOneWidget);
   });
 

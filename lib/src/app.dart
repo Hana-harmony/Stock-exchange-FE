@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -2131,7 +2133,6 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
         final detail = detailState.detail;
         final chart = detailState.chart;
         final orderBook = detailState.orderBook;
-        final latestPoint = chart?.latestPoint;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 12),
@@ -2251,15 +2252,7 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                       meta:
                           '${detail.dataSource} / foreign base ${detail.foreignOwnershipBaseDate}',
                     ),
-                    if (latestPoint != null)
-                      _InfoPanel(
-                        icon: Icons.show_chart,
-                        title: 'Historical chart snapshot',
-                        body:
-                            '${chart!.pointCount} ${chart.interval} points from ${chart.from} to ${chart.to}. Latest close ${latestPoint.closeKrwDisplay} / ${latestPoint.closeLocalDisplay}.',
-                        meta:
-                            '${chart.dataSource} / adjusted ${latestPoint.adjusted}',
-                      ),
+                    _MarketHistoryChartPanel(chart: chart),
                     _OrderBookPreview(orderBook: orderBook),
                   ],
                 ],
@@ -2269,6 +2262,187 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
         );
       },
     );
+  }
+}
+
+class _MarketHistoryChartPanel extends StatelessWidget {
+  const _MarketHistoryChartPanel({required this.chart});
+
+  final MarketChart? chart;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final points = chart?.points ?? const <MarketChartPoint>[];
+    final latestPoint = chart?.latestPoint;
+    final closes = points
+        .map((point) => _decimalValue(point.closeLocalCurrencyPrice))
+        .whereType<double>()
+        .toList(growable: false);
+    final hasChartData = closes.isNotEmpty && latestPoint != null;
+    final minClose = hasChartData ? closes.reduce(math.min) : 0.0;
+    final maxClose = hasChartData ? closes.reduce(math.max) : 0.0;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surface,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.show_chart, color: colorScheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Historical price line',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  if (chart != null) _SmallBadge(label: chart!.interval),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (!hasChartData)
+                Text(
+                  'Historical prices will appear after the chart REST snapshot loads.',
+                  style: TextStyle(color: colorScheme.onSurfaceVariant),
+                )
+              else ...[
+                SizedBox(
+                  height: 128,
+                  width: double.infinity,
+                  child: CustomPaint(
+                    key: const ValueKey('market-history-chart-line'),
+                    painter: _MarketHistoryLinePainter(
+                      closes: closes,
+                      lineColor: colorScheme.primary,
+                      fillColor: colorScheme.primaryContainer,
+                      gridColor: colorScheme.outlineVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 16,
+                  runSpacing: 8,
+                  children: [
+                    _Metric(
+                      label: 'Latest',
+                      value: latestPoint.closeLocalDisplay,
+                    ),
+                    _Metric(
+                      label: 'KRW close',
+                      value: latestPoint.closeKrwDisplay,
+                    ),
+                    _Metric(
+                      label: 'Range',
+                      value:
+                          '${chart!.displayCurrency} ${minClose.toStringAsFixed(2)} - ${maxClose.toStringAsFixed(2)}',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${chart!.pointCount} points from ${chart!.from} to ${chart!.to} / ${chart!.dataSource} / adjusted ${latestPoint.adjusted}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static double? _decimalValue(String value) {
+    final normalized = value.replaceAll(',', '').trim();
+    return double.tryParse(normalized);
+  }
+}
+
+class _MarketHistoryLinePainter extends CustomPainter {
+  const _MarketHistoryLinePainter({
+    required this.closes,
+    required this.lineColor,
+    required this.fillColor,
+    required this.gridColor,
+  });
+
+  final List<double> closes;
+  final Color lineColor;
+  final Color fillColor;
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty || closes.isEmpty) {
+      return;
+    }
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    for (final fraction in const [0.0, 0.5, 1.0]) {
+      final y = size.height * fraction;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final minClose = closes.reduce(math.min);
+    final maxClose = closes.reduce(math.max);
+    final range = math.max(maxClose - minClose, 0.01);
+    final path = Path();
+    Offset? lastOffset;
+
+    for (var index = 0; index < closes.length; index += 1) {
+      final x = closes.length == 1
+          ? size.width
+          : size.width * index / (closes.length - 1);
+      final y =
+          size.height - ((closes[index] - minClose) / range * size.height);
+      lastOffset = Offset(x, y);
+      if (index == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    final fillPath = Path.from(path)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(fillPath, Paint()..color = fillColor.withAlpha(89));
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = lineColor
+        ..strokeWidth = 3
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.drawCircle(lastOffset!, 4, Paint()..color = lineColor);
+  }
+
+  @override
+  bool shouldRepaint(covariant _MarketHistoryLinePainter oldDelegate) {
+    return closes != oldDelegate.closes ||
+        lineColor != oldDelegate.lineColor ||
+        fillColor != oldDelegate.fillColor ||
+        gridColor != oldDelegate.gridColor;
   }
 }
 

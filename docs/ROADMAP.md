@@ -21,7 +21,7 @@
 - WebSocket 재연결, stale 표시, REST snapshot refresh: Partial
 - KRW 가격과 USD 환산 가격 동시 표시: Partial
 - 적용 환율 기준시각/출처와 stale 상태 UI: Partial
-- 과거 시세 차트: Partial
+- 과거 시세 차트: Done
 - 종목 상세 현재가/호가: Partial
 - 외국인 보유율 게이지와 예측 boundary: Partial
 - VI/상·하한가 배지: Partial
