@@ -41,6 +41,14 @@ void main() {
     expect(controller.value.detail?.riskBadge, 'VI active');
     expect(controller.value.detail?.singlePriceTrading, isTrue);
     expect(
+      controller.value.detail?.predictedOwnershipRangeDisplay,
+      '55.20% - 55.45%',
+    );
+    expect(
+      controller.value.detail?.predictedLimitRangeDisplay,
+      '55.25% - 55.60%',
+    );
+    expect(
       controller.value.chart?.latestPoint?.closeLocalDisplay,
       'USD 54.01',
     );
@@ -111,6 +119,10 @@ Map<String, Object?> _detailJson() {
     'marketDataTime': '2026-06-18T06:00:00Z',
     'foreignOwnershipRate': '55.31',
     'foreignLimitExhaustionRate': '55.31',
+    'predictedForeignOwnershipRateMin': '55.20',
+    'predictedForeignOwnershipRateMax': '55.45',
+    'predictedForeignLimitExhaustionRateMin': '55.25',
+    'predictedForeignLimitExhaustionRateMax': '55.60',
     'foreignOwnershipBaseDate': '2026-06-18',
     'viActive': true,
     'singlePriceTrading': true,

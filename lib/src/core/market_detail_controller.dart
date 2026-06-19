@@ -68,6 +68,10 @@ class StockDetail {
     required this.marketDataTime,
     required this.foreignOwnershipRate,
     required this.foreignLimitExhaustionRate,
+    required this.predictedForeignOwnershipRateMin,
+    required this.predictedForeignOwnershipRateMax,
+    required this.predictedForeignLimitExhaustionRateMin,
+    required this.predictedForeignLimitExhaustionRateMax,
     required this.foreignOwnershipBaseDate,
     required this.viActive,
     required this.singlePriceTrading,
@@ -91,6 +95,10 @@ class StockDetail {
   final DateTime? marketDataTime;
   final String foreignOwnershipRate;
   final String foreignLimitExhaustionRate;
+  final String predictedForeignOwnershipRateMin;
+  final String predictedForeignOwnershipRateMax;
+  final String predictedForeignLimitExhaustionRateMin;
+  final String predictedForeignLimitExhaustionRateMax;
   final String foreignOwnershipBaseDate;
   final bool viActive;
   final bool singlePriceTrading;
@@ -103,6 +111,12 @@ class StockDetail {
   String get krwDisplay => '$baseCurrency $currentPriceKrw';
 
   String get localCurrencyDisplay => '$displayCurrency $localCurrencyPrice';
+
+  String get predictedOwnershipRangeDisplay =>
+      '$predictedForeignOwnershipRateMin% - $predictedForeignOwnershipRateMax%';
+
+  String get predictedLimitRangeDisplay =>
+      '$predictedForeignLimitExhaustionRateMin% - $predictedForeignLimitExhaustionRateMax%';
 
   String get riskBadge {
     if (tradingHalted) {
@@ -121,6 +135,11 @@ class StockDetail {
   }
 
   static StockDetail fromJson(Map<String, dynamic> json) {
+    final foreignOwnershipRate =
+        _string(json['foreignOwnershipRate'], fallback: '0');
+    final foreignLimitExhaustionRate =
+        _string(json['foreignLimitExhaustionRate'], fallback: '0');
+
     return StockDetail(
       stockCode: _string(json['stockCode'], fallback: ''),
       stockName: _string(json['stockName'], fallback: 'Unknown stock'),
@@ -133,10 +152,24 @@ class StockDetail {
       changeRate: _string(json['changeRate'], fallback: '0'),
       volume: _int(json['volume']),
       marketDataTime: _dateTime(json['marketDataTime']),
-      foreignOwnershipRate:
-          _string(json['foreignOwnershipRate'], fallback: '0'),
-      foreignLimitExhaustionRate:
-          _string(json['foreignLimitExhaustionRate'], fallback: '0'),
+      foreignOwnershipRate: foreignOwnershipRate,
+      foreignLimitExhaustionRate: foreignLimitExhaustionRate,
+      predictedForeignOwnershipRateMin: _string(
+        json['predictedForeignOwnershipRateMin'],
+        fallback: foreignOwnershipRate,
+      ),
+      predictedForeignOwnershipRateMax: _string(
+        json['predictedForeignOwnershipRateMax'],
+        fallback: foreignOwnershipRate,
+      ),
+      predictedForeignLimitExhaustionRateMin: _string(
+        json['predictedForeignLimitExhaustionRateMin'],
+        fallback: foreignLimitExhaustionRate,
+      ),
+      predictedForeignLimitExhaustionRateMax: _string(
+        json['predictedForeignLimitExhaustionRateMax'],
+        fallback: foreignLimitExhaustionRate,
+      ),
       foreignOwnershipBaseDate:
           _string(json['foreignOwnershipBaseDate'], fallback: 'unknown'),
       viActive: json['viActive'] as bool? ?? false,

@@ -635,6 +635,10 @@ void main() {
               'marketDataTime': '2026-06-18T06:00:00Z',
               'foreignOwnershipRate': '55.31',
               'foreignLimitExhaustionRate': '55.31',
+              'predictedForeignOwnershipRateMin': '55.20',
+              'predictedForeignOwnershipRateMax': '55.45',
+              'predictedForeignLimitExhaustionRateMin': '55.25',
+              'predictedForeignLimitExhaustionRateMax': '55.60',
               'foreignOwnershipBaseDate': '2026-06-18',
               'viActive': false,
               'singlePriceTrading': true,
@@ -676,6 +680,15 @@ void main() {
     expect(find.text('Single-price trading'), findsOneWidget);
     expect(find.text('UPPER_LIMIT'), findsWidgets);
     expect(find.text('Foreign ownership gauge'), findsOneWidget);
+    expect(find.text('Today forecast boundary'), findsOneWidget);
+    expect(
+      find.textContaining('Ownership 55.20% - 55.45%'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('Limit 55.25% - 55.60%'),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey('foreign-ownership-rate-gauge')),
       findsOneWidget,
