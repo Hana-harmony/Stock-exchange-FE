@@ -312,8 +312,7 @@ class _MarketScreenState extends State<MarketScreen> {
   String _selectedMarket = 'ALL';
   String _searchQuery = '';
 
-  String? get _marketQuery =>
-      _selectedMarket == 'ALL' ? null : _selectedMarket;
+  String? get _marketQuery => _selectedMarket == 'ALL' ? null : _selectedMarket;
 
   void _selectMarket(String market) {
     if (_selectedMarket == market) {
@@ -342,6 +341,10 @@ class _MarketScreenState extends State<MarketScreen> {
           selectedMarket: _selectedMarket,
           onSelected: _selectMarket,
         ),
+        _PopularStocksPanel(
+          marketQuoteController: widget.marketQuoteController,
+          selectedMarket: _marketQuery,
+        ),
         _QuoteSnapshotPanel(
           marketQuoteController: widget.marketQuoteController,
           selectedMarket: _marketQuery,
@@ -349,6 +352,7 @@ class _MarketScreenState extends State<MarketScreen> {
         ),
         _StockDetailPanel(
           marketDetailController: widget.marketDetailController,
+          marketQuoteController: widget.marketQuoteController,
         ),
       ],
     );
@@ -393,7 +397,8 @@ class PortfolioScreen extends StatelessWidget {
           marketQuoteController: portfolioQuoteController,
           sessionController: sessionController,
           accountScope: MarketQuoteAccountScope.portfolio,
-          onRefresh: (accountId) => portfolioQuoteController.loadPortfolioSnapshot(
+          onRefresh: (accountId) =>
+              portfolioQuoteController.loadPortfolioSnapshot(
             accountId: accountId,
           ),
         ),
@@ -404,14 +409,16 @@ class PortfolioScreen extends StatelessWidget {
           marketQuoteController: watchlistQuoteController,
           sessionController: sessionController,
           accountScope: MarketQuoteAccountScope.watchlist,
-          onRefresh: (accountId) => watchlistQuoteController.loadWatchlistSnapshot(
+          onRefresh: (accountId) =>
+              watchlistQuoteController.loadWatchlistSnapshot(
             accountId: accountId,
           ),
         ),
         _InfoPanel(
           icon: Icons.point_of_sale,
           title: 'Mock USD cash',
-          body: 'Deposit, buy, and sell actions update only the exchange ledger.',
+          body:
+              'Deposit, buy, and sell actions update only the exchange ledger.',
           meta: 'Available cash USD 12,450.00',
         ),
       ],
@@ -500,7 +507,8 @@ class TaxScreen extends StatelessWidget {
         const _InfoPanel(
           icon: Icons.warning_amber_outlined,
           title: 'Recapture risk',
-          body: 'Advance refund completion includes a clear post-review risk notice.',
+          body:
+              'Advance refund completion includes a clear post-review risk notice.',
           meta: 'Risk notice required before advance payment',
         ),
       ],
@@ -875,8 +883,7 @@ class _TaxRefundStatusPanel extends StatelessWidget {
                           title: 'Government verification reference',
                           body: 'Status ${refundCase.status} / reference '
                               '${refundCase.referenceDisplay}',
-                          meta:
-                              '${refundCase.dataSource} / updated '
+                          meta: '${refundCase.dataSource} / updated '
                               '${refundCase.updatedAt?.toUtc().toIso8601String() ?? 'unknown'}',
                         ),
                         _TaxDocumentChecklist(caseData: refundCase),
@@ -1049,7 +1056,8 @@ class _TaxAdvanceReceipt extends StatelessWidget {
       return _InfoPanel(
         icon: Icons.receipt_long_outlined,
         title: 'Advance refund receipt',
-        body: 'Advance payment receipt is issued after Hana returns ADVANCE_PAID.',
+        body:
+            'Advance payment receipt is issued after Hana returns ADVANCE_PAID.',
         meta: 'Current status ${caseData.status}',
       );
     }
@@ -1595,7 +1603,8 @@ class _AlertInboxPanel extends StatelessWidget {
                       ] else if (alertState.status ==
                           NotificationStatus.failure) ...[
                         const SizedBox(height: 12),
-                        Text(alertState.errorMessage ?? 'Unable to load alerts.'),
+                        Text(alertState.errorMessage ??
+                            'Unable to load alerts.'),
                       ],
                       const SizedBox(height: 12),
                       if (filteredNotifications.isEmpty)
@@ -2087,6 +2096,188 @@ class _StatusStrip extends StatelessWidget {
   }
 }
 
+class _PopularStocksPanel extends StatelessWidget {
+  const _PopularStocksPanel({
+    required this.marketQuoteController,
+    required this.selectedMarket,
+  });
+
+  final MarketQuoteController marketQuoteController;
+  final String? selectedMarket;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<MarketQuoteState>(
+      valueListenable: marketQuoteController,
+      builder: (context, quoteState, child) {
+        final popularQuotes = _popularQuotes(quoteState.quotes, selectedMarket);
+        final colorScheme = Theme.of(context).colorScheme;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(8),
+              color: colorScheme.surface,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.trending_up, color: colorScheme.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Popular stocks',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                      _SmallBadge(label: selectedMarket ?? 'ALL'),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (popularQuotes.isEmpty)
+                    Text(
+                      'Popular stock movers will appear after quote data loads.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    )
+                  else
+                    ...popularQuotes.indexed.map(
+                      (entry) => _PopularStockRow(
+                        rank: entry.$1 + 1,
+                        quote: entry.$2,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  static List<MarketQuote> _popularQuotes(
+    List<MarketQuote> quotes,
+    String? selectedMarket,
+  ) {
+    final filtered = quotes
+        .where(
+          (quote) => selectedMarket == null || quote.market == selectedMarket,
+        )
+        .toList()
+      ..sort((left, right) => right.volume.compareTo(left.volume));
+    return filtered.take(5).toList(growable: false);
+  }
+}
+
+class _PopularStockRow extends StatelessWidget {
+  const _PopularStockRow({
+    required this.rank,
+    required this.quote,
+  });
+
+  final int rank;
+  final MarketQuote quote;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final positive = _isPositiveMove(quote.changeRate);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              '$rank',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          Expanded(
+            flex: 3,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  quote.stockName,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${quote.stockCode} / ${quote.market}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 96,
+            height: 40,
+            child: _QuoteSparkline(
+              key: ValueKey('popular-sparkline-${quote.stockCode}'),
+              values: _quoteSparklineValues(quote),
+              positive: positive,
+            ),
+          ),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 112,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 220),
+                  child: Text(
+                    quote.localCurrencyDisplay,
+                    key: ValueKey(
+                      'popular-price-${quote.stockCode}-${quote.localCurrencyPrice}',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  quote.changeRate,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color:
+                            positive ? Colors.teal.shade700 : colorScheme.error,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _QuoteSnapshotPanel extends StatelessWidget {
   const _QuoteSnapshotPanel({
     required this.marketQuoteController,
@@ -2106,7 +2297,11 @@ class _QuoteSnapshotPanel extends StatelessWidget {
         final snapshot = quoteState.snapshot;
         final firstQuote =
             quoteState.quotes.isNotEmpty ? quoteState.quotes.first : null;
-        final visibleQuotes = _filterQuotes(quoteState.quotes, searchQuery);
+        final visibleQuotes = _filterQuotes(
+          quoteState.quotes,
+          searchQuery,
+          selectedMarket,
+        );
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -2164,17 +2359,17 @@ class _QuoteSnapshotPanel extends StatelessWidget {
   static List<MarketQuote> _filterQuotes(
     List<MarketQuote> quotes,
     String query,
+    String? selectedMarket,
   ) {
     final normalized = query.toLowerCase();
-    if (normalized.isEmpty) {
-      return quotes;
-    }
     return quotes
         .where(
           (quote) =>
-              quote.stockCode.toLowerCase().contains(normalized) ||
-              quote.stockName.toLowerCase().contains(normalized) ||
-              quote.market.toLowerCase().contains(normalized),
+              (selectedMarket == null || quote.market == selectedMarket) &&
+              (normalized.isEmpty ||
+                  quote.stockCode.toLowerCase().contains(normalized) ||
+                  quote.stockName.toLowerCase().contains(normalized) ||
+                  quote.market.toLowerCase().contains(normalized)),
         )
         .toList();
   }
@@ -2257,7 +2452,9 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
                   _InfoPanel(
                     icon: Icons.list_alt_outlined,
                     title: emptyTitle,
-                    body: isSignedIn ? emptyBody : 'Sign in to load this account scope.',
+                    body: isSignedIn
+                        ? emptyBody
+                        : 'Sign in to load this account scope.',
                     meta: snapshot == null
                         ? 'REST snapshot pending'
                         : '${snapshot.quoteCount} quotes from ${snapshot.dataSource}',
@@ -2308,7 +2505,8 @@ class _AccountQuoteSnapshotActions extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border:
+              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(8),
           color: Theme.of(context).colorScheme.surface,
         ),
@@ -2407,7 +2605,8 @@ class _QuoteSnapshotActions extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 12),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+          border:
+              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
           borderRadius: BorderRadius.circular(8),
           color: Theme.of(context).colorScheme.surface,
         ),
@@ -2522,6 +2721,7 @@ class _QuoteRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final positive = _isPositiveMove(quote.changeRate);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -2552,6 +2752,16 @@ class _QuoteRow extends StatelessWidget {
               const SizedBox(height: 6),
               Text(quote.stockCode),
               const SizedBox(height: 10),
+              SizedBox(
+                height: 54,
+                width: double.infinity,
+                child: _QuoteSparkline(
+                  key: ValueKey('quote-row-sparkline-${quote.stockCode}'),
+                  values: _quoteSparklineValues(quote),
+                  positive: positive,
+                ),
+              ),
+              const SizedBox(height: 10),
               Wrap(
                 spacing: 16,
                 runSpacing: 8,
@@ -2581,10 +2791,169 @@ class _QuoteRow extends StatelessWidget {
   }
 }
 
+class _QuoteSparkline extends StatelessWidget {
+  const _QuoteSparkline({
+    super.key,
+    required this.values,
+    required this.positive,
+  });
+
+  final List<double> values;
+  final bool positive;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final lineColor = positive ? Colors.teal.shade700 : colorScheme.error;
+
+    return CustomPaint(
+      painter: _SparklinePainter(
+        values: values,
+        lineColor: lineColor,
+        fillColor: lineColor.withAlpha(34),
+        gridColor: colorScheme.outlineVariant.withAlpha(128),
+      ),
+    );
+  }
+}
+
+List<double> _quoteSparklineValues(MarketQuote quote) {
+  final base = _decimalValue(quote.localCurrencyPrice) ??
+      _decimalValue(quote.currentPriceKrw) ??
+      1.0;
+  final change = _percentValue(quote.changeRate);
+  final direction = change == 0 ? 1.0 : change.sign.toDouble();
+  final amplitude = math.max(
+    base * math.min(change.abs() / 100, 0.06),
+    base * 0.004,
+  );
+  final liquidityWave = (quote.volume % 11) / 10;
+
+  return List<double>.generate(14, (index) {
+    final progress = index / 13;
+    final trend = (progress - 0.5) * amplitude * direction * 2;
+    final wave =
+        math.sin((progress * math.pi * 2) + liquidityWave) * amplitude * 0.35;
+    return math.max(0.01, base + trend + wave);
+  }, growable: false);
+}
+
+List<double> _detailSparklineValues(
+    MarketChart? chart, MarketQuote? liveQuote) {
+  final chartCloses = chart?.points
+          .map((point) => _decimalValue(point.closeLocalCurrencyPrice))
+          .whereType<double>()
+          .toList() ??
+      <double>[];
+  final liveValue = liveQuote == null
+      ? null
+      : _decimalValue(liveQuote.localCurrencyPrice) ??
+          _decimalValue(liveQuote.currentPriceKrw);
+
+  if (liveValue != null) {
+    return [...chartCloses.take(20), liveValue];
+  }
+  if (chartCloses.isNotEmpty) {
+    return chartCloses.take(21).toList(growable: false);
+  }
+  return const [0.95, 1.0, 0.98, 1.02, 1.01];
+}
+
+bool _isPositiveMove(String value) => !value.trim().startsWith('-');
+
+double _percentValue(String value) {
+  final normalized = value.replaceAll('%', '').replaceAll(',', '').trim();
+  return double.tryParse(normalized) ?? 0.0;
+}
+
+double? _decimalValue(String value) {
+  final normalized = value.replaceAll(',', '').trim();
+  return double.tryParse(normalized);
+}
+
+class _SparklinePainter extends CustomPainter {
+  const _SparklinePainter({
+    required this.values,
+    required this.lineColor,
+    required this.fillColor,
+    required this.gridColor,
+  });
+
+  final List<double> values;
+  final Color lineColor;
+  final Color fillColor;
+  final Color gridColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty || values.isEmpty) {
+      return;
+    }
+
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 1;
+    canvas.drawLine(
+      Offset(0, size.height * 0.5),
+      Offset(size.width, size.height * 0.5),
+      gridPaint,
+    );
+
+    final minValue = values.reduce(math.min);
+    final maxValue = values.reduce(math.max);
+    final range = math.max(maxValue - minValue, 0.01);
+    final path = Path();
+    Offset? lastOffset;
+
+    for (var index = 0; index < values.length; index += 1) {
+      final x = values.length == 1
+          ? size.width
+          : size.width * index / (values.length - 1);
+      final y =
+          size.height - ((values[index] - minValue) / range * size.height);
+      lastOffset = Offset(x, y);
+      if (index == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    final fillPath = Path.from(path)
+      ..lineTo(size.width, size.height)
+      ..lineTo(0, size.height)
+      ..close();
+
+    canvas.drawPath(fillPath, Paint()..color = fillColor);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = lineColor
+        ..strokeWidth = 2.4
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round,
+    );
+    canvas.drawCircle(lastOffset!, 3.2, Paint()..color = lineColor);
+  }
+
+  @override
+  bool shouldRepaint(covariant _SparklinePainter oldDelegate) {
+    return values != oldDelegate.values ||
+        lineColor != oldDelegate.lineColor ||
+        fillColor != oldDelegate.fillColor ||
+        gridColor != oldDelegate.gridColor;
+  }
+}
+
 class _StockDetailPanel extends StatefulWidget {
-  const _StockDetailPanel({required this.marketDetailController});
+  const _StockDetailPanel({
+    required this.marketDetailController,
+    required this.marketQuoteController,
+  });
 
   final MarketDetailController marketDetailController;
+  final MarketQuoteController marketQuoteController;
 
   @override
   State<_StockDetailPanel> createState() => _StockDetailPanelState();
@@ -2667,7 +3036,8 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                         icon: isLoading
                             ? const SizedBox.square(
                                 dimension: 16,
-                                child: CircularProgressIndicator(strokeWidth: 2),
+                                child:
+                                    CircularProgressIndicator(strokeWidth: 2),
                               )
                             : const Icon(Icons.candlestick_chart_outlined),
                         label: const Text('Load details'),
@@ -2680,63 +3050,89 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                       icon: Icons.error_outline,
                       title: 'Stock detail unavailable',
                       body: detailState.errorMessage!,
-                      meta: 'Detail, chart, and order book use Stock-exchange-BE REST.',
+                      meta:
+                          'Detail, chart, and order book use Stock-exchange-BE REST.',
                     ),
                   if (detail == null)
                     const _InfoPanel(
                       icon: Icons.query_stats,
                       title: 'Detail REST ready',
-                      body: 'Load a Korean stock code to show current price, historical chart data, and order book.',
-                      meta: 'Source path: Stock-exchange-BE to Hana-OmniLens-API',
-                    )
-                  else ...[
-                    _CurrentPriceSummaryPanel(
-                      detail: detail,
-                      orderBook: orderBook,
-                    ),
-                    Wrap(
-                      spacing: 16,
-                      runSpacing: 10,
-                      children: [
-                        _Metric(label: 'Name', value: detail.stockName),
-                        _Metric(label: 'KRW', value: detail.krwDisplay),
-                        _Metric(
-                          label: detail.displayCurrency,
-                          value: detail.localCurrencyDisplay,
-                        ),
-                        _Metric(label: 'Move', value: detail.changeRate),
-                        _Metric(
-                          label: 'Foreign owned',
-                          value: '${detail.foreignOwnershipRate}%',
-                        ),
-                        _Metric(
-                          label: 'Foreign limit',
-                          value: '${detail.foreignLimitExhaustionRate}%',
-                        ),
-                        _Metric(
-                          label: 'Price limit',
-                          value: detail.priceLimitState,
-                        ),
-                        _Metric(
-                          label: 'Single price',
-                          value: detail.singlePriceTrading ? 'Active' : 'Normal',
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _InfoPanel(
-                      icon: Icons.public,
-                      title: 'Hana-OmniLens market detail',
                       body:
-                          '${detail.market} / ${detail.sector} / volume ${detail.volume}',
+                          'Load a Korean stock code to show current price, historical chart data, and order book.',
                       meta:
-                          '${detail.dataSource} / foreign base ${detail.foreignOwnershipBaseDate}',
+                          'Source path: Stock-exchange-BE to Hana-OmniLens-API',
+                    )
+                  else
+                    ValueListenableBuilder<MarketQuoteState>(
+                      valueListenable: widget.marketQuoteController,
+                      builder: (context, quoteState, child) {
+                        final liveQuote = _liveQuoteForDetail(
+                          detail,
+                          quoteState.quotes,
+                        );
+
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _DetailLivePricePanel(
+                              detail: detail,
+                              chart: chart,
+                              liveQuote: liveQuote,
+                            ),
+                            _CurrentPriceSummaryPanel(
+                              detail: detail,
+                              orderBook: orderBook,
+                            ),
+                            Wrap(
+                              spacing: 16,
+                              runSpacing: 10,
+                              children: [
+                                _Metric(label: 'Name', value: detail.stockName),
+                                _Metric(label: 'KRW', value: detail.krwDisplay),
+                                _Metric(
+                                  label: detail.displayCurrency,
+                                  value: detail.localCurrencyDisplay,
+                                ),
+                                _Metric(
+                                    label: 'Move', value: detail.changeRate),
+                                _Metric(
+                                  label: 'Foreign owned',
+                                  value: '${detail.foreignOwnershipRate}%',
+                                ),
+                                _Metric(
+                                  label: 'Foreign limit',
+                                  value:
+                                      '${detail.foreignLimitExhaustionRate}%',
+                                ),
+                                _Metric(
+                                  label: 'Price limit',
+                                  value: detail.priceLimitState,
+                                ),
+                                _Metric(
+                                  label: 'Single price',
+                                  value: detail.singlePriceTrading
+                                      ? 'Active'
+                                      : 'Normal',
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            _InfoPanel(
+                              icon: Icons.public,
+                              title: 'Hana-OmniLens market detail',
+                              body:
+                                  '${detail.market} / ${detail.sector} / volume ${detail.volume}',
+                              meta:
+                                  '${detail.dataSource} / foreign base ${detail.foreignOwnershipBaseDate}',
+                            ),
+                            _ForeignOwnershipGaugePanel(detail: detail),
+                            _ForeignBoundaryPanel(detail: detail),
+                            _MarketHistoryChartPanel(chart: chart),
+                            _OrderBookPreview(orderBook: orderBook),
+                          ],
+                        );
+                      },
                     ),
-                    _ForeignOwnershipGaugePanel(detail: detail),
-                    _ForeignBoundaryPanel(detail: detail),
-                    _MarketHistoryChartPanel(chart: chart),
-                    _OrderBookPreview(orderBook: orderBook),
-                  ],
                 ],
               ),
             ),
@@ -2745,6 +3141,110 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
       },
     );
   }
+}
+
+class _DetailLivePricePanel extends StatelessWidget {
+  const _DetailLivePricePanel({
+    required this.detail,
+    required this.chart,
+    required this.liveQuote,
+  });
+
+  final StockDetail detail;
+  final MarketChart? chart;
+  final MarketQuote? liveQuote;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final currentCurrency = liveQuote?.localCurrency ?? detail.displayCurrency;
+    final currentPrice =
+        liveQuote?.localCurrencyDisplay ?? detail.localCurrencyDisplay;
+    final currentKrw = liveQuote?.krwDisplay ?? detail.krwDisplay;
+    final currentMove = liveQuote?.changeRate ?? detail.changeRate;
+    final positive = _isPositiveMove(currentMove);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surface,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.bolt_outlined, color: colorScheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Live detail movement',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  _SmallBadge(label: liveQuote == null ? 'REST' : 'LIVE'),
+                ],
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: 86,
+                width: double.infinity,
+                child: _QuoteSparkline(
+                  key: ValueKey('detail-live-sparkline-${detail.stockCode}'),
+                  values: _detailSparklineValues(chart, liveQuote),
+                  positive: positive,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 16,
+                runSpacing: 8,
+                children: [
+                  AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 220),
+                    child: _Metric(
+                      key: ValueKey(
+                        'detail-live-price-${detail.stockCode}-$currentPrice',
+                      ),
+                      label: currentCurrency,
+                      value: currentPrice,
+                    ),
+                  ),
+                  _Metric(label: 'KRW', value: currentKrw),
+                  _Metric(label: 'Move', value: currentMove),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                liveQuote == null
+                    ? 'REST detail price with historical chart data.'
+                    : 'WebSocket tick merged into the detail chart tail.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+MarketQuote? _liveQuoteForDetail(StockDetail detail, List<MarketQuote> quotes) {
+  for (final quote in quotes) {
+    if (quote.stockCode == detail.stockCode) {
+      return quote;
+    }
+  }
+  return null;
 }
 
 class _CurrentPriceSummaryPanel extends StatelessWidget {
@@ -3031,11 +3531,6 @@ class _MarketHistoryChartPanel extends StatelessWidget {
       ),
     );
   }
-
-  static double? _decimalValue(String value) {
-    final normalized = value.replaceAll(',', '').trim();
-    return double.tryParse(normalized);
-  }
 }
 
 class _MarketHistoryLinePainter extends CustomPainter {
@@ -3277,8 +3772,7 @@ class _BalancePanelState extends State<_BalancePanel> {
           builder: (context, accountState, child) {
             final isSignedIn = sessionState.isSignedIn;
             final isLoading = accountState.status == AccountStatus.loading;
-            final cashDisplay =
-                accountState.account?.cashDisplay ?? 'USD 0.00';
+            final cashDisplay = accountState.account?.cashDisplay ?? 'USD 0.00';
             final ledgerId = accountState.account?.lastLedgerEntryId;
 
             return Padding(
@@ -3352,7 +3846,8 @@ class _BalancePanelState extends State<_BalancePanel> {
                           ),
                           const SizedBox(width: 8),
                           FilledButton.icon(
-                            onPressed: isSignedIn && !isLoading ? _deposit : null,
+                            onPressed:
+                                isSignedIn && !isLoading ? _deposit : null,
                             icon: const Icon(Icons.add),
                             label: const Text('Deposit'),
                           ),
@@ -3584,8 +4079,9 @@ class _MockTradePanelState extends State<_MockTradePanel> {
                         runSpacing: 8,
                         children: [
                           OutlinedButton.icon(
-                            onPressed:
-                                isSignedIn && !isLoading ? _checkOrderability : null,
+                            onPressed: isSignedIn && !isLoading
+                                ? _checkOrderability
+                                : null,
                             icon: const Icon(Icons.rule),
                             label: const Text('Check orderability'),
                           ),
@@ -3629,7 +4125,8 @@ class _MockTradePanelState extends State<_MockTradePanel> {
                               '${tradeState.lastTrade!.cashBalanceUsdAfter}',
                         ),
                       ],
-                      if (portfolio != null && portfolio.holdings.isNotEmpty) ...[
+                      if (portfolio != null &&
+                          portfolio.holdings.isNotEmpty) ...[
                         const SizedBox(height: 12),
                         ...portfolio.holdings.take(3).map(_HoldingRow.new),
                       ],
@@ -3695,10 +4192,8 @@ class _RealizedPnlPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final sellTrades = portfolio.recentTrades
-        .where((trade) => trade.isSell)
-        .take(3)
-        .toList();
+    final sellTrades =
+        portfolio.recentTrades.where((trade) => trade.isSell).take(3).toList();
 
     if (sellTrades.isEmpty) {
       return _InfoPanel(
@@ -3774,7 +4269,8 @@ class _WalletBadge extends StatelessWidget {
       builder: (context, accountState, child) {
         return DecoratedBox(
           decoration: BoxDecoration(
-            border: Border.all(color: Theme.of(context).colorScheme.outlineVariant),
+            border:
+                Border.all(color: Theme.of(context).colorScheme.outlineVariant),
             borderRadius: BorderRadius.circular(8),
           ),
           child: Padding(
@@ -3814,7 +4310,7 @@ class _SmallBadge extends StatelessWidget {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({required this.label, required this.value});
+  const _Metric({super.key, required this.label, required this.value});
 
   final String label;
   final String value;

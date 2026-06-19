@@ -30,7 +30,12 @@ void main() {
     expect(find.text('Search all Korean stocks'), findsOneWidget);
     expect(find.text('WebSocket live'), findsOneWidget);
     expect(find.text('REST snapshot ready'), findsOneWidget);
-    expect(find.text('USD 54.00'), findsOneWidget);
+    expect(find.text('Popular stocks'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('popular-sparkline-005930')), findsOneWidget);
+    expect(find.byKey(const ValueKey('quote-row-sparkline-005930')),
+        findsOneWidget);
+    expect(find.text('USD 54.00'), findsWidgets);
     expect(
       find.text('FX 1525.93 / unknown time / source Hana-OmniLens-API'),
       findsWidgets,
@@ -44,8 +49,8 @@ void main() {
     await tester.pumpWidget(_stockExchangeTestApp());
     await tester.pumpAndSettle();
 
-    expect(find.text('Samsung Electronics'), findsOneWidget);
-    expect(find.text('NAVER'), findsOneWidget);
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.text('NAVER'), findsWidgets);
 
     await tester.enterText(
       find.byKey(const ValueKey('market-stock-search-field')),
@@ -53,7 +58,9 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Samsung Electronics'), findsNothing);
+    expect(find.text('Samsung Electronics'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('quote-row-sparkline-005930')), findsNothing);
     expect(find.text('NAVER'), findsWidgets);
 
     await tester.enterText(
@@ -75,7 +82,8 @@ void main() {
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
     expect(find.text('Mock USD cash'), findsWidgets);
-    expect(find.text('Mock USD trading ledger. No real order is sent.'), findsOneWidget);
+    expect(find.text('Mock USD trading ledger. No real order is sent.'),
+        findsOneWidget);
 
     await tester.tap(_navigationDestination('Alerts'));
     await tester.pumpAndSettle();
@@ -84,7 +92,8 @@ void main() {
       findsOneWidget,
     );
     expect(find.text('Integrated alert inbox'), findsOneWidget);
-    expect(find.text('Sign in to load watchlist and portfolio alerts.'), findsOneWidget);
+    expect(find.text('Sign in to load watchlist and portfolio alerts.'),
+        findsOneWidget);
 
     await tester.tap(_navigationDestination('Tax'));
     await tester.pumpAndSettle();
@@ -181,7 +190,8 @@ void main() {
     expect(find.text('Account ACC-ABC123456789'), findsOneWidget);
   });
 
-  testWidgets('creates account then loads mock USD account screen', (tester) async {
+  testWidgets('creates account then loads mock USD account screen',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1500));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -369,8 +379,10 @@ void main() {
     await tester.tap(find.text('Refresh'));
     await tester.pumpAndSettle();
 
-    expect(find.text('SK hynix'), findsOneWidget);
-    expect(find.text('USD 184.16'), findsOneWidget);
+    expect(find.text('SK hynix'), findsWidgets);
+    expect(find.text('USD 184.16'), findsWidgets);
+    expect(
+        find.byKey(const ValueKey('popular-sparkline-000660')), findsOneWidget);
     expect(
       find.text(
         'Market ALL / Cache FRESH_CACHE / REST snapshot / WebSocket live',
@@ -386,7 +398,8 @@ void main() {
     );
   });
 
-  testWidgets('filters market quote snapshot by selected market', (tester) async {
+  testWidgets('filters market quote snapshot by selected market',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1500));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -447,7 +460,9 @@ void main() {
     await tester.tap(find.text('Refresh'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Samsung Electronics'), findsOneWidget);
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(
+        find.byKey(const ValueKey('popular-sparkline-005930')), findsOneWidget);
     expect(
       find.text(
         'Market KOSPI / Cache FRESH_CACHE / REST snapshot / WebSocket live',
@@ -503,8 +518,10 @@ void main() {
         })}\u0000');
     await tester.pump();
 
-    expect(find.text('USD 60.00'), findsOneWidget);
-    expect(find.text('+3.10%'), findsOneWidget);
+    expect(find.text('USD 60.00'), findsWidgets);
+    expect(find.text('+3.10%'), findsWidgets);
+    expect(
+        find.byKey(const ValueKey('popular-sparkline-005930')), findsOneWidget);
     expect(find.text('Live tick 005930 received.'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
 
@@ -526,7 +543,8 @@ void main() {
     await marketQuoteController.unsubscribeLive();
   });
 
-  testWidgets('loads stock detail chart and order book from REST', (tester) async {
+  testWidgets('loads stock detail chart and order book from REST',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -708,7 +726,8 @@ void main() {
     );
   });
 
-  testWidgets('refreshes account portfolio quotes after sign in', (tester) async {
+  testWidgets('refreshes account portfolio quotes after sign in',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -885,7 +904,8 @@ void main() {
     expect(find.text('Last ledger entry CASH-123'), findsOneWidget);
   });
 
-  testWidgets('refreshes account watchlist quotes after sign in', (tester) async {
+  testWidgets('refreshes account watchlist quotes after sign in',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1023,7 +1043,8 @@ void main() {
     );
   });
 
-  testWidgets('applies account scoped live quote tick on portfolio screen', (tester) async {
+  testWidgets('applies account scoped live quote tick on portfolio screen',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1125,19 +1146,19 @@ void main() {
     connection.emit(
       'MESSAGE\ndestination:/topic/accounts/ACC-ABC123456789/market/quotes/portfolio\n\n'
       '${jsonEncode({
-        'stockCode': '035420',
-        'stockName': 'NAVER',
-        'market': 'KOSPI',
-        'currentPriceKrw': '190000',
-        'changeRate': '+1.90%',
-        'volume': 990000,
-        'localCurrency': 'USD',
-        'localCurrencyPrice': '124.59',
-        'fxRate': '1525.00',
-        'fxRateTime': '2026-06-18T06:05:00Z',
-        'fxRateSource': 'Hana-OmniLens-API',
-        'fxStale': false,
-      })}\u0000',
+            'stockCode': '035420',
+            'stockName': 'NAVER',
+            'market': 'KOSPI',
+            'currentPriceKrw': '190000',
+            'changeRate': '+1.90%',
+            'volume': 990000,
+            'localCurrency': 'USD',
+            'localCurrencyPrice': '124.59',
+            'fxRate': '1525.00',
+            'fxRateTime': '2026-06-18T06:05:00Z',
+            'fxRateSource': 'Hana-OmniLens-API',
+            'fxStale': false,
+          })}\u0000',
     );
     await tester.pump();
 
@@ -1148,7 +1169,8 @@ void main() {
     expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
   });
 
-  testWidgets('checks and places mock order through exchange ledger', (tester) async {
+  testWidgets('checks and places mock order through exchange ledger',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1217,7 +1239,8 @@ void main() {
             });
           }
           if (request.method == 'POST') {
-            expect(request.url.path, '/api/v1/accounts/ACC-ABC123456789/trades');
+            expect(
+                request.url.path, '/api/v1/accounts/ACC-ABC123456789/trades');
             expect(jsonDecode(request.body), {
               'stockCode': '005930',
               'side': 'BUY',
@@ -1258,7 +1281,8 @@ void main() {
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Exchange mock ledger only. No KIS order is sent.'), findsOneWidget);
+    expect(find.text('Exchange mock ledger only. No KIS order is sent.'),
+        findsOneWidget);
 
     await tester.tap(find.text('Check orderability'));
     await tester.pumpAndSettle();
@@ -1283,7 +1307,8 @@ void main() {
     expect(find.text('USD 150.00'), findsWidgets);
   });
 
-  testWidgets('shows sell trade realized PnL for tax refund input', (tester) async {
+  testWidgets('shows sell trade realized PnL for tax refund input',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1700));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1367,7 +1392,8 @@ void main() {
     expect(find.text('USD 20.00'), findsWidgets);
   });
 
-  testWidgets('loads tax refund status with government reference', (tester) async {
+  testWidgets('loads tax refund status with government reference',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1445,7 +1471,8 @@ void main() {
     );
   });
 
-  testWidgets('submits tax documents and syncs advance refund status', (tester) async {
+  testWidgets('submits tax documents and syncs advance refund status',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -1551,7 +1578,8 @@ void main() {
     expect(find.text('Post-payment recapture notice'), findsOneWidget);
   });
 
-  testWidgets('renders alert inbox and K-News feed after sign in', (tester) async {
+  testWidgets('renders alert inbox and K-News feed after sign in',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1600));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
