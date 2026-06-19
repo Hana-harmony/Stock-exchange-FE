@@ -1329,6 +1329,12 @@ class _NotificationRow extends StatelessWidget {
                             color: colorScheme.onSurfaceVariant,
                           ),
                     ),
+                    _AlertSignalWrap(
+                      labels: [
+                        item.sourceType,
+                        item.targetLabel,
+                      ],
+                    ),
                     if (item.originalUrl.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
@@ -1392,6 +1398,15 @@ class _StockIntelligencePanel extends StatelessWidget {
                   meta: '${item.importance} / ${item.sentiment} / '
                       '${item.targetLabel} / ${item.originalUrl}',
                 ),
+                _AlertSignalWrap(
+                  labels: [
+                    item.sourceType,
+                    item.importance,
+                    item.sentiment,
+                    item.riskLevel,
+                    item.targetLabel,
+                  ],
+                ),
                 _TranslationQualityWrap(
                   glossaryTerms: item.glossaryTerms,
                   qualityFlags: item.translationQualityFlags,
@@ -1400,6 +1415,40 @@ class _StockIntelligencePanel extends StatelessWidget {
               ],
             ),
       ],
+    );
+  }
+}
+
+class _AlertSignalWrap extends StatelessWidget {
+  const _AlertSignalWrap({required this.labels});
+
+  final List<String> labels;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleLabels = labels
+        .where((label) => label.isNotEmpty && label != 'All')
+        .toSet()
+        .toList();
+    if (visibleLabels.isEmpty) {
+      return const SizedBox.shrink();
+    }
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Wrap(
+        spacing: 6,
+        runSpacing: 6,
+        children: visibleLabels
+            .map(
+              (label) => Chip(
+                label: Text(label),
+                visualDensity: VisualDensity.compact,
+                side: BorderSide(color: colorScheme.outlineVariant),
+              ),
+            )
+            .toList(),
+      ),
     );
   }
 }
