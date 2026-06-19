@@ -57,9 +57,9 @@
 | 화면/기능 | 책임 | 상태 |
 | --- | --- | --- |
 | 거주자증명서와 조세조약 신청서 업로드 | Stock-exchange-FE | Partial |
-| 단계별 제출/검증/환급 상태 타임라인 | Stock-exchange-FE | Partial |
-| 정부 검증 상태와 참조 번호 표시 | Stock-exchange-FE | Partial |
-| 국세/지방세 환급 금액 비중 시각화 | Stock-exchange-FE | Partial |
+| 단계별 제출/검증/환급 상태 타임라인 | Stock-exchange-FE | Done |
+| 정부 검증 상태와 참조 번호 표시 | Stock-exchange-FE | Done |
+| 국세/지방세 환급 금액 비중 시각화 | Stock-exchange-FE | Done |
 | 환급 신청과 선지급 완료 영수증 | Stock-exchange-FE | Partial |
-| 매도 실현손익 기반 환급 입력 데이터 확인 | Stock-exchange-FE | Partial |
-| 사후 환수 리스크 고지 | Stock-exchange-FE | Partial |
+| 매도 실현손익 기반 환급 입력 데이터 확인 | Stock-exchange-FE | Done |
+| 사후 환수 리스크 고지 | Stock-exchange-FE | Done |

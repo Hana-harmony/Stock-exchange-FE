@@ -604,6 +604,10 @@ class _TaxRefundStatusPanel extends StatelessWidget {
                               '${refundCase.dataSource} / updated '
                               '${refundCase.updatedAt?.toUtc().toIso8601String() ?? 'unknown'}',
                         ),
+                        _TaxDocumentChecklist(caseData: refundCase),
+                        _TaxStatusTimeline(caseData: refundCase),
+                        _TaxInputSummary(caseData: refundCase),
+                        _TaxRecaptureNotice(caseData: refundCase),
                         if (refundCase.matchedTrades.isNotEmpty)
                           _TaxMatchedTradeRow(
                             trade: refundCase.matchedTrades.first,
@@ -617,6 +621,143 @@ class _TaxRefundStatusPanel extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _TaxDocumentChecklist extends StatelessWidget {
+  const _TaxDocumentChecklist({required this.caseData});
+
+  final TaxRefundCase caseData;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoPanel(
+      icon: Icons.fact_check_outlined,
+      title: 'Submitted tax documents',
+      body: 'Residence certificate ${caseData.residenceCertificateFileName} / '
+          'reduced tax form ${caseData.reducedTaxApplicationFileName}',
+      meta: 'Documents are linked to refund case ${caseData.referenceDisplay}',
+    );
+  }
+}
+
+class _TaxStatusTimeline extends StatelessWidget {
+  const _TaxStatusTimeline({required this.caseData});
+
+  final TaxRefundCase caseData;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = [
+      _TaxTimelineStep('Documents received', caseData.createdAt != null),
+      _TaxTimelineStep(
+        'Mock sell ledger matched',
+        caseData.matchedTradeCount > 0,
+      ),
+      _TaxTimelineStep(
+        'Government sync ${caseData.status}',
+        caseData.updatedAt != null,
+      ),
+      _TaxTimelineStep(
+        'Advance review requested',
+        caseData.advancePaymentRequested,
+      ),
+    ];
+    final colorScheme = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Refund status timeline',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 10),
+              ...steps.map(
+                (step) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Row(
+                    children: [
+                      Icon(
+                        step.complete
+                            ? Icons.check_circle_outline
+                            : Icons.radio_button_unchecked,
+                        color: step.complete
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(child: Text(step.label)),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaxTimelineStep {
+  const _TaxTimelineStep(this.label, this.complete);
+
+  final String label;
+  final bool complete;
+}
+
+class _TaxInputSummary extends StatelessWidget {
+  const _TaxInputSummary({required this.caseData});
+
+  final TaxRefundCase caseData;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoPanel(
+      icon: Icons.request_quote_outlined,
+      title: 'Refund input from mock sells',
+      body: 'Total sells USD ${caseData.totalSellAmountUsd} / '
+          'taxable realized PnL USD '
+          '${caseData.taxableRealizedPnlUsd}',
+      meta: 'Profit USD ${caseData.realizedProfitUsd} / '
+          'loss USD ${caseData.realizedLossUsd} / '
+          'net USD ${caseData.netRealizedPnlUsd}',
+    );
+  }
+}
+
+class _TaxRecaptureNotice extends StatelessWidget {
+  const _TaxRecaptureNotice({required this.caseData});
+
+  final TaxRefundCase caseData;
+
+  @override
+  Widget build(BuildContext context) {
+    final message = caseData.status == 'RECAPTURE_RISK'
+        ? 'Post-payment review found a recapture risk. Keep documents ready '
+            'before using advance funds.'
+        : 'Advance payment can be reviewed later. Recapture risk is shown '
+            'here if Hana returns RECAPTURE_RISK.';
+    final meta = caseData.advancePaymentEligible
+        ? 'Advance payment eligible / requested ${caseData.advancePaymentRequested}'
+        : 'Advance payment not eligible yet';
+    return _InfoPanel(
+      icon: Icons.policy_outlined,
+      title: 'Post-payment recapture notice',
+      body: message,
+      meta: meta,
     );
   }
 }
