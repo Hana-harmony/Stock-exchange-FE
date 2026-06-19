@@ -8,11 +8,11 @@
 | Flutter 기반 iOS 앱 target 설정 | Stock-exchange-FE | Done |
 | Flutter 기반 Android 앱 target 설정 | Stock-exchange-FE | Done |
 | Flutter Web 운영 서비스 | Out of scope | Out of scope |
-| English 기본 UI | Stock-exchange-FE | Partial |
-| USD 기본 표시·충전·모의 주문 화폐 | Stock-exchange-FE | Partial |
-| Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Partial |
-| 인증 세션 controller와 session store 경계 | Stock-exchange-FE | Partial |
-| token secure storage 기반 session 보관 | Stock-exchange-FE | Partial |
+| English 기본 UI | Stock-exchange-FE | Done |
+| USD 기본 표시·충전·모의 주문 화폐 | Stock-exchange-FE | Done |
+| Stock-exchange-BE REST API client와 auth session header | Stock-exchange-FE | Done |
+| 인증 세션 controller와 session store 경계 | Stock-exchange-FE | Done |
+| token secure storage 기반 session 보관 | Stock-exchange-FE | Done |
 | 로그인/회원가입 form과 session controller 화면 바인딩 | Stock-exchange-FE | Done |
 | Mock USD account 조회와 deposit 화면 바인딩 | Stock-exchange-FE | Done |
 | 자체 mock ledger orderability/trade/portfolio 화면 바인딩 | Stock-exchange-FE | Done |
