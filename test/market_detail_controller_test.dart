@@ -39,6 +39,7 @@ void main() {
     expect(controller.value.detail?.stockName, 'Samsung Electronics');
     expect(controller.value.detail?.localCurrencyDisplay, 'USD 54.01');
     expect(controller.value.detail?.riskBadge, 'VI active');
+    expect(controller.value.detail?.singlePriceTrading, isTrue);
     expect(
       controller.value.chart?.latestPoint?.closeLocalDisplay,
       'USD 54.01',
@@ -104,6 +105,7 @@ Map<String, Object?> _detailJson() {
     'foreignLimitExhaustionRate': '55.31',
     'foreignOwnershipBaseDate': '2026-06-18',
     'viActive': true,
+    'singlePriceTrading': true,
     'priceLimitState': 'NORMAL',
     'tradingHalted': false,
     'orderable': true,

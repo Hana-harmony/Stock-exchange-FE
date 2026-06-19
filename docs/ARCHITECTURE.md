@@ -23,11 +23,11 @@
 
 ## 데이터 흐름
 1. FE는 Stock-exchange-BE에서 전체/시장별/watchlist/보유종목 실시간 시세 snapshot을 REST로 먼저 조회하고 KRW 가격과 USD 가격을 함께 표시한다.
-2. FE는 Stock-exchange-BE의 quote WebSocket을 구독해 장중 가격, 호가, 등락률, VI/상·하한가 상태 tick과 USD 환산 가격 tick을 실시간 반영한다.
+2. FE는 Stock-exchange-BE의 quote WebSocket을 구독해 장중 가격, 호가, 등락률, VI/단일가/상·하한가 상태 tick과 USD 환산 가격 tick을 실시간 반영한다.
 3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
 4. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
 5. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.
-6. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, 외국인 보유율, 당일 예측 범위, VI/상·하한가 상태를 표시한다.
+6. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, 외국인 보유율, 당일 예측 범위, VI/단일가/상·하한가 상태를 표시한다.
 7. 회원가입은 아이디/비밀번호만 받고, 가입 후 mock USD 계좌와 충전 화면을 제공한다.
 8. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 실제 주문이 아닌 자체 mock 거래임을 표시한다.
 9. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
@@ -50,10 +50,10 @@
 - `TaxController`는 Stock-exchange-BE `GET /api/v1/accounts/{accountId}/tax/refund-status`를 조회해 세무 케이스, 정부 검증 상태, 참조번호, 예상 환급 금액을 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 바인딩한다.
 - Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액을 `amountUsd`로 보내 실제 결제 없는 mock deposit ledger를 생성한다.
-- Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 상·하한가 warning/blocking reason을 조회하고, backend code를 영어 사용자 문구로 변환해 표시한 뒤 `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다.
+- Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 단일가, 상·하한가 warning/blocking reason을 조회하고, backend code를 영어 사용자 문구로 변환해 표시한 뒤 `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다.
 - `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, quote/cache/FX metadata를 Market 화면에 바인딩한다.
 - `MarketDetailController`는 Stock-exchange-BE `GET /api/v1/stocks/{stockCode}`, `GET /api/v1/market/stocks/{stockCode}/chart`, `GET /api/v1/market/stocks/{stockCode}/orderbook`을 함께 조회해 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 Market 화면에 바인딩한다.
-- Market 종목 상세 패널은 현재가 KRW와 USD 환산 가격, 외국인 보유율/한도소진율, VI/상·하한가 상태 badge, 최근 차트 종가, ask/bid 호가를 표시한다.
+- Market 종목 상세 패널은 현재가 KRW와 USD 환산 가격, 외국인 보유율/한도소진율, VI/단일가/상·하한가 상태 badge, 최근 차트 종가, ask/bid 호가를 표시한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list에 병합한다.
 - `MarketQuoteController`는 WebSocket onDone/onError 시 마지막 구독 조건을 유지하고 backoff 지연 후 동일 topic을 재구독하며, 사용자가 `Stop`을 누르면 재연결 timer를 중단한다.
