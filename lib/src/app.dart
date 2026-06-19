@@ -2359,6 +2359,7 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                           '${detail.dataSource} / foreign base ${detail.foreignOwnershipBaseDate}',
                     ),
                     _ForeignOwnershipGaugePanel(detail: detail),
+                    _ForeignBoundaryPanel(detail: detail),
                     _MarketHistoryChartPanel(chart: chart),
                     _OrderBookPreview(orderBook: orderBook),
                   ],
@@ -2481,6 +2482,24 @@ class _ForeignOwnershipGaugePanel extends StatelessWidget {
   static double _percentValue(String value) {
     final parsed = double.tryParse(value.replaceAll(',', '').trim()) ?? 0.0;
     return (parsed / 100).clamp(0.0, 1.0).toDouble();
+  }
+}
+
+class _ForeignBoundaryPanel extends StatelessWidget {
+  const _ForeignBoundaryPanel({required this.detail});
+
+  final StockDetail detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return _InfoPanel(
+      icon: Icons.insights_outlined,
+      title: 'Today forecast boundary',
+      body:
+          'Ownership ${detail.predictedOwnershipRangeDisplay} / Limit ${detail.predictedLimitRangeDisplay}',
+      meta:
+          'Base ${detail.foreignOwnershipBaseDate} / Hana-OmniLens-API prediction boundary',
+    );
   }
 }
 
