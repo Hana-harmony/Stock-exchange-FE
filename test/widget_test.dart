@@ -1262,14 +1262,17 @@ void main() {
 
     await tester.tap(find.text('Check orderability'));
     await tester.pumpAndSettle();
+    expect(find.text('Mock order warning'), findsOneWidget);
     expect(
       find.textContaining('Volatility interruption is active'),
-      findsOneWidget,
+      findsWidgets,
     );
     expect(
       find.textContaining('Buy order is at the upper price limit'),
-      findsOneWidget,
+      findsWidgets,
     );
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Place mock order'));
     await tester.pumpAndSettle();

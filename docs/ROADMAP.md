@@ -27,10 +27,10 @@
 - 종목 상세 현재가/호가: Done
 - 외국인 보유율 게이지: Done
 - 당일 예측 boundary: Done
-- VI/상·하한가 배지: Partial
+- VI/상·하한가 배지: Done
 - 아이디/비밀번호 회원가입·로그인 form과 mock USD 계좌 화면: Done
 - 실제 결제 없는 달러 충전 화면: Done
-- 자체 mock ledger 모의 주문 패드와 제한 안내 팝업: Partial
+- 자체 mock ledger 모의 주문 패드와 제한 안내 팝업: Done
 - 매도 실현손익 표시: Done
 
 ## M3 뉴스·공시 인텔리전스
