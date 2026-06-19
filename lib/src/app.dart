@@ -1990,6 +1990,10 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                           label: 'Price limit',
                           value: detail.priceLimitState,
                         ),
+                        _Metric(
+                          label: 'Single price',
+                          value: detail.singlePriceTrading ? 'Active' : 'Normal',
+                        ),
                       ],
                     ),
                     const SizedBox(height: 12),

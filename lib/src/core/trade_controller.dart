@@ -193,6 +193,7 @@ String _orderabilityMessage(String code) {
     'TRADING_HALTED' => 'Trading is halted',
     'ORDER_NOT_ALLOWED' => 'Order is not allowed',
     'VI_ACTIVE' => 'Volatility interruption is active',
+    'SINGLE_PRICE_TRADING' => 'Single-price trading is active',
     'BUY_AT_UPPER_LIMIT' => 'Buy order is at the upper price limit',
     'SELL_AT_LOWER_LIMIT' => 'Sell order is at the lower price limit',
     _ => code.replaceAll('_', ' ').toLowerCase(),

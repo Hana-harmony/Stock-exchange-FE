@@ -29,7 +29,11 @@ void main() {
             'quantity': 2,
             'canPlaceMockOrder': true,
             'blockingReasons': [],
-            'warnings': ['VI_ACTIVE', 'BUY_AT_UPPER_LIMIT'],
+            'warnings': [
+              'VI_ACTIVE',
+              'SINGLE_PRICE_TRADING',
+              'BUY_AT_UPPER_LIMIT',
+            ],
             'orderabilitySource': 'Hana-OmniLens-API',
             'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
           },
@@ -49,6 +53,10 @@ void main() {
     expect(
       controller.value.orderability?.summary,
       contains('Volatility interruption is active'),
+    );
+    expect(
+      controller.value.orderability?.summary,
+      contains('Single-price trading is active'),
     );
     expect(
       controller.value.orderability?.summary,

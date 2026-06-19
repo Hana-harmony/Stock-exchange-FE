@@ -34,7 +34,7 @@ flutter test
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list에 병합한다.
 - `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic을 구독한다.
-- Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 KRW 가격과 USD 환산 가격, 외국인 한도, VI/상·하한가 상태를 표시한다.
+- Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 KRW 가격과 USD 환산 가격, 외국인 한도, VI/단일가/상·하한가 상태를 표시한다.
 - Tax 화면은 bearer auth session의 accountId로 세무 환급 상태를 조회하고, 정부 검증 상태/참조번호와 원천징수세 대비 조세조약세·환급 가능분 비중을 표시한다.
 - 앱 기본 session 저장소는 `flutter_secure_storage` 기반 token secure storage를 사용한다.
 - 실제 iOS/Android 플랫폼 target 디렉터리와 앱 ID, 권한, display name 기본 설정이 존재한다.
@@ -62,9 +62,9 @@ flutter test
 - 실제 주문 체결, 정산, 환전, 실제 결제, 세무 지급/환수 실행은 화면에서 직접 처리하지 않고 백엔드 상태를 표시한다.
 
 ## 주요 화면
-- 종목 상세: 현재가 KRW, USD 환산 가격, 적용 환율 기준시각, 외국인 투자한도 게이지, 당일 예상 범위, VI/상·하한가 배지
+- 종목 상세: 현재가 KRW, USD 환산 가격, 적용 환율 기준시각, 외국인 투자한도 게이지, 당일 예상 범위, VI/단일가/상·하한가 배지
 - 주문/자산: mock USD 잔고, 모의 매수·매도 기준 가격, 평가금액, 매도 실현손익, 외국인 한도 도달 주의
-- 주문 패드: VI 발동 또는 상·하한가 도달 시 즉시 체결 불가능 안내
+- 주문 패드: VI 발동, 단일가 매매 또는 상·하한가 도달 시 즉시 체결 불가능 안내
 - K-News: 번역 제목, 요약, 감성, 중요도, 이벤트 태그, 원문 링크
 - 알림함: All, My Portfolio, Watchlist 필터, push device registration, 실시간 푸시 타임라인
 - 세무: 서류 등록, 정부 검증 상태, 정산 상세, 환급 신청, 선지급 완료/사후 환수 리스크 고지
