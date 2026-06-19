@@ -28,6 +28,7 @@ class MarketQuoteState {
     this.errorMessage,
     this.liveMessage,
     this.lastTickAt,
+    this.liveStale = false,
   });
 
   const MarketQuoteState.idle({List<MarketQuote> seedQuotes = const []})
@@ -37,7 +38,8 @@ class MarketQuoteState {
         snapshot = null,
         errorMessage = null,
         liveMessage = null,
-        lastTickAt = null;
+        lastTickAt = null,
+        liveStale = false;
 
   const MarketQuoteState.loading({
     required this.quotes,
@@ -45,6 +47,7 @@ class MarketQuoteState {
     this.snapshot,
     this.liveMessage,
     this.lastTickAt,
+    this.liveStale = false,
   })  : status = MarketQuoteStatus.loading,
         errorMessage = null;
 
@@ -53,6 +56,7 @@ class MarketQuoteState {
     this.liveStatus = MarketQuoteLiveStatus.disconnected,
     this.liveMessage,
     this.lastTickAt,
+    this.liveStale = false,
   })
       : status = MarketQuoteStatus.loaded,
         quotes = loadedSnapshot.quotes,
@@ -66,6 +70,7 @@ class MarketQuoteState {
     this.snapshot,
     this.liveMessage,
     this.lastTickAt,
+    this.liveStale = false,
   }) : status = MarketQuoteStatus.failure;
 
   final MarketQuoteStatus status;
@@ -75,6 +80,7 @@ class MarketQuoteState {
   final String? errorMessage;
   final String? liveMessage;
   final DateTime? lastTickAt;
+  final bool liveStale;
 
   MarketQuoteState copyWith({
     MarketQuoteStatus? status,
@@ -84,6 +90,7 @@ class MarketQuoteState {
     String? errorMessage,
     String? liveMessage,
     DateTime? lastTickAt,
+    bool? liveStale,
     bool clearErrorMessage = false,
     bool clearLiveMessage = false,
   }) {
@@ -96,6 +103,7 @@ class MarketQuoteState {
           clearErrorMessage ? null : errorMessage ?? this.errorMessage,
       liveMessage: clearLiveMessage ? null : liveMessage ?? this.liveMessage,
       lastTickAt: lastTickAt ?? this.lastTickAt,
+      liveStale: liveStale ?? this.liveStale,
     );
   }
 }
@@ -296,6 +304,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       snapshot: value.snapshot,
       liveMessage: value.liveMessage,
       lastTickAt: value.lastTickAt,
+      liveStale: value.liveStale,
     );
 
     try {
@@ -306,6 +315,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         liveStatus: value.liveStatus,
         liveMessage: value.liveMessage,
         lastTickAt: value.lastTickAt,
+        liveStale: value.liveStale,
       );
     } on ExchangeApiException catch (error) {
       value = MarketQuoteState.failure(
@@ -315,6 +325,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         snapshot: value.snapshot,
         liveMessage: value.liveMessage,
         lastTickAt: value.lastTickAt,
+        liveStale: value.liveStale,
       );
     } on Object {
       value = MarketQuoteState.failure(
@@ -324,6 +335,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         snapshot: value.snapshot,
         liveMessage: value.liveMessage,
         lastTickAt: value.lastTickAt,
+        liveStale: value.liveStale,
       );
     }
   }
@@ -355,6 +367,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     value = value.copyWith(
       liveStatus: MarketQuoteLiveStatus.connecting,
       liveMessage: 'Connecting quote WebSocket.',
+      liveStale: false,
       clearErrorMessage: true,
     );
 
@@ -372,6 +385,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       value = value.copyWith(
         liveStatus: MarketQuoteLiveStatus.disconnected,
         liveMessage: 'Quote WebSocket disconnected.',
+        liveStale: false,
       );
     }
   }
@@ -410,6 +424,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       value = value.copyWith(
         liveStatus: MarketQuoteLiveStatus.failure,
         liveMessage: '$reason Reconnect attempts exhausted.',
+        liveStale: value.lastTickAt != null,
       );
       return;
     }
@@ -420,6 +435,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       liveStatus: MarketQuoteLiveStatus.connecting,
       liveMessage:
           '$reason Reconnecting quote WebSocket in ${delay.inSeconds}s.',
+      liveStale: value.lastTickAt != null,
     );
 
     _liveReconnectTimer?.cancel();
@@ -445,6 +461,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       liveStatus: MarketQuoteLiveStatus.live,
       liveMessage: 'Live tick ${tick.stockCode} received.',
       lastTickAt: DateTime.now().toUtc(),
+      liveStale: false,
       clearErrorMessage: true,
     );
   }
