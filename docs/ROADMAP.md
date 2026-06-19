@@ -23,7 +23,8 @@
 - 적용 환율 기준시각/출처와 stale 상태 UI: Partial
 - 과거 시세 차트: Done
 - 종목 상세 현재가/호가: Partial
-- 외국인 보유율 게이지와 예측 boundary: Partial
+- 외국인 보유율 게이지: Done
+- 당일 예측 boundary: Partial
 - VI/상·하한가 배지: Partial
 - 아이디/비밀번호 회원가입·로그인 form과 mock USD 계좌 화면: Partial
 - 실제 결제 없는 달러 충전 화면: Partial

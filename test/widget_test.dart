@@ -352,6 +352,15 @@ void main() {
     expect(find.text('USD 54.01'), findsWidgets);
     expect(find.text('Single-price trading'), findsOneWidget);
     expect(find.text('UPPER_LIMIT'), findsWidgets);
+    expect(find.text('Foreign ownership gauge'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('foreign-ownership-rate-gauge')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('foreign-limit-rate-gauge')),
+      findsOneWidget,
+    );
     expect(find.text('Historical price line'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('market-history-chart-line')),
