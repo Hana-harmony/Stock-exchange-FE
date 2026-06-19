@@ -715,6 +715,16 @@ void main() {
     expect(find.text('TAX-CASE-1'), findsWidgets);
     expect(find.text('Withholding tax split'), findsOneWidget);
     expect(find.text('Refundable difference'), findsOneWidget);
+    expect(find.text('Submitted tax documents'), findsOneWidget);
+    expect(find.textContaining('residence.pdf'), findsOneWidget);
+    expect(find.text('Refund status timeline'), findsOneWidget);
+    expect(find.text('Documents received'), findsOneWidget);
+    expect(find.text('Mock sell ledger matched'), findsOneWidget);
+    expect(find.text('Government sync REFUND_APPROVED'), findsOneWidget);
+    expect(find.text('Advance review requested'), findsOneWidget);
+    expect(find.text('Refund input from mock sells'), findsOneWidget);
+    expect(find.textContaining('Total sells USD 70.00'), findsOneWidget);
+    expect(find.text('Post-payment recapture notice'), findsOneWidget);
     expect(find.text('Matched sell trade'), findsOneWidget);
     expect(
       find.textContaining('Samsung Electronics 1 shares'),
