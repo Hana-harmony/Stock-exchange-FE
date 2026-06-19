@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -10,6 +11,7 @@ import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_quote_live_client.dart';
 import 'package:stock_exchange_fe/src/core/notification_controller.dart';
 import 'package:stock_exchange_fe/src/core/tax_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
@@ -321,6 +323,59 @@ void main() {
       ),
       findsOneWidget,
     );
+  });
+
+  testWidgets('applies live WebSocket tick on market screen', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    late _FakeQuoteSocketConnection connection;
+    final marketQuoteController = MarketQuoteController(
+      seedQuotes: seedMarketQuotes,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonEnvelope({})),
+      ),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          connection = _FakeQuoteSocketConnection();
+          return connection;
+        },
+      ),
+    );
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Start live'));
+    await tester.pump();
+
+    connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    connection.emit('MESSAGE\ndestination:/topic/market/quotes\n\n'
+        '${jsonEncode({
+          'stockCode': '005930',
+          'stockName': 'Samsung Electronics',
+          'market': 'KOSPI',
+          'currentPriceKrw': '91500',
+          'changeRate': '+3.10%',
+          'volume': 21000000,
+          'localCurrency': 'USD',
+          'localCurrencyPrice': '60.00',
+          'fxRate': '1525.00',
+          'fxRateTime': '2026-06-18T06:05:00Z',
+          'fxRateSource': 'Hana-OmniLens-API',
+          'fxStale': false,
+        })}\u0000');
+    await tester.pump();
+
+    expect(find.text('USD 60.00'), findsOneWidget);
+    expect(find.text('+3.10%'), findsOneWidget);
+    expect(find.text('Live tick 005930 received.'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
   });
 
   testWidgets('loads stock detail chart and order book from REST', (tester) async {
@@ -1134,6 +1189,26 @@ http.Response _jsonEnvelope(Map<String, Object?> data) {
     'data': data,
     'timestamp': '2026-06-18T06:00:00Z',
   });
+}
+
+class _FakeQuoteSocketConnection implements QuoteSocketConnection {
+  final StreamController<dynamic> _streamController =
+      StreamController<dynamic>();
+
+  @override
+  Stream<dynamic> get stream => _streamController.stream;
+
+  @override
+  void add(String message) {}
+
+  void emit(String message) {
+    _streamController.add(message);
+  }
+
+  @override
+  Future<void> close() async {
+    await _streamController.close();
+  }
 }
 
 Map<String, Object?> _tradeJson() {
