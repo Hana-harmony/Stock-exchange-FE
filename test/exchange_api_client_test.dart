@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -483,6 +484,112 @@ void main() {
     final response = await client.getTaxRefundStatus('ACC-ABC123456789');
 
     expect(response.data?['status'], 'REFUND_APPROVED');
+  });
+
+  test('tax document upload sends multipart bearer contract', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(
+          request.url.path,
+          '/api/v1/accounts/ACC-ABC123456789/tax/documents',
+        );
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+        expect(
+          _header(request, 'content-type'),
+          contains('multipart/form-data'),
+        );
+        expect(request.body, contains('RESIDENCE_CERTIFICATE'));
+        expect(request.body, contains('residence.pdf'));
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {
+            'documentId': 'DOC-1',
+            'documentType': 'RESIDENCE_CERTIFICATE',
+            'originalFileName': 'residence.pdf',
+          },
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    final response = await client.uploadTaxDocument(
+      accountId: 'ACC-ABC123456789',
+      documentType: 'RESIDENCE_CERTIFICATE',
+      fileName: 'residence.pdf',
+      bytes: Uint8List.fromList(utf8.encode('document')),
+    );
+
+    expect(response.data?['documentId'], 'DOC-1');
+  });
+
+  test('tax refund request and sync use account scoped bearer contract', () async {
+    final paths = <String>[];
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        paths.add('${request.method} ${request.url.path}');
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+        if (request.url.path.endsWith('/refund-cases')) {
+          expect(jsonDecode(request.body), {
+            'taxYear': 2026,
+            'treatyCountry': 'US',
+            'residenceCertificateFileName': 'residence.pdf',
+            'reducedTaxApplicationFileName': 'reduced-tax.pdf',
+            'residenceCertificateDocumentId': 'DOC-RES',
+            'reducedTaxApplicationDocumentId': 'DOC-RED',
+            'advancePaymentRequested': true,
+          });
+        }
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {'status': 'READY_FOR_HANA_SYNC'},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await client.createTaxRefundCase(
+      accountId: 'ACC-ABC123456789',
+      taxYear: 2026,
+      treatyCountry: 'US',
+      residenceCertificateFileName: 'residence.pdf',
+      reducedTaxApplicationFileName: 'reduced-tax.pdf',
+      residenceCertificateDocumentId: 'DOC-RES',
+      reducedTaxApplicationDocumentId: 'DOC-RED',
+      advancePaymentRequested: true,
+    );
+    await client.syncTaxRefundStatus('ACC-ABC123456789');
+
+    expect(paths, [
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-cases',
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-status/sync',
+    ]);
   });
 }
 
