@@ -17,7 +17,7 @@
 | Mock USD account 조회와 deposit 화면 바인딩 | Stock-exchange-FE | Partial |
 | 자체 mock ledger orderability/trade/portfolio 화면 바인딩 | Stock-exchange-FE | Done |
 | Market quote REST snapshot controller와 화면 바인딩 | Stock-exchange-FE | Done |
-| Watchlist/portfolio quote REST snapshot 화면 바인딩 | Stock-exchange-FE | Partial |
+| Watchlist/portfolio quote REST snapshot 화면 바인딩 | Stock-exchange-FE | Done |
 | Market quote STOMP WebSocket client와 tick 병합 | Stock-exchange-FE | Partial |
 | Watchlist/portfolio quote WebSocket 화면 바인딩 | Stock-exchange-FE | Partial |
 
@@ -26,7 +26,7 @@
 | 화면/기능 | 책임 | 상태 |
 | --- | --- | --- |
 | 전체/시장별 종목 REST snapshot 시세 목록 | Stock-exchange-FE | Done |
-| watchlist/보유종목 REST snapshot 시세 목록 | Stock-exchange-FE | Partial |
+| watchlist/보유종목 REST snapshot 시세 목록 | Stock-exchange-FE | Done |
 | 실시간 시세 WebSocket 구독과 재연결/복구 UI | Stock-exchange-FE | Partial |
 | KRW 가격과 USD 환산 가격 동시 표시 | Stock-exchange-FE | Done |
 | 적용 환율 기준시각/출처와 stale 상태 표시 | Stock-exchange-FE | Done |
