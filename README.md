@@ -14,7 +14,7 @@ flutter pub get
 flutter test
 ```
 
-로컬 앱 실행과 검증은 [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)를 따른다. `Stock-exchange-FE`는 iOS/Android 앱이므로 Docker로 앱을 띄우는 방식을 표준으로 두지 않는다.
+로컬 앱 실행과 검증은 [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)를 따른다. `Stock-exchange-FE`는 iOS/Android 앱이므로 Docker로 앱을 띄우는 방식을 표준으로 두지 않으며, 백엔드는 Hannah-Montana-AI, Hana-OmniLens-API, Stock-exchange-BE 순서로 띄운 뒤 앱을 연결한다.
 
 ## 현재 구현 상태
 - Material 3 앱 shell과 Market, Portfolio, Alerts, Tax 하단 탭이 구현되어 있다.
