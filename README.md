@@ -20,7 +20,7 @@ flutter test
 - Material 3 앱 shell과 Market, Portfolio, Alerts, Tax 하단 탭이 구현되어 있다.
 - Market 화면은 KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
-- Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, 읽음 처리, push device 등록/비활성화 액션을 제공한다.
+- Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, AI 번역 glossary/quality flag, 읽음 처리, push device 등록/비활성화 액션을 제공한다.
 - Tax 화면은 서류 상태, 환급 추정, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope와 bearer auth session header를 처리한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이와 session store 경계를 제공한다.
@@ -52,8 +52,8 @@ flutter test
 - 실제 결제 없는 달러 충전 화면
 - KIS 모의투자 API가 아닌 Stock-exchange-BE 자체 mock ledger 기반 주문 패드와 주문 제한/주의 팝업
 - 매도 내역과 실현손익 표시
-- 종목별 K-News 인텔리전스 피드
-- 보유종목/watchlist 기반 통합 알림함
+- 종목별 K-News 인텔리전스 피드와 AI 번역 품질 표시
+- 보유종목/watchlist 기반 통합 알림함과 번역 glossary chip
 - 세무 서류 업로드, 환급 상태, 환급 신청, 선지급 완료/리스크 고지 화면
 
 ## 책임 경계
@@ -65,7 +65,7 @@ flutter test
 - 종목 상세: 현재가 KRW, USD 환산 가격, 적용 환율 기준시각, 외국인 투자한도 게이지, 당일 예상 범위, VI/단일가/상·하한가 배지
 - 주문/자산: mock USD 잔고, 모의 매수·매도 기준 가격, 평가금액, 매도 실현손익, 외국인 한도 도달 주의
 - 주문 패드: VI 발동, 단일가 매매 또는 상·하한가 도달 시 즉시 체결 불가능 안내
-- K-News: 번역 제목, 요약, 감성, 중요도, 이벤트 태그, 원문 링크
+- K-News: 번역 제목, 요약, 감성, 중요도, 이벤트 태그, 원문 링크, glossary/quality flag
 - 알림함: All, My Portfolio, Watchlist 필터, push device registration, 실시간 푸시 타임라인
 - 세무: 서류 등록, 정부 검증 상태, 정산 상세, 환급 신청, 선지급 완료/사후 환수 리스크 고지
 
