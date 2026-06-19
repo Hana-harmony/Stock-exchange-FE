@@ -29,7 +29,7 @@ flutter test
 - `NotificationController`는 로그인된 accountId의 통합 알림함, 종목별 K-News feed, 읽음 처리, push device 등록 상태를 관리한다.
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 연결한다.
 - Portfolio 화면은 로그인된 accountId로 mock USD cash balance를 조회하고, 입력한 금액으로 실제 결제 없는 mock USD deposit을 실행한다.
-- Portfolio 화면은 KIS 주문을 보내지 않는 자체 mock order pad와 orderability 경고/차단 표시를 영어 사용자 문구로 제공한다.
+- Portfolio 화면은 KIS 주문을 보내지 않는 자체 mock order pad와 orderability 경고/차단 표시를 영어 사용자 문구로 제공하고, 최근 매도 내역의 realized PnL을 세무 환급 입력으로 확인할 수 있게 표시한다.
 - `MarketQuoteController`는 Stock-exchange-BE REST snapshot을 조회해 Market 화면의 All/KOSPI/KOSDAQ quote, 환율 기준시각/출처, stale 상태를 갱신한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독하고, 마지막 tick 이후 끊긴 feed를 stale로 표시해 REST snapshot refresh를 유도한다.

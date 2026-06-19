@@ -31,7 +31,7 @@
 - 아이디/비밀번호 회원가입·로그인 form과 mock USD 계좌 화면: Done
 - 실제 결제 없는 달러 충전 화면: Done
 - 자체 mock ledger 모의 주문 패드와 제한 안내 팝업: Partial
-- 매도 실현손익 표시: Partial
+- 매도 실현손익 표시: Done
 
 ## M3 뉴스·공시 인텔리전스
 - K-News 탭: Done
