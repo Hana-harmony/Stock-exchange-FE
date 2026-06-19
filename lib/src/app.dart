@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -491,11 +493,9 @@ class TaxScreen extends StatelessWidget {
           sessionController: sessionController,
           taxController: taxController,
         ),
-        const _InfoPanel(
-          icon: Icons.upload_file_outlined,
-          title: 'Documents',
-          body: 'Certificate of residence and tax treaty forms are tracked here.',
-          meta: 'Submitted / Verification pending',
+        _TaxRefundRequestPanel(
+          sessionController: sessionController,
+          taxController: taxController,
         ),
         const _InfoPanel(
           icon: Icons.warning_amber_outlined,
@@ -504,6 +504,244 @@ class TaxScreen extends StatelessWidget {
           meta: 'Risk notice required before advance payment',
         ),
       ],
+    );
+  }
+}
+
+class _TaxRefundRequestPanel extends StatefulWidget {
+  const _TaxRefundRequestPanel({
+    required this.sessionController,
+    required this.taxController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final TaxController taxController;
+
+  @override
+  State<_TaxRefundRequestPanel> createState() => _TaxRefundRequestPanelState();
+}
+
+class _TaxRefundRequestPanelState extends State<_TaxRefundRequestPanel> {
+  final TextEditingController _taxYearController =
+      TextEditingController(text: '2026');
+  final TextEditingController _treatyCountryController =
+      TextEditingController(text: 'US');
+  final TextEditingController _residenceFileController =
+      TextEditingController(text: 'residence.pdf');
+  final TextEditingController _reducedTaxFileController =
+      TextEditingController(text: 'reduced-tax.pdf');
+  bool _advancePaymentRequested = true;
+
+  @override
+  void dispose() {
+    _taxYearController.dispose();
+    _treatyCountryController.dispose();
+    _residenceFileController.dispose();
+    _reducedTaxFileController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _attachSampleDocuments() async {
+    final accountId = widget.sessionController.session?.accountId;
+    await widget.taxController.uploadDocument(
+      accountId: accountId,
+      documentType: 'RESIDENCE_CERTIFICATE',
+      fileName: _residenceFileController.text,
+      bytes: _sampleDocumentBytes(_residenceFileController.text),
+    );
+    await widget.taxController.uploadDocument(
+      accountId: accountId,
+      documentType: 'REDUCED_TAX_APPLICATION',
+      fileName: _reducedTaxFileController.text,
+      bytes: _sampleDocumentBytes(_reducedTaxFileController.text),
+    );
+  }
+
+  Future<void> _submitRefundRequest() {
+    return widget.taxController.submitRefundCase(
+      accountId: widget.sessionController.session?.accountId,
+      taxYear: int.tryParse(_taxYearController.text.trim()) ?? 2026,
+      treatyCountry: _treatyCountryController.text,
+      residenceCertificateFileName: _residenceFileController.text,
+      reducedTaxApplicationFileName: _reducedTaxFileController.text,
+      advancePaymentRequested: _advancePaymentRequested,
+    );
+  }
+
+  Future<void> _syncHanaStatus() {
+    return widget.taxController.syncRefundStatus(
+      widget.sessionController.session?.accountId,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<ExchangeSessionState>(
+      valueListenable: widget.sessionController,
+      builder: (context, sessionState, child) {
+        return ValueListenableBuilder<TaxState>(
+          valueListenable: widget.taxController,
+          builder: (context, taxState, child) {
+            final isSignedIn = sessionState.isSignedIn;
+            final isLoading = taxState.status == TaxStatus.loading;
+            final colorScheme = Theme.of(context).colorScheme;
+
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  border: Border.all(color: colorScheme.outlineVariant),
+                  borderRadius: BorderRadius.circular(8),
+                  color: colorScheme.surface,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.upload_file_outlined,
+                            color: colorScheme.primary,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Tax document upload and refund request',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 10,
+                        runSpacing: 10,
+                        children: [
+                          SizedBox(
+                            width: 140,
+                            child: TextField(
+                              controller: _taxYearController,
+                              enabled: isSignedIn && !isLoading,
+                              keyboardType: TextInputType.number,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Tax year',
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 140,
+                            child: TextField(
+                              controller: _treatyCountryController,
+                              enabled: isSignedIn && !isLoading,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Treaty country',
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 220,
+                            child: TextField(
+                              controller: _residenceFileController,
+                              enabled: isSignedIn && !isLoading,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Residence file',
+                              ),
+                            ),
+                          ),
+                          SizedBox(
+                            width: 220,
+                            child: TextField(
+                              controller: _reducedTaxFileController,
+                              enabled: isSignedIn && !isLoading,
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Reduced tax file',
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Switch(
+                            value: _advancePaymentRequested,
+                            onChanged: isSignedIn && !isLoading
+                                ? (value) => setState(() {
+                                      _advancePaymentRequested = value;
+                                    })
+                                : null,
+                          ),
+                          const SizedBox(width: 8),
+                          const Expanded(
+                            child: Text('Request advance refund review'),
+                          ),
+                        ],
+                      ),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: isSignedIn && !isLoading
+                                ? _attachSampleDocuments
+                                : null,
+                            icon: const Icon(Icons.attach_file),
+                            label: const Text('Attach sample documents'),
+                          ),
+                          FilledButton.icon(
+                            onPressed: isSignedIn && !isLoading
+                                ? _submitRefundRequest
+                                : null,
+                            icon: const Icon(Icons.request_quote_outlined),
+                            label: const Text('Submit refund request'),
+                          ),
+                          OutlinedButton.icon(
+                            onPressed: isSignedIn && !isLoading
+                                ? _syncHanaStatus
+                                : null,
+                            icon: const Icon(Icons.sync),
+                            label: const Text('Sync Hana status'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      _InfoPanel(
+                        icon: Icons.fact_check_outlined,
+                        title: 'Uploaded document metadata',
+                        body: taxState.uploadedDocuments.isEmpty
+                            ? 'No uploaded document metadata yet.'
+                            : taxState.uploadedDocuments
+                                .map(
+                                  (document) =>
+                                      '${document.documentType} ${document.originalFileName}',
+                                )
+                                .join(' / '),
+                        meta:
+                            'POST /accounts/{accountId}/tax/documents and refund-cases',
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  static Uint8List _sampleDocumentBytes(String fileName) {
+    return Uint8List.fromList(
+      utf8.encode('sample tax document for $fileName'),
     );
   }
 }

@@ -21,7 +21,7 @@ flutter test
 - Market 화면은 종목명/종목코드 검색, All/KOSPI/KOSDAQ 필터, KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
 - Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, AI 번역 glossary/quality flag, 읽음 처리, push device 등록/비활성화 액션을 제공한다.
-- Tax 화면은 서류 checklist, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
+- Tax 화면은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope와 bearer auth session header를 처리한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이와 session store 경계를 제공한다.
 - `AccountController`는 mock USD account REST 조회와 실제 결제 없는 deposit API 호출 상태를 관리한다.
@@ -35,7 +35,7 @@ flutter test
 - `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독하고, 마지막 tick 이후 끊긴 feed를 stale로 표시해 REST snapshot refresh를 유도한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic tick을 화면 quote list에 병합한다.
 - Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 현재가 KRW/USD, best ask/bid, 환율 meta/stale 상태, 과거 시세 라인 차트, 외국인 보유율/한도소진율 게이지와 당일 예상 boundary, VI/단일가/상·하한가 상태를 표시한다.
-- Tax 화면은 bearer auth session의 accountId로 세무 환급 상태를 조회하고, 정부 검증 상태/참조번호, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세·환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
+- Tax 화면은 bearer auth session의 accountId로 세무 서류를 multipart upload하고, 환급 신청과 Hana status sync를 호출하며, 정부 검증 상태/참조번호, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세·환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 앱 기본 session 저장소는 `flutter_secure_storage` 기반 token secure storage를 사용한다.
 - 실제 iOS/Android 플랫폼 target 디렉터리와 앱 ID, 권한, display name 기본 설정이 존재한다.
 

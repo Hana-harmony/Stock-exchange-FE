@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -405,6 +406,69 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> uploadTaxDocument({
+    required String accountId,
+    required String documentType,
+    required String fileName,
+    required Uint8List bytes,
+  }) async {
+    final request = http.MultipartRequest(
+      'POST',
+      _uri('/api/v1/accounts/$accountId/tax/documents', null),
+    );
+    request.headers.addAll({
+      'Accept': 'application/json',
+      ...?_sessionProvider()?.authHeaders,
+    });
+    request.fields['documentType'] = documentType;
+    request.files.add(
+      http.MultipartFile.fromBytes('file', bytes, filename: fileName),
+    );
+
+    final streamedResponse = await _httpClient.send(request);
+    final response = await http.Response.fromStream(streamedResponse);
+    return _decodeEnvelope<Map<String, dynamic>>(
+      response,
+      (value) => _asMap(value),
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> createTaxRefundCase({
+    required String accountId,
+    required int taxYear,
+    required String treatyCountry,
+    required String residenceCertificateFileName,
+    required String reducedTaxApplicationFileName,
+    String? residenceCertificateDocumentId,
+    String? reducedTaxApplicationDocumentId,
+    required bool advancePaymentRequested,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/tax/refund-cases',
+      body: {
+        'taxYear': taxYear,
+        'treatyCountry': treatyCountry,
+        'residenceCertificateFileName': residenceCertificateFileName,
+        'reducedTaxApplicationFileName': reducedTaxApplicationFileName,
+        if (residenceCertificateDocumentId != null &&
+            residenceCertificateDocumentId.isNotEmpty)
+          'residenceCertificateDocumentId': residenceCertificateDocumentId,
+        if (reducedTaxApplicationDocumentId != null &&
+            reducedTaxApplicationDocumentId.isNotEmpty)
+          'reducedTaxApplicationDocumentId': reducedTaxApplicationDocumentId,
+        'advancePaymentRequested': advancePaymentRequested,
+      },
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> syncTaxRefundStatus(
+    String accountId,
+  ) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/tax/refund-status/sync',
+    );
+  }
+
   Future<ApiEnvelope<T>> get<T>(
     String path, {
     Map<String, String>? query,
@@ -461,6 +525,13 @@ class ExchangeApiClient {
 
     final streamedResponse = await _httpClient.send(request);
     final response = await http.Response.fromStream(streamedResponse);
+    return _decodeEnvelope<T>(response, decodeData);
+  }
+
+  ApiEnvelope<T> _decodeEnvelope<T>(
+    http.Response response,
+    T Function(Object? value) decodeData,
+  ) {
     final decoded = _decodeJsonObject(response.body);
     final envelope = ApiEnvelope.fromJson<T>(decoded, decodeData);
 

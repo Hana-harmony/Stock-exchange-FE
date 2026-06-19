@@ -1429,7 +1429,7 @@ void main() {
     expect(find.text('Withholding tax split'), findsOneWidget);
     expect(find.text('Refundable difference'), findsOneWidget);
     expect(find.text('Submitted tax documents'), findsOneWidget);
-    expect(find.textContaining('residence.pdf'), findsOneWidget);
+    expect(find.textContaining('residence.pdf'), findsWidgets);
     expect(find.text('Refund status timeline'), findsOneWidget);
     expect(find.text('Documents received'), findsOneWidget);
     expect(find.text('Mock sell ledger matched'), findsOneWidget);
@@ -1443,6 +1443,107 @@ void main() {
       find.textContaining('Samsung Electronics 1 shares'),
       findsOneWidget,
     );
+  });
+
+  testWidgets('submits tax documents and syncs advance refund status', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = MemoryExchangeSessionStore();
+    await store.write(
+      const AuthSession(
+        username: 'hana',
+        accountId: 'ACC-ABC123456789',
+        tokenType: 'Bearer',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    final sessionController = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonEnvelope({})),
+      ),
+    );
+    final taxController = TaxController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        sessionProvider: () => sessionController.session,
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/tax/documents')) {
+            final isResidence = request.body.contains('RESIDENCE_CERTIFICATE');
+            return _jsonEnvelope({
+              'documentId': isResidence ? 'DOC-RES' : 'DOC-RED',
+              'documentType': isResidence
+                  ? 'RESIDENCE_CERTIFICATE'
+                  : 'REDUCED_TAX_APPLICATION',
+              'originalFileName':
+                  isResidence ? 'residence.pdf' : 'reduced-tax.pdf',
+              'sizeBytes': 24,
+              'createdAt': '2026-06-18T06:00:00Z',
+            });
+          }
+          if (request.url.path.endsWith('/tax/refund-cases')) {
+            expect(jsonDecode(request.body), containsPair('taxYear', 2026));
+            expect(
+              jsonDecode(request.body),
+              containsPair('advancePaymentRequested', true),
+            );
+            return _jsonEnvelope({
+              ..._taxCaseJson(),
+              'status': 'READY_FOR_HANA_SYNC',
+            });
+          }
+          if (request.url.path.endsWith('/tax/refund-status/sync')) {
+            return _jsonEnvelope({
+              ..._taxCaseJson(),
+              'status': 'ADVANCE_PAID',
+            });
+          }
+          return _jsonEnvelope(_taxCaseJson());
+        }),
+      ),
+    );
+    addTearDown(sessionController.dispose);
+    addTearDown(taxController.dispose);
+
+    await sessionController.restore();
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        sessionController: sessionController,
+        taxController: taxController,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_navigationDestination('Tax'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Tax document upload and refund request'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Attach sample documents'));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining('RESIDENCE_CERTIFICATE residence.pdf'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('REDUCED_TAX_APPLICATION reduced-tax.pdf'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('Submit refund request'));
+    await tester.pumpAndSettle();
+    expect(find.text('READY_FOR_HANA_SYNC'), findsWidgets);
+
+    await tester.tap(find.text('Sync Hana status'));
+    await tester.pumpAndSettle();
+    expect(find.text('ADVANCE_PAID'), findsWidgets);
+    expect(find.text('Submitted tax documents'), findsOneWidget);
+    expect(find.text('Post-payment recapture notice'), findsOneWidget);
   });
 
   testWidgets('renders alert inbox and K-News feed after sign in', (tester) async {
