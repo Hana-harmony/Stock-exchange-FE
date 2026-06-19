@@ -2029,31 +2029,14 @@ class _StatusChip extends StatelessWidget {
 
 class _QuoteRow extends StatelessWidget {
   const _QuoteRow({
-    required this.symbol,
-    required this.name,
-    required this.priceKrw,
-    required this.priceUsd,
-    required this.change,
-    required this.badge,
+    required this.quote,
   });
 
   factory _QuoteRow.fromMarketQuote(MarketQuote quote) {
-    return _QuoteRow(
-      symbol: quote.stockCode,
-      name: quote.stockName,
-      priceKrw: quote.krwDisplay,
-      priceUsd: quote.localCurrencyDisplay,
-      change: quote.changeRate,
-      badge: quote.badge,
-    );
+    return _QuoteRow(quote: quote);
   }
 
-  final String symbol;
-  final String name;
-  final String priceKrw;
-  final String priceUsd;
-  final String change;
-  final String badge;
+  final MarketQuote quote;
 
   @override
   Widget build(BuildContext context) {
@@ -2076,26 +2059,38 @@ class _QuoteRow extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      name,
+                      quote.stockName,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                     ),
                   ),
-                  _SmallBadge(label: badge),
+                  _SmallBadge(label: quote.fxStale ? 'FX stale' : quote.badge),
                 ],
               ),
               const SizedBox(height: 6),
-              Text(symbol),
+              Text(quote.stockCode),
               const SizedBox(height: 10),
               Wrap(
                 spacing: 16,
                 runSpacing: 8,
                 children: [
-                  _Metric(label: 'KRW', value: priceKrw),
-                  _Metric(label: 'USD', value: priceUsd),
-                  _Metric(label: 'Move', value: change),
+                  _Metric(label: 'KRW', value: quote.krwDisplay),
+                  _Metric(
+                    label: quote.localCurrency,
+                    value: quote.localCurrencyDisplay,
+                  ),
+                  _Metric(label: 'Move', value: quote.changeRate),
                 ],
+              ),
+              const SizedBox(height: 10),
+              Text(
+                quote.fxMeta,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: quote.fxStale
+                          ? colorScheme.error
+                          : colorScheme.onSurfaceVariant,
+                    ),
               ),
             ],
           ),

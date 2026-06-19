@@ -31,7 +31,7 @@ void main() {
     expect(find.text('USD 54.00'), findsOneWidget);
     expect(
       find.text('FX 1525.93 / unknown time / source Hana-OmniLens-API'),
-      findsOneWidget,
+      findsWidgets,
     );
   });
 
@@ -189,7 +189,7 @@ void main() {
                   'fxRate': '1525.80',
                   'fxRateTime': '2026-06-18T06:00:00Z',
                   'fxRateSource': 'Hana-OmniLens-API',
-                  'fxStale': false,
+                  'fxStale': true,
                 }
               ],
               'servedAt': '2026-06-18T06:00:01Z',
@@ -210,7 +210,17 @@ void main() {
 
     expect(find.text('SK hynix'), findsOneWidget);
     expect(find.text('USD 184.16'), findsOneWidget);
-    expect(find.text('Cache FRESH_CACHE / REST snapshot / WebSocket live'), findsOneWidget);
+    expect(
+      find.text('Cache FRESH_CACHE / REST snapshot / WebSocket live'),
+      findsOneWidget,
+    );
+    expect(find.text('FX stale'), findsOneWidget);
+    expect(
+      find.text(
+        'FX 1525.80 / 2026-06-18T06:00:00.000Z / source Hana-OmniLens-API / stale',
+      ),
+      findsWidgets,
+    );
   });
 
   testWidgets('loads stock detail chart and order book from REST', (tester) async {

@@ -19,8 +19,8 @@
 - 시장별, watchlist, 보유종목 REST snapshot/WebSocket 시세 목록: Partial
 - 실시간 시세 WebSocket 구독과 tick 반영: Partial
 - WebSocket 재연결, stale 표시, REST snapshot refresh: Partial
-- KRW 가격과 USD 환산 가격 동시 표시: Partial
-- 적용 환율 기준시각/출처와 stale 상태 UI: Partial
+- KRW 가격과 USD 환산 가격 동시 표시: Done
+- 적용 환율 기준시각/출처와 stale 상태 UI: Done
 - 과거 시세 차트: Done
 - 종목 상세 현재가/호가: Partial
 - 외국인 보유율 게이지: Done
