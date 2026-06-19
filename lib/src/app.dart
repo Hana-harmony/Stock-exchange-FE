@@ -3051,13 +3051,22 @@ class _MockTradePanelState extends State<_MockTradePanel> {
 
   int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 0;
 
-  Future<void> _checkOrderability() {
-    return widget.tradeController.checkOrderability(
+  Future<void> _checkOrderability() async {
+    await widget.tradeController.checkOrderability(
       accountId: widget.sessionController.session?.accountId,
       stockCode: _stockCodeController.text.trim(),
       side: _side,
       quantity: _quantity,
     );
+    if (!mounted) {
+      return;
+    }
+    final orderability = widget.tradeController.value.orderability;
+    if (orderability == null ||
+        (orderability.canPlaceMockOrder && orderability.warnings.isEmpty)) {
+      return;
+    }
+    await _showOrderabilityDialog(orderability);
   }
 
   Future<void> _executeTrade() {
@@ -3066,6 +3075,26 @@ class _MockTradePanelState extends State<_MockTradePanel> {
       stockCode: _stockCodeController.text.trim(),
       side: _side,
       quantity: _quantity,
+    );
+  }
+
+  Future<void> _showOrderabilityDialog(TradeOrderability orderability) {
+    final isBlocked = !orderability.canPlaceMockOrder;
+    return showDialog<void>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          icon: Icon(isBlocked ? Icons.block : Icons.warning_amber_outlined),
+          title: Text(isBlocked ? 'Mock order blocked' : 'Mock order warning'),
+          content: Text(orderability.summary),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
     );
   }
 
