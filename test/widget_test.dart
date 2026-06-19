@@ -181,6 +181,137 @@ void main() {
     expect(find.text('Account ACC-ABC123456789'), findsOneWidget);
   });
 
+  testWidgets('creates account then loads mock USD account screen', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1500));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final authPaths = <String>[];
+    final sessionController = ExchangeSessionController(
+      sessionStore: MemoryExchangeSessionStore(),
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          authPaths.add(request.url.path);
+          if (request.url.path == '/api/v1/auth/signup') {
+            expect(jsonDecode(request.body), {
+              'username': 'hana',
+              'password': 'secret',
+            });
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'username': 'hana',
+                'accountId': 'ACC-ABC123456789',
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            });
+          }
+
+          expect(request.url.path, '/api/v1/auth/login');
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'username': 'hana',
+              'accountId': 'ACC-ABC123456789',
+              'tokenType': 'Bearer',
+              'accessToken': 'signup-access-token',
+              'refreshToken': 'signup-refresh-token',
+            },
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
+      ),
+    );
+    final accountController = AccountController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(request.method, 'GET');
+          expect(request.url.path, '/api/v1/accounts/ACC-ABC123456789');
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'accountId': 'ACC-ABC123456789',
+              'currency': 'USD',
+              'cashBalanceUsd': '0.00',
+              'updatedAt': '2026-06-18T06:00:00Z',
+            },
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
+      ),
+    );
+    final tradeController = TradeController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/portfolio')) {
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '0.00',
+                'totalMarketValueUsd': '0.00',
+                'totalAssetValueUsd': '0.00',
+                'realizedPnlUsd': '0.00',
+                'unrealizedPnlUsd': '0.00',
+                'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+                'holdings': [],
+                'recentTrades': [],
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            });
+          }
+          return _jsonResponse({});
+        }),
+      ),
+    );
+    addTearDown(sessionController.dispose);
+    addTearDown(accountController.dispose);
+    addTearDown(tradeController.dispose);
+
+    await tester.pumpWidget(
+      StockExchangeApp(
+        sessionController: sessionController,
+        accountController: accountController,
+        tradeController: tradeController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), 'hana');
+    await tester.enterText(find.byType(TextField).at(1), 'secret');
+    await tester.tap(find.text('Create account'));
+    await tester.pumpAndSettle();
+
+    expect(authPaths, ['/api/v1/auth/signup', '/api/v1/auth/login']);
+    expect(find.text('Signed in as hana'), findsOneWidget);
+    expect(find.text('Account ACC-ABC123456789'), findsOneWidget);
+
+    await tester.tap(_navigationDestination('Portfolio'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Mock USD cash'), findsWidgets);
+    expect(find.text('USD 0.00'), findsWidgets);
+    expect(
+      find.text('No real payment settlement. Ledger only.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('refreshes market quotes from REST snapshot', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1500));
     addTearDown(() => tester.binding.setSurfaceSize(null));
