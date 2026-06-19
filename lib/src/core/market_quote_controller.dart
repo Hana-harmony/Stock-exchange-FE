@@ -179,10 +179,12 @@ class MarketQuote {
 
   String get localCurrencyDisplay => '$localCurrency $localCurrencyPrice';
 
+  String get fxTimeDisplay =>
+      fxRateTime?.toUtc().toIso8601String() ?? 'unknown time';
+
   String get fxMeta {
-    final time = fxRateTime?.toUtc().toIso8601String() ?? 'unknown time';
     final stale = fxStale ? ' / stale' : '';
-    return 'FX $fxRate / $time / source $fxRateSource$stale';
+    return 'FX $fxRate / $fxTimeDisplay / source $fxRateSource$stale';
   }
 
   static MarketQuote fromJson(Map<String, dynamic> json) {
