@@ -1612,6 +1612,10 @@ void main() {
     expect(find.text('Push device registration'), findsOneWidget);
     expect(find.textContaining('IOS LOCAL_NOOP_PUSH'), findsOneWidget);
     expect(find.text('Samsung disclosure translated'), findsOneWidget);
+    expect(find.text('Push delivery timeline'), findsOneWidget);
+    expect(find.text('LOCAL_NOOP_PUSH'), findsOneWidget);
+    expect(find.text('Attempt 1'), findsOneWidget);
+    expect(find.text('DELIVERED'), findsOneWidget);
     expect(find.text('K-News intelligence feed'), findsOneWidget);
     expect(find.text('Samsung earnings improve'), findsOneWidget);
     expect(find.text('https://dart.fss.or.kr/report'), findsOneWidget);
@@ -1828,7 +1832,7 @@ Map<String, Object?> _notificationInboxJson() {
         'glossaryTerms': [_glossaryTerm('공시', 'disclosure', 'DISCLOSURE')],
         'translationQualityFlags': ['GLOSSARY_MATCHED'],
         'deliveryStatus': 'DELIVERED',
-        'deliveryProvider': 'LOCAL_INBOX',
+        'deliveryProvider': 'LOCAL_NOOP_PUSH',
         'deliveryAttemptCount': 1,
         'deliveredAt': '2026-06-18T06:00:00Z',
         'lastDeliveryError': null,

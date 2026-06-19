@@ -182,6 +182,24 @@ class NotificationItem {
     return 'All';
   }
 
+  String get deliveryStatusLabel =>
+      deliveryStatus.isEmpty ? 'PENDING' : deliveryStatus;
+
+  String get deliveryProviderLabel =>
+      deliveryProvider.isEmpty ? 'LOCAL_NOOP_PUSH' : deliveryProvider;
+
+  String get deliveryAttemptLabel {
+    if (deliveryAttemptCount <= 0) {
+      return 'Attempt 0';
+    }
+    return 'Attempt $deliveryAttemptCount';
+  }
+
+  bool get deliveryNeedsAttention {
+    final status = deliveryStatusLabel.toUpperCase();
+    return status == 'FAILED' || status == 'RETRYING';
+  }
+
   static NotificationItem fromJson(Map<String, dynamic> json) {
     return NotificationItem(
       notificationId: _string(json['notificationId'], fallback: ''),

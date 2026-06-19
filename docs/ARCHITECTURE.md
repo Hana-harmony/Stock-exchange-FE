@@ -18,7 +18,7 @@
 - `order`: 자체 mock ledger 모의 주문 패드, 주문 가능 여부, VI/상·하한가 제한 안내
 - `portfolio`: 보유종목, USD 평가금액, watchlist, 매도 실현손익
 - `intelligence`: K-News 피드, 원문 링크, 감성/중요도/리스크/이벤트 태그, AI 번역 glossary/quality flag
-- `notifications`: All, My Portfolio, Watchlist 필터가 있는 통합 알림함과 push device registration
+- `notifications`: All, My Portfolio, Watchlist 필터가 있는 통합 알림함, push device registration, delivery/retry/read timeline
 - `tax`: 서류 업로드, 검증 상태, 환급 대상 안내, 정산 상세, 선지급 완료와 리스크 고지
 
 ## 데이터 흐름
@@ -31,7 +31,7 @@
 7. 회원가입은 아이디/비밀번호만 받고, 가입 후 mock USD 계좌와 충전 화면을 제공한다.
 8. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 실제 주문이 아닌 자체 mock 거래임을 표시한다.
 9. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
-10. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. 앱은 계좌별 push device token 등록/비활성화 REST 계약도 호출한다.
+10. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. 앱은 계좌별 push device token 등록/비활성화 REST 계약과 notification delivery provider/status/attempt/read 상태도 표시한다.
 11. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
 
 ## 현재 구현 상태
@@ -39,7 +39,7 @@
 - Market, Portfolio, Alerts, Tax 탭의 영어 UI skeleton이 존재한다.
 - Market 탭은 종목명/종목코드/시장 검색, All/KOSPI/KOSDAQ 시장 필터, KRW/USD 가격, WebSocket/REST 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 탭은 mock USD cash, 실제 주문이 아닌 자체 ledger 기반 거래, 보유종목과 실현손익 연결 영역을 가진다.
-- Alerts 탭은 Stock-exchange-BE의 `/api/v1/accounts/{accountId}/notifications`와 `/api/v1/stocks/{stockCode}/intelligence`를 호출해 AI 번역 뉴스·공시, 원문 링크, glossary/quality flag, My Portfolio/Watchlist 필터, 읽음 처리 상태를 표시한다.
+- Alerts 탭은 Stock-exchange-BE의 `/api/v1/accounts/{accountId}/notifications`와 `/api/v1/stocks/{stockCode}/intelligence`를 호출해 AI 번역 뉴스·공시, 원문 링크, glossary/quality flag, My Portfolio/Watchlist 필터, 읽음 처리 상태, push delivery/retry timeline을 표시한다.
 - Tax 탭은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 완료 영수증, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope(`success/status/code/message/data`)를 파싱하고, bearer auth session header를 REST 요청에 적용한다.
 - Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.

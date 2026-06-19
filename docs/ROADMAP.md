@@ -40,7 +40,7 @@
 - AI 번역 glossary와 quality flag chip 표시: Done
 - 통합 알림함과 필터: Done
 - Push device 등록·조회·비활성화 UI: Done
-- 실시간 push/reconnect 상태 UI: Partial
+- 실시간 push/reconnect 상태 UI: Done for delivery provider/status/attempt/read timeline
 
 ## M4 세무 환급 화면
 - 서류 업로드와 파일 validation: Done for Stock-exchange-BE multipart metadata upload from Tax UI; native file picker hardening remains
