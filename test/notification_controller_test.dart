@@ -12,6 +12,9 @@ void main() {
       apiClient: ExchangeApiClient(
         baseUri: Uri.parse('http://localhost:3000'),
         httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/notifications/devices')) {
+            return _jsonEnvelope(_notificationDevicesJson());
+          }
           if (request.url.path.endsWith('/notifications')) {
             return _jsonEnvelope(_notificationInboxJson());
           }
@@ -28,6 +31,7 @@ void main() {
 
     expect(controller.value.status, NotificationStatus.loaded);
     expect(controller.value.inbox?.unreadCount, 1);
+    expect(controller.value.devices?.activeCount, 1);
     expect(controller.value.filteredNotifications.single.targetLabel, 'Watchlist');
     expect(controller.value.feed?.items.single.title, 'Samsung earnings improve');
   });
@@ -39,6 +43,9 @@ void main() {
         httpClient: MockClient((request) async {
           if (request.url.path.endsWith('/read')) {
             return _jsonEnvelope(_readNotificationJson());
+          }
+          if (request.url.path.endsWith('/notifications/devices')) {
+            return _jsonEnvelope(_notificationDevicesJson());
           }
           if (request.url.path.endsWith('/notifications')) {
             return _jsonEnvelope(_notificationInboxJson());
@@ -61,6 +68,51 @@ void main() {
 
     expect(controller.value.inbox?.unreadCount, 0);
     expect(controller.value.filteredNotifications.single.read, true);
+  });
+
+  test('registers and disables local push device', () async {
+    final seen = <String>[];
+    final controller = NotificationController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          seen.add('${request.method} ${request.url.path}');
+          if (request.method == 'POST' &&
+              request.url.path.endsWith('/notifications/devices')) {
+            expect(jsonDecode(request.body), {
+              'platform': 'IOS',
+              'provider': 'LOCAL_NOOP_PUSH',
+              'deviceToken': 'local-mobile-device-token-0001',
+              'appVersion': '0.1.0',
+              'locale': 'en_US',
+            });
+            return _jsonEnvelope(_notificationDeviceJson(active: true));
+          }
+          if (request.method == 'DELETE') {
+            return _jsonEnvelope(_notificationDeviceJson(active: false));
+          }
+          return _jsonEnvelope({});
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.registerLocalDevice(accountId: 'ACC-ABC123456789');
+
+    expect(controller.value.devices?.activeCount, 1);
+    expect(controller.value.devices?.devices.single.maskedToken, 'local-...0001');
+
+    await controller.disableDevice(
+      accountId: 'ACC-ABC123456789',
+      deviceTokenId: 'NTD-ABC123456789',
+    );
+
+    expect(controller.value.devices?.activeCount, 0);
+    expect(controller.value.devices?.devices.single.active, false);
+    expect(seen, [
+      'POST /api/v1/accounts/ACC-ABC123456789/notifications/devices',
+      'DELETE /api/v1/accounts/ACC-ABC123456789/notifications/devices/NTD-ABC123456789',
+    ]);
   });
 
   test('requires sign in before loading alert inbox', () async {
@@ -165,5 +217,31 @@ Map<String, Object?> _stockIntelligenceJson() {
       }
     ],
     'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _notificationDevicesJson() {
+  return {
+    'accountId': 'ACC-ABC123456789',
+    'activeCount': 1,
+    'totalCount': 1,
+    'devices': [_notificationDeviceJson(active: true)],
+    'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _notificationDeviceJson({required bool active}) {
+  return {
+    'deviceTokenId': 'NTD-ABC123456789',
+    'platform': 'IOS',
+    'provider': 'LOCAL_NOOP_PUSH',
+    'tokenHash': 'hash',
+    'maskedToken': 'local-...0001',
+    'appVersion': '0.1.0',
+    'locale': 'en_US',
+    'active': active,
+    'registeredAt': '2026-06-18T06:00:00Z',
+    'lastSeenAt': '2026-06-18T06:00:00Z',
+    'disabledAt': active ? null : '2026-06-18T06:02:00Z',
   };
 }

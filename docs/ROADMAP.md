@@ -35,6 +35,7 @@
 - 이벤트 태그, 감성, 중요도 표시: Partial
 - 원문 링크 표시: Done
 - 통합 알림함과 필터: Done
+- Push device 등록·조회·비활성화 UI: Done
 - 실시간 push/reconnect 상태 UI: Partial
 
 ## M4 세무 환급 화면

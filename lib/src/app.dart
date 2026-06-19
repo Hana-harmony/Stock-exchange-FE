@@ -1051,6 +1051,7 @@ class _AlertInboxPanel extends StatelessWidget {
             final isLoading = alertState.status == NotificationStatus.loading;
             final inbox = alertState.inbox;
             final feed = alertState.feed;
+            final devices = alertState.devices;
             final filteredNotifications = alertState.filteredNotifications;
 
             return Padding(
@@ -1114,15 +1115,22 @@ class _AlertInboxPanel extends StatelessWidget {
                             label: 'K-News',
                             value: '${feed?.itemCount ?? 0}',
                           ),
+                          _Metric(
+                            label: 'Push devices',
+                            value: '${devices?.activeCount ?? 0}',
+                          ),
                         ],
                       ),
                       if (!isSignedIn) ...[
                         const SizedBox(height: 12),
-                        const Text('Sign in to load watchlist and portfolio alerts.'),
+                        const Text(
+                          'Sign in to load watchlist and portfolio alerts.',
+                        ),
                       ] else if (isLoading) ...[
                         const SizedBox(height: 12),
                         const LinearProgressIndicator(),
-                      ] else if (alertState.status == NotificationStatus.failure) ...[
+                      ] else if (alertState.status ==
+                          NotificationStatus.failure) ...[
                         const SizedBox(height: 12),
                         Text(alertState.errorMessage ?? 'Unable to load alerts.'),
                       ],
@@ -1135,8 +1143,15 @@ class _AlertInboxPanel extends StatelessWidget {
                             .map((item) => _NotificationRow(
                                   accountId: accountId,
                                   item: item,
-                                  notificationController: notificationController,
+                                  notificationController:
+                                      notificationController,
                                 )),
+                      const SizedBox(height: 12),
+                      _NotificationDevicePanel(
+                        accountId: accountId,
+                        devices: devices,
+                        notificationController: notificationController,
+                      ),
                       const SizedBox(height: 12),
                       _StockIntelligencePanel(feed: feed),
                     ],
@@ -1147,6 +1162,89 @@ class _AlertInboxPanel extends StatelessWidget {
           },
         );
       },
+    );
+  }
+}
+
+class _NotificationDevicePanel extends StatelessWidget {
+  const _NotificationDevicePanel({
+    required this.accountId,
+    required this.devices,
+    required this.notificationController,
+  });
+
+  final String? accountId;
+  final NotificationDeviceList? devices;
+  final NotificationController notificationController;
+
+  @override
+  Widget build(BuildContext context) {
+    final activeDevices = devices?.devices
+            .where((device) => device.active)
+            .toList(growable: false) ??
+        const <NotificationDevice>[];
+    final colorScheme = Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: colorScheme.outlineVariant),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.phonelink_ring_outlined),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Push device registration',
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: accountId == null
+                      ? null
+                      : () => notificationController.registerLocalDevice(
+                            accountId: accountId,
+                          ),
+                  icon: const Icon(Icons.add_alert_outlined),
+                  label: const Text('Register'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            if (activeDevices.isEmpty)
+              const Text(
+                'No active push device is registered for this account.',
+              )
+            else
+              ...activeDevices.take(3).map(
+                    (device) => Padding(
+                      padding: const EdgeInsets.only(bottom: 6),
+                      child: Row(
+                        children: [
+                          Expanded(child: Text(device.displayLabel)),
+                          TextButton(
+                            onPressed: accountId == null
+                                ? null
+                                : () => notificationController.disableDevice(
+                                      accountId: accountId,
+                                      deviceTokenId: device.deviceTokenId,
+                                    ),
+                            child: const Text('Disable'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+          ],
+        ),
+      ),
     );
   }
 }

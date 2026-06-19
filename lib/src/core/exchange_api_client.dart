@@ -344,6 +344,44 @@ class ExchangeApiClient {
     return get<Map<String, dynamic>>('/api/v1/accounts/$accountId/notifications');
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getNotificationDevices(
+    String accountId,
+  ) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/notifications/devices',
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> registerNotificationDevice({
+    required String accountId,
+    required String platform,
+    required String provider,
+    required String deviceToken,
+    String? appVersion,
+    String? locale,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/notifications/devices',
+      body: {
+        'platform': platform,
+        'provider': provider,
+        'deviceToken': deviceToken,
+        if (appVersion != null && appVersion.isNotEmpty)
+          'appVersion': appVersion,
+        if (locale != null && locale.isNotEmpty) 'locale': locale,
+      },
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> disableNotificationDevice({
+    required String accountId,
+    required String deviceTokenId,
+  }) {
+    return delete<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/notifications/devices/$deviceTokenId',
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> markNotificationRead({
     required String accountId,
     required String notificationId,
@@ -389,6 +427,17 @@ class ExchangeApiClient {
       method: 'POST',
       path: path,
       body: body,
+      decodeData: decodeData ?? (value) => _asMap(value) as T,
+    );
+  }
+
+  Future<ApiEnvelope<T>> delete<T>(
+    String path, {
+    T Function(Object? value)? decodeData,
+  }) {
+    return _send<T>(
+      method: 'DELETE',
+      path: path,
       decodeData: decodeData ?? (value) => _asMap(value) as T,
     );
   }
