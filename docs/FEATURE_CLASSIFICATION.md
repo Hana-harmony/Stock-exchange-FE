@@ -38,7 +38,7 @@
 | 아이디/비밀번호 회원가입과 로그인 | Stock-exchange-FE | Done |
 | mock USD 계좌 잔고와 실제 결제 없는 달러 충전 화면 | Stock-exchange-FE | Done |
 | 자체 mock ledger 모의 주문 패드와 주문 제한 안내 | Stock-exchange-FE | Done |
-| 매도 내역과 실현손익 표시 | Stock-exchange-FE | Partial |
+| 매도 내역과 실현손익 표시 | Stock-exchange-FE | Done |
 | 실제 주문 체결 | Out of scope | Out of scope |
 
 ## 2. 뉴스·공시 인텔리전스

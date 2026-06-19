@@ -145,6 +145,64 @@ void main() {
     expect(controller.value.portfolio?.holdings.single.quantity, 2);
   });
 
+  test('keeps sell trade realized PnL for tax refund input', () async {
+    final controller = TradeController(
+      apiClient: _client((request) async {
+        if (request.method == 'POST') {
+          expect(jsonDecode(request.body), {
+            'stockCode': '005930',
+            'side': 'SELL',
+            'quantity': 1,
+          });
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': _tradeJson(
+              side: 'SELL',
+              quantity: 1,
+              realizedPnlUsd: '20.00',
+              remainingQuantity: 1,
+            ),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _portfolioJson(
+            realizedPnlUsd: '20.00',
+            recentTrades: [
+              _tradeJson(
+                side: 'SELL',
+                quantity: 1,
+                realizedPnlUsd: '20.00',
+                remainingQuantity: 1,
+              ),
+            ],
+          ),
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await controller.executeTrade(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'SELL',
+      quantity: 1,
+    );
+
+    expect(controller.value.lastTrade?.isSell, isTrue);
+    expect(controller.value.lastTrade?.realizedPnlDisplay, 'USD 20.00');
+    expect(controller.value.portfolio?.realizedPnlUsd, '20.00');
+    expect(controller.value.portfolio?.recentTrades.single.isSell, isTrue);
+  });
+
   test('validates sign in stock code and quantity before API call', () async {
     var requestCount = 0;
     final controller = TradeController(
@@ -190,31 +248,39 @@ ExchangeApiClient _client(
   );
 }
 
-Map<String, Object?> _tradeJson() {
+Map<String, Object?> _tradeJson({
+  String side = 'BUY',
+  int quantity = 2,
+  String realizedPnlUsd = '0.00',
+  int remainingQuantity = 2,
+}) {
   return {
     'tradeId': 'TRD-1',
     'accountId': 'ACC-ABC123456789',
     'stockCode': '005930',
     'stockName': 'Samsung Electronics',
-    'side': 'BUY',
-    'quantity': 2,
+    'side': side,
+    'quantity': quantity,
     'executionPriceUsd': '50.00',
-    'grossAmountUsd': '100.00',
-    'realizedPnlUsd': '0.00',
-    'remainingQuantity': 2,
+    'grossAmountUsd': (50 * quantity).toStringAsFixed(2),
+    'realizedPnlUsd': realizedPnlUsd,
+    'remainingQuantity': remainingQuantity,
     'cashBalanceUsdAfter': '100.00',
     'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
   };
 }
 
-Map<String, Object?> _portfolioJson() {
+Map<String, Object?> _portfolioJson({
+  String realizedPnlUsd = '0.00',
+  List<Map<String, Object?>>? recentTrades,
+}) {
   return {
     'accountId': 'ACC-ABC123456789',
     'currency': 'USD',
     'cashBalanceUsd': '100.00',
     'totalMarketValueUsd': '110.00',
     'totalAssetValueUsd': '210.00',
-    'realizedPnlUsd': '0.00',
+    'realizedPnlUsd': realizedPnlUsd,
     'unrealizedPnlUsd': '10.00',
     'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
     'holdings': [
@@ -229,7 +295,7 @@ Map<String, Object?> _portfolioJson() {
         'unrealizedPnlRate': '10.00',
       }
     ],
-    'recentTrades': [_tradeJson()],
+    'recentTrades': recentTrades ?? [_tradeJson()],
   };
 }
 
