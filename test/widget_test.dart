@@ -795,7 +795,7 @@ void main() {
     expect(find.text('공시 -> disclosure'), findsOneWidget);
     expect(find.text('실적 -> earnings'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(FilterChip, 'Watchlist'));
+    await tester.tap(find.widgetWithText(ChoiceChip, 'Watchlist'));
     await tester.pumpAndSettle();
     expect(find.text('Samsung disclosure translated'), findsOneWidget);
 
