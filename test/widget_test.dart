@@ -35,6 +35,34 @@ void main() {
     );
   });
 
+  testWidgets('filters visible market quotes by stock search', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1400));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(_stockExchangeTestApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Samsung Electronics'), findsOneWidget);
+    expect(find.text('NAVER'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-stock-search-field')),
+      'NAVER',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Samsung Electronics'), findsNothing);
+    expect(find.text('NAVER'), findsWidgets);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-stock-search-field')),
+      'missing-stock',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('No matching stocks'), findsOneWidget);
+  });
+
   testWidgets('navigates portfolio, alerts, and tax tabs', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
