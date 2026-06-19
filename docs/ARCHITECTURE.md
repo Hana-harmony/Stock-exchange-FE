@@ -57,7 +57,7 @@
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket onDone/onError 시 마지막 구독 조건을 유지하고 backoff 지연 후 동일 topic을 재구독하며, 사용자가 `Stop`을 누르면 재연결 timer를 중단한다.
-- Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic을 구독한다.
+- Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic tick을 quote list에 병합한다.
 - Tax 화면은 bearer auth session의 accountId로 refund status를 조회하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.
 - iOS/Android 플랫폼 target 디렉터리와 앱 ID, display name, Android network/push 권한, iOS Runner/Podfile 기본 설정이 존재한다.

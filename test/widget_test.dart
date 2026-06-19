@@ -849,6 +849,131 @@ void main() {
     );
   });
 
+  testWidgets('applies account scoped live quote tick on portfolio screen', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(900, 1700));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final store = MemoryExchangeSessionStore();
+    await store.write(
+      const AuthSession(
+        username: 'hana',
+        accountId: 'ACC-ABC123456789',
+        tokenType: 'Bearer',
+        accessToken: 'access-token',
+        refreshToken: 'refresh-token',
+      ),
+    );
+    late _FakeQuoteSocketConnection connection;
+    final portfolioQuoteController = MarketQuoteController(
+      seedQuotes: const [],
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonEnvelope({})),
+      ),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          connection = _FakeQuoteSocketConnection();
+          return connection;
+        },
+      ),
+    );
+    final accountController = AccountController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '125.50',
+                'updatedAt': '2026-06-18T06:00:00Z',
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
+    final tradeController = TradeController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'currency': 'USD',
+                'cashBalanceUsd': '125.50',
+                'totalMarketValueUsd': '0.00',
+                'totalAssetValueUsd': '125.50',
+                'realizedPnlUsd': '0.00',
+                'unrealizedPnlUsd': '0.00',
+                'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+                'holdings': [],
+                'recentTrades': [],
+              },
+              'timestamp': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
+    final sessionController = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse({})),
+      ),
+    );
+    addTearDown(accountController.dispose);
+    addTearDown(tradeController.dispose);
+    addTearDown(portfolioQuoteController.dispose);
+    addTearDown(sessionController.dispose);
+
+    await tester.pumpWidget(
+      StockExchangeApp(
+        sessionController: sessionController,
+        accountController: accountController,
+        tradeController: tradeController,
+        portfolioQuoteController: portfolioQuoteController,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(_navigationDestination('Portfolio'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Start live').first);
+    await tester.pump();
+
+    connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    connection.emit(
+      'MESSAGE\ndestination:/topic/accounts/ACC-ABC123456789/market/quotes/portfolio\n\n'
+      '${jsonEncode({
+        'stockCode': '035420',
+        'stockName': 'NAVER',
+        'market': 'KOSPI',
+        'currentPriceKrw': '190000',
+        'changeRate': '+1.90%',
+        'volume': 990000,
+        'localCurrency': 'USD',
+        'localCurrencyPrice': '124.59',
+        'fxRate': '1525.00',
+        'fxRateTime': '2026-06-18T06:05:00Z',
+        'fxRateSource': 'Hana-OmniLens-API',
+        'fxStale': false,
+      })}\u0000',
+    );
+    await tester.pump();
+
+    expect(find.text('Account live stream'), findsOneWidget);
+    expect(find.text('Live tick 035420 received.'), findsOneWidget);
+    expect(find.text('NAVER'), findsOneWidget);
+    expect(find.text('USD 124.59'), findsWidgets);
+    expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
+  });
+
   testWidgets('checks and places mock order through exchange ledger', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1900));
     addTearDown(() => tester.binding.setSurfaceSize(null));

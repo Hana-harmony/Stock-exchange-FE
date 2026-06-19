@@ -18,8 +18,8 @@
 - 전체/시장별 종목 REST snapshot 시세 목록: Done
 - watchlist/보유종목 REST snapshot 시세 목록: Done
 - Market WebSocket 시세 목록과 tick 반영: Done
-- watchlist/보유종목 WebSocket 시세 목록: Partial
-- 실시간 시세 WebSocket 구독과 복구 UI: Partial
+- watchlist/보유종목 WebSocket 시세 목록: Done
+- 실시간 시세 WebSocket 구독과 복구 UI: Done for quote subscription and reconnect status, replay/backpressure hardening remains backend scope
 - WebSocket 재연결, stale 표시, REST snapshot refresh: Partial
 - KRW 가격과 USD 환산 가격 동시 표시: Done
 - 적용 환율 기준시각/출처와 stale 상태 UI: Done
