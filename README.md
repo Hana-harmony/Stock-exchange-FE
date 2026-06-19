@@ -31,7 +31,7 @@ flutter test
 - Portfolio 화면은 로그인된 accountId로 mock USD cash balance를 조회하고, 입력한 금액으로 실제 결제 없는 mock USD deposit을 실행한다.
 - Portfolio 화면은 KIS 주문을 보내지 않는 자체 mock order pad와 orderability 경고/차단 표시를 영어 사용자 문구로 제공한다.
 - `MarketQuoteController`는 Stock-exchange-BE REST snapshot을 조회해 Market 화면의 All/KOSPI/KOSDAQ quote, 환율 기준시각/출처, stale 상태를 갱신한다.
-- `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list에 병합한다.
+- `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic을 구독한다.
 - Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 KRW 가격과 USD 환산 가격, 환율 meta/stale 상태, 과거 시세 라인 차트, 외국인 보유율/한도소진율 게이지, VI/단일가/상·하한가 상태를 표시한다.
