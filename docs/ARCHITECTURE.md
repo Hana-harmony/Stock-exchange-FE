@@ -40,7 +40,7 @@
 - Market 탭은 종목명/종목코드/시장 검색, All/KOSPI/KOSDAQ 시장 필터, KRW/USD 가격, WebSocket/REST 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 탭은 mock USD cash, 실제 주문이 아닌 자체 ledger 기반 거래, 보유종목과 실현손익 연결 영역을 가진다.
 - Alerts 탭은 Stock-exchange-BE의 `/api/v1/accounts/{accountId}/notifications`와 `/api/v1/stocks/{stockCode}/intelligence`를 호출해 AI 번역 뉴스·공시, 원문 링크, glossary/quality flag, My Portfolio/Watchlist 필터, 읽음 처리 상태를 표시한다.
-- Tax 탭은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
+- Tax 탭은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 완료 영수증, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope(`success/status/code/message/data`)를 파싱하고, bearer auth session header를 REST 요청에 적용한다.
 - Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이를 관리하고, `ExchangeSessionStore` 경계를 통해 session 저장소를 분리한다.

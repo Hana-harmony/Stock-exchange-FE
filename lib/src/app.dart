@@ -882,6 +882,7 @@ class _TaxRefundStatusPanel extends StatelessWidget {
                         _TaxDocumentChecklist(caseData: refundCase),
                         _TaxStatusTimeline(caseData: refundCase),
                         _TaxInputSummary(caseData: refundCase),
+                        _TaxAdvanceReceipt(caseData: refundCase),
                         _TaxRecaptureNotice(caseData: refundCase),
                         if (refundCase.matchedTrades.isNotEmpty)
                           _TaxMatchedTradeRow(
@@ -1033,6 +1034,35 @@ class _TaxRecaptureNotice extends StatelessWidget {
       title: 'Post-payment recapture notice',
       body: message,
       meta: meta,
+    );
+  }
+}
+
+class _TaxAdvanceReceipt extends StatelessWidget {
+  const _TaxAdvanceReceipt({required this.caseData});
+
+  final TaxRefundCase caseData;
+
+  @override
+  Widget build(BuildContext context) {
+    if (caseData.status != 'ADVANCE_PAID') {
+      return _InfoPanel(
+        icon: Icons.receipt_long_outlined,
+        title: 'Advance refund receipt',
+        body: 'Advance payment receipt is issued after Hana returns ADVANCE_PAID.',
+        meta: 'Current status ${caseData.status}',
+      );
+    }
+
+    final paidAt =
+        caseData.updatedAt?.toUtc().toIso8601String() ?? 'pending timestamp';
+    return _InfoPanel(
+      icon: Icons.receipt_long,
+      title: 'Advance refund receipt',
+      body:
+          'Receipt ${caseData.referenceDisplay} confirms advance refund ${caseData.refundDisplay}.',
+      meta:
+          'Paid at $paidAt / post-review recapture risk notice remains active',
     );
   }
 }

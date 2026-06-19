@@ -1539,9 +1539,14 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('READY_FOR_HANA_SYNC'), findsWidgets);
 
-    await tester.tap(find.text('Sync Hana status'));
+    await taxController.syncRefundStatus('ACC-ABC123456789');
     await tester.pumpAndSettle();
     expect(find.text('ADVANCE_PAID'), findsWidgets);
+    expect(find.text('Advance refund receipt'), findsOneWidget);
+    expect(
+      find.textContaining('confirms advance refund USD 1.40'),
+      findsOneWidget,
+    );
     expect(find.text('Submitted tax documents'), findsOneWidget);
     expect(find.text('Post-payment recapture notice'), findsOneWidget);
   });
