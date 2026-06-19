@@ -18,7 +18,7 @@ flutter test
 
 ## 현재 구현 상태
 - Material 3 앱 shell과 Market, Portfolio, Alerts, Tax 하단 탭이 구현되어 있다.
-- Market 화면은 KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
+- Market 화면은 All/KOSPI/KOSDAQ 필터, KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
 - Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
 - Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, AI 번역 glossary/quality flag, 읽음 처리, push device 등록/비활성화 액션을 제공한다.
 - Tax 화면은 서류 checklist, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 후 환수 리스크 고지 영역을 가진다.
@@ -30,7 +30,7 @@ flutter test
 - Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 연결한다.
 - Portfolio 화면은 로그인된 accountId로 mock USD cash balance를 조회하고, 입력한 금액으로 실제 결제 없는 mock USD deposit을 실행한다.
 - Portfolio 화면은 KIS 주문을 보내지 않는 자체 mock order pad와 orderability 경고/차단 표시를 영어 사용자 문구로 제공한다.
-- `MarketQuoteController`는 Stock-exchange-BE REST snapshot을 조회해 Market 화면의 KRW/USD quote, 환율 기준시각/출처, stale 상태를 갱신한다.
+- `MarketQuoteController`는 Stock-exchange-BE REST snapshot을 조회해 Market 화면의 All/KOSPI/KOSDAQ quote, 환율 기준시각/출처, stale 상태를 갱신한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list에 병합한다.
 - `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독한다.
 - Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic을 구독한다.
