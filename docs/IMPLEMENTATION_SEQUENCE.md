@@ -85,6 +85,7 @@
 - 종목 검색, 전체 종목 시세, watchlist, 보유종목, 차트, 주문, 계좌, 알림, 세무 환급 화면을 구현한다.
 - WebSocket 실시간 tick을 화면에 반영하고 stale 상태와 재연결 상태를 보여준다.
 - 뉴스·공시 분석 알림은 원문 링크와 함께 표시한다.
+- 계좌별 push device token 등록/비활성화 REST 계약을 알림 화면에서 호출한다.
 
 완료 기준:
 - `flutter analyze`, `flutter test`, iOS/Android simulator 실행 기준이 문서화되어 있다.

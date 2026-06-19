@@ -142,6 +142,7 @@ void main() {
     );
 
     await client.getNotifications('ACC-ABC123456789');
+    await client.getNotificationDevices('ACC-ABC123456789');
     await client.getStockIntelligenceFeed('005930');
     await client.markNotificationRead(
       accountId: 'ACC-ABC123456789',
@@ -150,8 +151,63 @@ void main() {
 
     expect(seenPaths, [
       'GET /api/v1/accounts/ACC-ABC123456789/notifications',
+      'GET /api/v1/accounts/ACC-ABC123456789/notifications/devices',
       'GET /api/v1/stocks/005930/intelligence',
       'POST /api/v1/accounts/ACC-ABC123456789/notifications/NTF-ABC123456789/read',
+    ]);
+  });
+
+  test('notification device APIs send registration and disable requests', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final seenPaths = <String>[];
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        seenPaths.add('${request.method} ${request.url.path}');
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+        if (request.method == 'POST') {
+          expect(jsonDecode(request.body), {
+            'platform': 'IOS',
+            'provider': 'LOCAL_NOOP_PUSH',
+            'deviceToken': 'local-mobile-device-token-0001',
+            'appVersion': '0.1.0',
+            'locale': 'en_US',
+          });
+        }
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': <String, Object?>{},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await client.registerNotificationDevice(
+      accountId: 'ACC-ABC123456789',
+      platform: 'IOS',
+      provider: 'LOCAL_NOOP_PUSH',
+      deviceToken: 'local-mobile-device-token-0001',
+      appVersion: '0.1.0',
+      locale: 'en_US',
+    );
+    await client.disableNotificationDevice(
+      accountId: 'ACC-ABC123456789',
+      deviceTokenId: 'NTD-ABC123456789',
+    );
+
+    expect(seenPaths, [
+      'POST /api/v1/accounts/ACC-ABC123456789/notifications/devices',
+      'DELETE /api/v1/accounts/ACC-ABC123456789/notifications/devices/NTD-ABC123456789',
     ]);
   });
 

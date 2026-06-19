@@ -14,6 +14,7 @@ class NotificationState {
     required this.status,
     this.inbox,
     this.feed,
+    this.devices,
     this.selectedFilter = NotificationFilter.all,
     this.errorMessage,
   });
@@ -22,12 +23,14 @@ class NotificationState {
       : status = NotificationStatus.idle,
         inbox = null,
         feed = null,
+        devices = null,
         selectedFilter = NotificationFilter.all,
         errorMessage = null;
 
   const NotificationState.loading({
     this.inbox,
     this.feed,
+    this.devices,
     this.selectedFilter = NotificationFilter.all,
   }) : status = NotificationStatus.loading,
         errorMessage = null;
@@ -35,6 +38,7 @@ class NotificationState {
   const NotificationState.loaded({
     required this.inbox,
     required this.feed,
+    this.devices,
     this.selectedFilter = NotificationFilter.all,
   }) : status = NotificationStatus.loaded,
         errorMessage = null;
@@ -43,12 +47,14 @@ class NotificationState {
     required this.errorMessage,
     this.inbox,
     this.feed,
+    this.devices,
     this.selectedFilter = NotificationFilter.all,
   }) : status = NotificationStatus.failure;
 
   final NotificationStatus status;
   final NotificationInbox? inbox;
   final StockIntelligenceFeed? feed;
+  final NotificationDeviceList? devices;
   final NotificationFilter selectedFilter;
   final String? errorMessage;
 
@@ -62,6 +68,7 @@ class NotificationState {
       status: status,
       inbox: inbox,
       feed: feed,
+      devices: devices,
       selectedFilter: filter,
       errorMessage: errorMessage,
     );
@@ -293,6 +300,104 @@ class StockIntelligenceItem {
   }
 }
 
+class NotificationDeviceList {
+  const NotificationDeviceList({
+    required this.accountId,
+    required this.activeCount,
+    required this.totalCount,
+    required this.devices,
+    this.servedAt,
+  });
+
+  final String accountId;
+  final int activeCount;
+  final int totalCount;
+  final List<NotificationDevice> devices;
+  final DateTime? servedAt;
+
+  static NotificationDeviceList fromJson(Map<String, dynamic> json) {
+    final deviceValues = json['devices'] is List
+        ? json['devices'] as List<Object?>
+        : const <Object?>[];
+    return NotificationDeviceList(
+      accountId: _string(json['accountId'], fallback: ''),
+      activeCount: _int(json['activeCount']),
+      totalCount: _int(json['totalCount']),
+      devices: deviceValues
+          .map((value) => NotificationDevice.fromJson(_map(value)))
+          .toList(),
+      servedAt: _dateTime(json['servedAt']),
+    );
+  }
+
+  NotificationDeviceList replace(NotificationDevice device) {
+    final replacedDevices = [
+      for (final current in devices)
+        if (current.deviceTokenId == device.deviceTokenId) device else current,
+    ];
+    final exists = devices.any(
+      (current) => current.deviceTokenId == device.deviceTokenId,
+    );
+    final nextDevices = exists ? replacedDevices : [device, ...devices];
+    return NotificationDeviceList(
+      accountId: accountId,
+      activeCount: nextDevices.where((item) => item.active).length,
+      totalCount: nextDevices.length,
+      devices: nextDevices,
+      servedAt: servedAt,
+    );
+  }
+}
+
+class NotificationDevice {
+  const NotificationDevice({
+    required this.deviceTokenId,
+    required this.platform,
+    required this.provider,
+    required this.tokenHash,
+    required this.maskedToken,
+    required this.active,
+    this.appVersion,
+    this.locale,
+    this.registeredAt,
+    this.lastSeenAt,
+    this.disabledAt,
+  });
+
+  final String deviceTokenId;
+  final String platform;
+  final String provider;
+  final String tokenHash;
+  final String maskedToken;
+  final String? appVersion;
+  final String? locale;
+  final bool active;
+  final DateTime? registeredAt;
+  final DateTime? lastSeenAt;
+  final DateTime? disabledAt;
+
+  String get displayLabel {
+    final status = active ? 'Active' : 'Disabled';
+    return '$platform $provider / $status / $maskedToken';
+  }
+
+  static NotificationDevice fromJson(Map<String, dynamic> json) {
+    return NotificationDevice(
+      deviceTokenId: _string(json['deviceTokenId'], fallback: ''),
+      platform: _string(json['platform'], fallback: ''),
+      provider: _string(json['provider'], fallback: ''),
+      tokenHash: _string(json['tokenHash'], fallback: ''),
+      maskedToken: _string(json['maskedToken'], fallback: ''),
+      appVersion: _nullableString(json['appVersion']),
+      locale: _nullableString(json['locale']),
+      active: json['active'] as bool? ?? false,
+      registeredAt: _dateTime(json['registeredAt']),
+      lastSeenAt: _dateTime(json['lastSeenAt']),
+      disabledAt: _dateTime(json['disabledAt']),
+    );
+  }
+}
+
 class NotificationController extends ValueNotifier<NotificationState> {
   NotificationController({required ExchangeApiClient apiClient})
       : _apiClient = apiClient,
@@ -317,6 +422,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
         errorMessage: 'Sign in to load alert inbox.',
         inbox: value.inbox,
         feed: value.feed,
+        devices: value.devices,
         selectedFilter: value.selectedFilter,
       );
       return;
@@ -325,16 +431,19 @@ class NotificationController extends ValueNotifier<NotificationState> {
     value = NotificationState.loading(
       inbox: value.inbox,
       feed: value.feed,
+      devices: value.devices,
       selectedFilter: value.selectedFilter,
     );
     try {
       final results = await Future.wait([
         _apiClient.getNotifications(accountId),
         _apiClient.getStockIntelligenceFeed(stockCode),
+        _apiClient.getNotificationDevices(accountId),
       ]);
       value = NotificationState.loaded(
         inbox: NotificationInbox.fromJson(results[0].data ?? {}),
         feed: StockIntelligenceFeed.fromJson(results[1].data ?? {}),
+        devices: NotificationDeviceList.fromJson(results[2].data ?? {}),
         selectedFilter: value.selectedFilter,
       );
     } on ExchangeApiException catch (error) {
@@ -342,6 +451,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
         errorMessage: error.message,
         inbox: value.inbox,
         feed: value.feed,
+        devices: value.devices,
         selectedFilter: value.selectedFilter,
       );
     } on Object {
@@ -349,6 +459,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
         errorMessage: 'Unable to load alert inbox.',
         inbox: value.inbox,
         feed: value.feed,
+        devices: value.devices,
         selectedFilter: value.selectedFilter,
       );
     }
@@ -363,6 +474,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
         errorMessage: 'Sign in to update alert inbox.',
         inbox: value.inbox,
         feed: value.feed,
+        devices: value.devices,
         selectedFilter: value.selectedFilter,
       );
       return;
@@ -390,6 +502,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
           servedAt: currentInbox.servedAt,
         ),
         feed: value.feed,
+        devices: value.devices,
         selectedFilter: value.selectedFilter,
       );
     } on ExchangeApiException catch (error) {
@@ -397,6 +510,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
         errorMessage: error.message,
         inbox: value.inbox,
         feed: value.feed,
+        devices: value.devices,
         selectedFilter: value.selectedFilter,
       );
     } on Object {
@@ -404,9 +518,113 @@ class NotificationController extends ValueNotifier<NotificationState> {
         errorMessage: 'Unable to mark alert as read.',
         inbox: value.inbox,
         feed: value.feed,
+        devices: value.devices,
         selectedFilter: value.selectedFilter,
       );
     }
+  }
+
+  Future<void> registerLocalDevice({
+    required String? accountId,
+    String platform = 'IOS',
+    String provider = 'LOCAL_NOOP_PUSH',
+    String deviceToken = 'local-mobile-device-token-0001',
+    String appVersion = '0.1.0',
+    String locale = 'en_US',
+  }) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = NotificationState.failure(
+        errorMessage: 'Sign in to register this device.',
+        inbox: value.inbox,
+        feed: value.feed,
+        devices: value.devices,
+        selectedFilter: value.selectedFilter,
+      );
+      return;
+    }
+    try {
+      final response = await _apiClient.registerNotificationDevice(
+        accountId: accountId,
+        platform: platform,
+        provider: provider,
+        deviceToken: deviceToken,
+        appVersion: appVersion,
+        locale: locale,
+      );
+      _upsertDevice(NotificationDevice.fromJson(response.data ?? {}));
+    } on ExchangeApiException catch (error) {
+      value = NotificationState.failure(
+        errorMessage: error.message,
+        inbox: value.inbox,
+        feed: value.feed,
+        devices: value.devices,
+        selectedFilter: value.selectedFilter,
+      );
+    } on Object {
+      value = NotificationState.failure(
+        errorMessage: 'Unable to register this device.',
+        inbox: value.inbox,
+        feed: value.feed,
+        devices: value.devices,
+        selectedFilter: value.selectedFilter,
+      );
+    }
+  }
+
+  Future<void> disableDevice({
+    required String? accountId,
+    required String deviceTokenId,
+  }) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = NotificationState.failure(
+        errorMessage: 'Sign in to disable this device.',
+        inbox: value.inbox,
+        feed: value.feed,
+        devices: value.devices,
+        selectedFilter: value.selectedFilter,
+      );
+      return;
+    }
+    try {
+      final response = await _apiClient.disableNotificationDevice(
+        accountId: accountId,
+        deviceTokenId: deviceTokenId,
+      );
+      _upsertDevice(NotificationDevice.fromJson(response.data ?? {}));
+    } on ExchangeApiException catch (error) {
+      value = NotificationState.failure(
+        errorMessage: error.message,
+        inbox: value.inbox,
+        feed: value.feed,
+        devices: value.devices,
+        selectedFilter: value.selectedFilter,
+      );
+    } on Object {
+      value = NotificationState.failure(
+        errorMessage: 'Unable to disable this device.',
+        inbox: value.inbox,
+        feed: value.feed,
+        devices: value.devices,
+        selectedFilter: value.selectedFilter,
+      );
+    }
+  }
+
+  void _upsertDevice(NotificationDevice device) {
+    final currentDevices = value.devices ??
+        NotificationDeviceList(
+          accountId: '',
+          activeCount: 0,
+          totalCount: 0,
+          devices: const [],
+          servedAt: DateTime.now().toUtc(),
+        );
+    value = NotificationState.loaded(
+      inbox: value.inbox,
+      feed: value.feed,
+      devices: currentDevices.replace(device),
+      selectedFilter: value.selectedFilter,
+    );
   }
 }
 

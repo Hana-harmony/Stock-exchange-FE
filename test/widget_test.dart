@@ -742,6 +742,9 @@ void main() {
         baseUri: Uri.parse('http://localhost:3000'),
         sessionProvider: () => sessionController.session,
         httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/notifications/devices')) {
+            return _jsonEnvelope(_notificationDevicesJson());
+          }
           if (request.url.path.endsWith('/notifications')) {
             return _jsonEnvelope(_notificationInboxJson());
           }
@@ -771,6 +774,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Integrated alert inbox'), findsOneWidget);
+    expect(find.text('Push device registration'), findsOneWidget);
+    expect(find.textContaining('IOS LOCAL_NOOP_PUSH'), findsOneWidget);
     expect(find.text('Samsung disclosure translated'), findsOneWidget);
     expect(find.text('K-News intelligence feed'), findsOneWidget);
     expect(find.text('Samsung earnings improve'), findsOneWidget);
@@ -955,6 +960,30 @@ Map<String, Object?> _readNotificationJson() {
     ...(notifications.single as Map<String, Object?>),
     'read': true,
     'readAt': '2026-06-18T06:02:00Z',
+  };
+}
+
+Map<String, Object?> _notificationDevicesJson() {
+  return {
+    'accountId': 'ACC-ABC123456789',
+    'activeCount': 1,
+    'totalCount': 1,
+    'devices': [
+      {
+        'deviceTokenId': 'NTD-ABC123456789',
+        'platform': 'IOS',
+        'provider': 'LOCAL_NOOP_PUSH',
+        'tokenHash': 'hash',
+        'maskedToken': 'local-...0001',
+        'appVersion': '0.1.0',
+        'locale': 'en_US',
+        'active': true,
+        'registeredAt': '2026-06-18T06:00:00Z',
+        'lastSeenAt': '2026-06-18T06:00:00Z',
+        'disabledAt': null,
+      }
+    ],
+    'servedAt': '2026-06-18T06:01:00Z',
   };
 }
 
