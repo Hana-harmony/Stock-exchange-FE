@@ -657,6 +657,11 @@ void main() {
               'predictedForeignOwnershipRateMax': '55.45',
               'predictedForeignLimitExhaustionRateMin': '55.25',
               'predictedForeignLimitExhaustionRateMax': '55.60',
+              'foreignOwnershipPredictionConfidenceLevel':
+                  'AI_TIME_SERIES_ADJUSTED',
+              'foreignOwnershipPredictionConfidenceScore': '0.8',
+              'foreignOwnershipPredictionModelVersion':
+                  'hannah-foreign-ownership-timeseries-v1',
               'foreignOwnershipBaseDate': '2026-06-18',
               'viActive': false,
               'singlePriceTrading': true,
@@ -705,6 +710,10 @@ void main() {
     );
     expect(
       find.textContaining('Limit 55.25% - 55.60%'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining('hannah-foreign-ownership-timeseries-v1'),
       findsOneWidget,
     );
     expect(

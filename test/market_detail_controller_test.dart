@@ -49,6 +49,10 @@ void main() {
       '55.25% - 55.60%',
     );
     expect(
+      controller.value.detail?.predictionModelDisplay,
+      'hannah-foreign-ownership-timeseries-v1 / AI_TIME_SERIES_ADJUSTED 0.8',
+    );
+    expect(
       controller.value.chart?.latestPoint?.closeLocalDisplay,
       'USD 54.01',
     );
@@ -123,6 +127,10 @@ Map<String, Object?> _detailJson() {
     'predictedForeignOwnershipRateMax': '55.45',
     'predictedForeignLimitExhaustionRateMin': '55.25',
     'predictedForeignLimitExhaustionRateMax': '55.60',
+    'foreignOwnershipPredictionConfidenceLevel': 'AI_TIME_SERIES_ADJUSTED',
+    'foreignOwnershipPredictionConfidenceScore': '0.8',
+    'foreignOwnershipPredictionModelVersion':
+        'hannah-foreign-ownership-timeseries-v1',
     'foreignOwnershipBaseDate': '2026-06-18',
     'viActive': true,
     'singlePriceTrading': true,
