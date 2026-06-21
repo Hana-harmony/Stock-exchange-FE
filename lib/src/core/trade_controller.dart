@@ -13,6 +13,7 @@ class TradeState {
   const TradeState({
     required this.status,
     this.portfolio,
+    this.tradeHistory = const [],
     this.orderability,
     this.lastTrade,
     this.errorMessage,
@@ -21,12 +22,14 @@ class TradeState {
   const TradeState.idle()
       : status = TradeStatus.idle,
         portfolio = null,
+        tradeHistory = const [],
         orderability = null,
         lastTrade = null,
         errorMessage = null;
 
   const TradeState.loading({
     this.portfolio,
+    this.tradeHistory = const [],
     this.orderability,
     this.lastTrade,
   })  : status = TradeStatus.loading,
@@ -34,6 +37,7 @@ class TradeState {
 
   const TradeState.loaded({
     this.portfolio,
+    this.tradeHistory = const [],
     this.orderability,
     this.lastTrade,
   })  : status = TradeStatus.loaded,
@@ -42,12 +46,14 @@ class TradeState {
   const TradeState.failure({
     required this.errorMessage,
     this.portfolio,
+    this.tradeHistory = const [],
     this.orderability,
     this.lastTrade,
   }) : status = TradeStatus.failure;
 
   final TradeStatus status;
   final PortfolioSnapshot? portfolio;
+  final List<TradeExecution> tradeHistory;
   final TradeOrderability? orderability;
   final TradeExecution? lastTrade;
   final String? errorMessage;
@@ -188,8 +194,7 @@ class TradeOrderability {
 
 String _orderabilityMessage(String code) {
   return switch (code) {
-    'FOREIGN_LIMIT_EXCEEDED' =>
-      'Foreign ownership limit would be exceeded',
+    'FOREIGN_LIMIT_EXCEEDED' => 'Foreign ownership limit would be exceeded',
     'TRADING_HALTED' => 'Trading is halted',
     'ORDER_NOT_ALLOWED' => 'Order is not allowed',
     'VI_ACTIVE' => 'Volatility interruption is active',
@@ -255,6 +260,28 @@ class TradeExecution {
   }
 }
 
+class TradeLedgerHistory {
+  const TradeLedgerHistory({
+    required this.accountId,
+    required this.tradeCount,
+    required this.trades,
+  });
+
+  final String accountId;
+  final int tradeCount;
+  final List<TradeExecution> trades;
+
+  static TradeLedgerHistory fromJson(Map<String, dynamic> json) {
+    return TradeLedgerHistory(
+      accountId: _string(json['accountId'], fallback: ''),
+      tradeCount: _int(json['tradeCount']),
+      trades: _list(json['trades'])
+          .map((value) => TradeExecution.fromJson(_map(value)))
+          .toList(),
+    );
+  }
+}
+
 class TradeController extends ValueNotifier<TradeState> {
   TradeController({required ExchangeApiClient apiClient})
       : _apiClient = apiClient,
@@ -267,6 +294,7 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.failure(
         errorMessage: 'Sign in to load mock portfolio.',
         portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
       );
@@ -277,6 +305,32 @@ class TradeController extends ValueNotifier<TradeState> {
       final response = await _apiClient.getPortfolio(accountId);
       value = TradeState.loaded(
         portfolio: PortfolioSnapshot.fromJson(response.data ?? {}),
+        tradeHistory: value.tradeHistory,
+        orderability: value.orderability,
+        lastTrade: value.lastTrade,
+      );
+    });
+  }
+
+  Future<void> loadTradeHistory(String? accountId, {int limit = 50}) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = TradeState.failure(
+        errorMessage: 'Sign in to load trade history.',
+        portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
+        orderability: value.orderability,
+        lastTrade: value.lastTrade,
+      );
+      return;
+    }
+
+    await _run(() async {
+      final response =
+          await _apiClient.getTradeHistory(accountId, limit: limit);
+      final history = TradeLedgerHistory.fromJson(response.data ?? {});
+      value = TradeState.loaded(
+        portfolio: value.portfolio,
+        tradeHistory: history.trades,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
       );
@@ -302,6 +356,7 @@ class TradeController extends ValueNotifier<TradeState> {
       );
       value = TradeState.loaded(
         portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
         orderability: TradeOrderability.fromJson(response.data ?? {}),
         lastTrade: value.lastTrade,
       );
@@ -327,8 +382,11 @@ class TradeController extends ValueNotifier<TradeState> {
       );
       final trade = TradeExecution.fromJson(response.data ?? {});
       final portfolioResponse = await _apiClient.getPortfolio(accountId);
+      final historyResponse = await _apiClient.getTradeHistory(accountId);
       value = TradeState.loaded(
         portfolio: PortfolioSnapshot.fromJson(portfolioResponse.data ?? {}),
+        tradeHistory:
+            TradeLedgerHistory.fromJson(historyResponse.data ?? {}).trades,
         orderability: value.orderability,
         lastTrade: trade,
       );
@@ -340,6 +398,7 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.failure(
         errorMessage: 'Sign in before placing a mock order.',
         portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
       );
@@ -349,6 +408,7 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.failure(
         errorMessage: 'Enter a 6 digit Korean stock code.',
         portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
       );
@@ -358,6 +418,7 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.failure(
         errorMessage: 'Quantity must be at least 1.',
         portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
       );
@@ -369,6 +430,7 @@ class TradeController extends ValueNotifier<TradeState> {
   Future<void> _run(Future<void> Function() action) async {
     value = TradeState.loading(
       portfolio: value.portfolio,
+      tradeHistory: value.tradeHistory,
       orderability: value.orderability,
       lastTrade: value.lastTrade,
     );
@@ -378,6 +440,7 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.failure(
         errorMessage: error.message,
         portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
       );
@@ -385,6 +448,7 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.failure(
         errorMessage: 'Unable to process mock trade.',
         portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
       );
