@@ -2,6 +2,8 @@
 .dart_tool/
 .idea/
 .packages
+.flutter-plugins-dependencies
+flutter_*.log
 .pub-cache/
 .pub/
 build/
@@ -10,6 +12,7 @@ android/.gradle/
 android/local.properties
 ios/.symlinks/
 ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
 ios/Flutter/ephemeral/
 ios/Pods/
 ios/Runner.xcworkspace/xcshareddata/
@@ -20,3 +23,4 @@ ios/Runner.xcodeproj/xcuserdata/
 ios/Flutter/Flutter.framework
 ios/Flutter/Flutter.podspec
 pubspec.lock
+**/GeneratedPluginRegistrant.java
