@@ -72,6 +72,9 @@ class StockDetail {
     required this.predictedForeignOwnershipRateMax,
     required this.predictedForeignLimitExhaustionRateMin,
     required this.predictedForeignLimitExhaustionRateMax,
+    required this.foreignOwnershipPredictionConfidenceLevel,
+    required this.foreignOwnershipPredictionConfidenceScore,
+    required this.foreignOwnershipPredictionModelVersion,
     required this.foreignOwnershipBaseDate,
     required this.viActive,
     required this.singlePriceTrading,
@@ -99,6 +102,9 @@ class StockDetail {
   final String predictedForeignOwnershipRateMax;
   final String predictedForeignLimitExhaustionRateMin;
   final String predictedForeignLimitExhaustionRateMax;
+  final String foreignOwnershipPredictionConfidenceLevel;
+  final String foreignOwnershipPredictionConfidenceScore;
+  final String foreignOwnershipPredictionModelVersion;
   final String foreignOwnershipBaseDate;
   final bool viActive;
   final bool singlePriceTrading;
@@ -117,6 +123,10 @@ class StockDetail {
 
   String get predictedLimitRangeDisplay =>
       '$predictedForeignLimitExhaustionRateMin% - $predictedForeignLimitExhaustionRateMax%';
+
+  String get predictionModelDisplay =>
+      '$foreignOwnershipPredictionModelVersion / $foreignOwnershipPredictionConfidenceLevel'
+      ' $foreignOwnershipPredictionConfidenceScore';
 
   String get riskBadge {
     if (tradingHalted) {
@@ -169,6 +179,18 @@ class StockDetail {
       predictedForeignLimitExhaustionRateMax: _string(
         json['predictedForeignLimitExhaustionRateMax'],
         fallback: foreignLimitExhaustionRate,
+      ),
+      foreignOwnershipPredictionConfidenceLevel: _string(
+        json['foreignOwnershipPredictionConfidenceLevel'],
+        fallback: 'UNKNOWN',
+      ),
+      foreignOwnershipPredictionConfidenceScore: _string(
+        json['foreignOwnershipPredictionConfidenceScore'],
+        fallback: '0',
+      ),
+      foreignOwnershipPredictionModelVersion: _string(
+        json['foreignOwnershipPredictionModelVersion'],
+        fallback: 'unknown',
       ),
       foreignOwnershipBaseDate:
           _string(json['foreignOwnershipBaseDate'], fallback: 'unknown'),

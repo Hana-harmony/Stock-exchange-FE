@@ -3372,7 +3372,7 @@ class _ForeignBoundaryPanel extends StatelessWidget {
       body:
           'Ownership ${detail.predictedOwnershipRangeDisplay} / Limit ${detail.predictedLimitRangeDisplay}',
       meta:
-          'Base ${detail.foreignOwnershipBaseDate} / Hana-OmniLens-API prediction boundary',
+          'Base ${detail.foreignOwnershipBaseDate} / ${detail.predictionModelDisplay}',
     );
   }
 }
