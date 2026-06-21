@@ -2273,10 +2273,33 @@ class _StockIntelligencePanel extends StatelessWidget {
                 _InfoPanel(
                   icon: Icons.article_outlined,
                   title: item.title,
-                  body: item.summary,
+                  body: item.displaySummary,
                   meta: '${item.importance} / ${item.sentiment} / '
-                      '${item.targetLabel} / ${item.originalUrl}',
+                      '${item.targetLabel} / ${item.contentAvailability} / ${item.originalUrl}',
                 ),
+                if (item.imageUrls.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(6),
+                    child: Image.network(
+                      item.imageUrls.first,
+                      height: 120,
+                      width: double.infinity,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          const SizedBox.shrink(),
+                    ),
+                  ),
+                ],
+                if (item.contentPreview.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    item.contentPreview,
+                    maxLines: 5,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
                 _AlertSignalWrap(
                   labels: [
                     item.sourceType,

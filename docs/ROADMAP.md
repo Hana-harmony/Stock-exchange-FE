@@ -37,6 +37,7 @@
 - K-News 탭: Done
 - 이벤트 태그, 감성, 중요도, 리스크 chip 표시: Done
 - 원문 링크 표시: Done
+- full-content news v2: What/Why/Impact 요약, 이미지 썸네일, 원문/번역 전문 preview Done
 - AI 번역 glossary와 quality flag chip 표시: Done
 - 통합 알림함과 필터: Done
 - Push device 등록·조회·비활성화 UI: Done

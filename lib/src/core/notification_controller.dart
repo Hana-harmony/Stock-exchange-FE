@@ -32,7 +32,7 @@ class NotificationState {
     this.feed,
     this.devices,
     this.selectedFilter = NotificationFilter.all,
-  }) : status = NotificationStatus.loading,
+  })  : status = NotificationStatus.loading,
         errorMessage = null;
 
   const NotificationState.loaded({
@@ -40,7 +40,7 @@ class NotificationState {
     required this.feed,
     this.devices,
     this.selectedFilter = NotificationFilter.all,
-  }) : status = NotificationStatus.loaded,
+  })  : status = NotificationStatus.loaded,
         errorMessage = null;
 
   const NotificationState.failure({
@@ -264,12 +264,19 @@ class StockIntelligenceItem {
     required this.sourceType,
     required this.title,
     required this.summary,
+    required this.summaryLines,
+    required this.translatedSummary,
+    required this.originalContent,
+    required this.translatedContent,
+    required this.imageUrls,
+    required this.contentAvailability,
     required this.originalUrl,
     required this.primaryStockCode,
     required this.relatedStocks,
     required this.sentiment,
     required this.importance,
     required this.riskLevel,
+    required this.clusterKey,
     required this.glossaryTerms,
     required this.translationQualityFlags,
     required this.watchlistTarget,
@@ -283,12 +290,19 @@ class StockIntelligenceItem {
   final String sourceType;
   final String title;
   final String summary;
+  final AlertSummaryLines summaryLines;
+  final String translatedSummary;
+  final String originalContent;
+  final String translatedContent;
+  final List<String> imageUrls;
+  final String contentAvailability;
   final String originalUrl;
   final String primaryStockCode;
   final List<String> relatedStocks;
   final String sentiment;
   final String importance;
   final String riskLevel;
+  final String clusterKey;
   final List<AlertGlossaryTerm> glossaryTerms;
   final List<String> translationQualityFlags;
   final bool watchlistTarget;
@@ -307,18 +321,42 @@ class StockIntelligenceItem {
     return 'All';
   }
 
+  String get displaySummary {
+    if (summaryLines.hasAny) {
+      return summaryLines.lines.join('\n');
+    }
+    return translatedSummary.isNotEmpty ? translatedSummary : summary;
+  }
+
+  String get contentPreview {
+    final content =
+        translatedContent.isNotEmpty ? translatedContent : originalContent;
+    if (content.isEmpty) {
+      return '';
+    }
+    return content.length > 280 ? '${content.substring(0, 280)}...' : content;
+  }
+
   static StockIntelligenceItem fromJson(Map<String, dynamic> json) {
     return StockIntelligenceItem(
       eventId: _string(json['eventId'], fallback: ''),
       sourceType: _string(json['sourceType'], fallback: ''),
       title: _string(json['title'], fallback: 'Untitled intelligence'),
       summary: _string(json['summary'], fallback: ''),
+      summaryLines: AlertSummaryLines.fromJson(_map(json['summaryLines'])),
+      translatedSummary: _string(json['translatedSummary'], fallback: ''),
+      originalContent: _string(json['originalContent'], fallback: ''),
+      translatedContent: _string(json['translatedContent'], fallback: ''),
+      imageUrls: _stringList(json['imageUrls']),
+      contentAvailability:
+          _string(json['contentAvailability'], fallback: 'SUMMARY_ONLY'),
       originalUrl: _string(json['originalUrl'], fallback: ''),
       primaryStockCode: _string(json['primaryStockCode'], fallback: ''),
       relatedStocks: _stringList(json['relatedStocks']),
       sentiment: _string(json['sentiment'], fallback: 'NEUTRAL'),
       importance: _string(json['importance'], fallback: 'NORMAL'),
       riskLevel: _string(json['riskLevel'], fallback: 'LOW'),
+      clusterKey: _string(json['clusterKey'], fallback: ''),
       glossaryTerms: _glossaryTerms(json['glossaryTerms']),
       translationQualityFlags: _stringList(json['translationQualityFlags']),
       watchlistTarget: json['watchlistTarget'] as bool? ?? false,
@@ -326,6 +364,34 @@ class StockIntelligenceItem {
       publishedAt: _dateTime(json['publishedAt']),
       receivedAt: _dateTime(json['receivedAt']),
       targetCount: _int(json['targetCount']),
+    );
+  }
+}
+
+class AlertSummaryLines {
+  const AlertSummaryLines({
+    required this.what,
+    required this.why,
+    required this.impact,
+  });
+
+  final String what;
+  final String why;
+  final String impact;
+
+  bool get hasAny => what.isNotEmpty || why.isNotEmpty || impact.isNotEmpty;
+
+  List<String> get lines => [
+        if (what.isNotEmpty) 'What: $what',
+        if (why.isNotEmpty) 'Why: $why',
+        if (impact.isNotEmpty) 'Impact: $impact',
+      ];
+
+  static AlertSummaryLines fromJson(Map<String, dynamic> json) {
+    return AlertSummaryLines(
+      what: _string(json['what'], fallback: ''),
+      why: _string(json['why'], fallback: ''),
+      impact: _string(json['impact'], fallback: ''),
     );
   }
 }
@@ -556,8 +622,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
         return;
       }
       final notifications = currentInbox.notifications
-          .map((item) =>
-              item.notificationId == notificationId ? updated : item)
+          .map((item) => item.notificationId == notificationId ? updated : item)
           .toList();
       value = NotificationState.loaded(
         inbox: NotificationInbox(
