@@ -57,8 +57,7 @@ class MarketQuoteState {
     this.liveMessage,
     this.lastTickAt,
     this.liveStale = false,
-  })
-      : status = MarketQuoteStatus.loaded,
+  })  : status = MarketQuoteStatus.loaded,
         quotes = loadedSnapshot.quotes,
         snapshot = loadedSnapshot,
         errorMessage = null;
@@ -145,7 +144,9 @@ class MarketQuoteSnapshot {
       cacheStatus: _string(cache['status'], fallback: 'UNKNOWN'),
       quoteCount: json['quoteCount'] is int ? json['quoteCount'] as int : 0,
       quotes: quoteValues is List
-          ? quoteValues.map((value) => MarketQuote.fromJson(_map(value))).toList()
+          ? quoteValues
+              .map((value) => MarketQuote.fromJson(_map(value)))
+              .toList()
           : const [],
       servedAt: _dateTime(json['servedAt']),
     );
@@ -236,6 +237,8 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   Timer? _liveReconnectTimer;
   MarketQuoteLiveSubscription? _activeLiveRequest;
   int _liveReconnectAttempt = 0;
+
+  bool get canSubscribeLive => _liveClient != null;
 
   Future<void> loadSnapshot({
     String? market,

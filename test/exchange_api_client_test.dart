@@ -158,7 +158,8 @@ void main() {
     ]);
   });
 
-  test('notification device APIs send registration and disable requests', () async {
+  test('notification device APIs send registration and disable requests',
+      () async {
     const session = AuthSession(
       username: 'hana',
       accountId: 'ACC-ABC123456789',
@@ -324,7 +325,8 @@ void main() {
     ]);
   });
 
-  test('stock detail chart and order book APIs use USD query contracts', () async {
+  test('stock detail chart and order book APIs use USD query contracts',
+      () async {
     const session = AuthSession(
       username: 'hana',
       accountId: 'ACC-ABC123456789',
@@ -407,6 +409,8 @@ void main() {
             'stockCode': '005930',
             'side': 'BUY',
             'quantity': 2,
+            'orderType': 'LIMIT',
+            'limitPriceUsd': 50.0,
           });
           return _jsonResponse({
             'success': true,
@@ -441,6 +445,7 @@ void main() {
       stockCode: '005930',
       side: 'BUY',
       quantity: 2,
+      limitPriceUsd: 50.00,
     );
     await client.getPortfolio('ACC-ABC123456789');
 
@@ -536,7 +541,8 @@ void main() {
     expect(response.data?['documentId'], 'DOC-1');
   });
 
-  test('tax refund request and sync use account scoped bearer contract', () async {
+  test('tax refund request and sync use account scoped bearer contract',
+      () async {
     final paths = <String>[];
     const session = AuthSession(
       username: 'hana',

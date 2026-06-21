@@ -317,6 +317,16 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getOrderHistory(
+    String accountId, {
+    int limit = 50,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/orders',
+      query: {'limit': '$limit'},
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> checkOrderability({
     required String accountId,
     required String stockCode,
@@ -338,6 +348,7 @@ class ExchangeApiClient {
     required String stockCode,
     required String side,
     required int quantity,
+    required num limitPriceUsd,
   }) {
     return post<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/trades',
@@ -345,6 +356,8 @@ class ExchangeApiClient {
         'stockCode': stockCode,
         'side': side,
         'quantity': quantity,
+        'orderType': 'LIMIT',
+        'limitPriceUsd': limitPriceUsd,
       },
     );
   }
