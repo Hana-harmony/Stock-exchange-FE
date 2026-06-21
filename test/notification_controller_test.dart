@@ -32,9 +32,11 @@ void main() {
     expect(controller.value.status, NotificationStatus.loaded);
     expect(controller.value.inbox?.unreadCount, 1);
     expect(controller.value.devices?.activeCount, 1);
-    expect(controller.value.filteredNotifications.single.targetLabel, 'Watchlist');
     expect(
-      controller.value.filteredNotifications.single.glossaryTerms.single.displayLabel,
+        controller.value.filteredNotifications.single.targetLabel, 'Watchlist');
+    expect(
+      controller
+          .value.filteredNotifications.single.glossaryTerms.single.displayLabel,
       '공시 -> disclosure',
     );
     expect(
@@ -53,11 +55,18 @@ void main() {
       controller.value.filteredNotifications.single.deliveryNeedsAttention,
       isFalse,
     );
-    expect(controller.value.feed?.items.single.title, 'Samsung earnings improve');
+    expect(
+        controller.value.feed?.items.single.title, 'Samsung earnings improve');
     expect(
       controller.value.feed?.items.single.glossaryTerms.single.englishTerm,
       'earnings',
     );
+    expect(
+        controller.value.feed?.items.single.summaryLines.what, 'What happened');
+    expect(controller.value.feed?.items.single.imageUrls.single,
+        'https://news.example.com/image.jpg');
+    expect(
+        controller.value.feed?.items.single.contentAvailability, 'FULL_TEXT');
   });
 
   test('filters watchlist notifications and marks read', () async {
@@ -124,7 +133,8 @@ void main() {
     await controller.registerLocalDevice(accountId: 'ACC-ABC123456789');
 
     expect(controller.value.devices?.activeCount, 1);
-    expect(controller.value.devices?.devices.single.maskedToken, 'local-...0001');
+    expect(
+        controller.value.devices?.devices.single.maskedToken, 'local-...0001');
 
     await controller.disableDevice(
       accountId: 'ACC-ABC123456789',
@@ -229,12 +239,23 @@ Map<String, Object?> _stockIntelligenceJson() {
         'sourceType': 'NEWS',
         'title': 'Samsung earnings improve',
         'summary': 'Translated three-line summary.',
+        'summaryLines': {
+          'what': 'What happened',
+          'why': 'Why it matters',
+          'impact': 'Expected impact',
+        },
+        'translatedSummary': 'Translated three-line summary.',
+        'originalContent': '원문 기사 전문',
+        'translatedContent': 'Translated full article content.',
+        'imageUrls': ['https://news.example.com/image.jpg'],
+        'contentAvailability': 'FULL_TEXT',
         'originalUrl': 'https://news.example.com/1',
         'primaryStockCode': '005930',
         'relatedStocks': ['005930'],
         'sentiment': 'POSITIVE',
         'importance': 'HIGH',
         'riskLevel': 'LOW',
+        'clusterKey': 'cluster-key',
         'glossaryTerms': [_glossaryTerm('실적', 'earnings', 'ACCOUNTING')],
         'translationQualityFlags': ['GLOSSARY_MATCHED'],
         'watchlistTarget': true,
