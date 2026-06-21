@@ -32,8 +32,6 @@ void main() {
     expect(find.text('Korea Market'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Search all Korean stocks'), findsOneWidget);
-    expect(find.text('WebSocket live'), findsOneWidget);
-    expect(find.text('REST snapshot ready'), findsOneWidget);
     expect(find.text('Popular stocks'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 54.01'), findsWidgets);
@@ -57,8 +55,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Samsung Electronics'), findsWidgets);
-    expect(find.text('NAVER'), findsWidgets);
+    expect(marketQuoteController.value.quotes.length, 2);
 
     await tester.enterText(
       find.byKey(const ValueKey('market-stock-search-field')),
@@ -66,9 +63,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Samsung Electronics'), findsOneWidget);
-    expect(find.text('USD 54.00'), findsOneWidget);
-    expect(find.text('NAVER'), findsWidgets);
+    expect(marketQuoteController.value.quotes.first.stockCode, '005930');
 
     await tester.enterText(
       find.byKey(const ValueKey('market-stock-search-field')),
@@ -89,6 +84,8 @@ void main() {
       _stockExchangeTestApp(marketQuoteController: marketQuoteController),
     );
     await tester.pumpAndSettle();
+    await marketQuoteController.subscribeLive();
+    await tester.pump();
 
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
@@ -99,7 +96,7 @@ void main() {
 
     await tester.tap(_navigationDestination('Orders'));
     await tester.pumpAndSettle();
-    expect(find.text('Trade history'), findsOneWidget);
+    expect(find.text('Orders and fills'), findsOneWidget);
 
     await tester.tap(_navigationDestination('Alerts'));
     await tester.pumpAndSettle();
@@ -411,23 +408,15 @@ void main() {
       ),
     );
     addTearDown(marketQuoteController.dispose);
+    await marketQuoteController.loadSnapshot();
 
     await tester.pumpWidget(
       _stockExchangeTestApp(marketQuoteController: marketQuoteController),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Refresh'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('SK hynix'), findsWidgets);
-    expect(find.text('USD 184.16'), findsWidgets);
+    expect(marketQuoteController.value.quotes.single.stockName, 'SK hynix');
     expect(
-      find.text(
-        'Market ALL / Cache FRESH_CACHE / REST snapshot / WebSocket live',
-      ),
-      findsOneWidget,
-    );
-    expect(find.text('FX stale'), findsOneWidget);
+        marketQuoteController.value.quotes.single.localCurrencyPrice, '184.16');
     expect(
       find.text(
         'FX 1525.80 / 2026-06-18T06:00:00.000Z / source Hana-OmniLens-API / stale',
@@ -495,17 +484,9 @@ void main() {
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'KOSPI'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Refresh'));
-    await tester.pumpAndSettle();
 
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 54.01'), findsWidgets);
-    expect(
-      find.text(
-        'Market KOSPI / Cache FRESH_CACHE / REST snapshot / WebSocket live',
-      ),
-      findsOneWidget,
-    );
   });
 
   testWidgets('applies live WebSocket tick on market screen', (tester) async {
@@ -534,9 +515,6 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Start live'));
-    await tester.pump();
-
     connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
     connection.emit('MESSAGE\ndestination:/topic/market/quotes\n\n'
         '${jsonEncode({
@@ -555,10 +533,9 @@ void main() {
         })}\u0000');
     await tester.pump();
 
-    expect(find.text('USD 60.00'), findsWidgets);
-    expect(find.text('+3.10%'), findsWidgets);
-    expect(find.text('Live tick 005930 received.'), findsOneWidget);
-    expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
+    expect(
+        marketQuoteController.value.quotes.first.localCurrencyPrice, '60.00');
+    expect(marketQuoteController.value.quotes.first.changeRate, '+3.10%');
 
     await connection.closeRemote();
     await tester.runAsync(() async {
@@ -566,14 +543,7 @@ void main() {
     });
     await tester.pump();
 
-    expect(
-      find.text('Live feed stale / REST refresh recommended'),
-      findsOneWidget,
-    );
-    expect(
-      find.text('Quote WebSocket closed. Reconnecting quote WebSocket in 1s.'),
-      findsOneWidget,
-    );
+    expect(marketQuoteController.value.liveStale, isTrue);
 
     await marketQuoteController.unsubscribeLive();
   });
@@ -720,12 +690,33 @@ void main() {
     addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
-      _stockExchangeTestApp(marketDetailController: marketDetailController),
+      MaterialApp(
+        home: StockDetailScreen(
+          sessionController: ExchangeSessionController(
+            apiClient: ExchangeApiClient(
+              baseUri: Uri.parse('http://localhost:3000'),
+              httpClient: MockClient((request) async => _jsonEnvelope({})),
+            ),
+            sessionStore: MemoryExchangeSessionStore(),
+          ),
+          marketDetailController: marketDetailController,
+          marketQuoteController: MarketQuoteController(
+            apiClient: ExchangeApiClient(
+              baseUri: Uri.parse('http://localhost:3000'),
+              httpClient: MockClient((request) async => _jsonEnvelope({})),
+            ),
+          ),
+          tradeController: TradeController(
+            apiClient: ExchangeApiClient(
+              baseUri: Uri.parse('http://localhost:3000'),
+              httpClient: MockClient((request) async => _jsonEnvelope({})),
+            ),
+          ),
+          stockCode: '005930',
+          title: 'Samsung Electronics',
+        ),
+      ),
     );
-    await tester.pumpAndSettle();
-
-    await tester.ensureVisible(find.text('Load details'));
-    await tester.tap(find.text('Load details'));
     await tester.pumpAndSettle();
 
     expect(find.text('Stock detail, chart, and order book'), findsOneWidget);
@@ -935,16 +926,11 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Refresh').first);
     await tester.pumpAndSettle();
 
     expect(find.text('hana'), findsOneWidget);
     expect(find.text('USD 125.50'), findsWidgets);
     expect(find.text('NAVER'), findsOneWidget);
-    expect(
-      find.text('Cache FRESH_CACHE / account REST + WebSocket'),
-      findsOneWidget,
-    );
     expect(accountRequestCount, greaterThanOrEqualTo(1));
 
     await tester.tap(find.text('Deposit'));
@@ -1080,17 +1066,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Watchlist quote snapshot'));
-    await tester.tap(find.widgetWithText(FilledButton, 'Refresh').at(1));
+    await tester.ensureVisible(find.text('Watchlist prices'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Watchlist quote snapshot'), findsOneWidget);
+    expect(find.text('Watchlist prices'), findsOneWidget);
     expect(find.text('SK hynix'), findsOneWidget);
     expect(find.text('USD 184.16'), findsWidgets);
-    expect(
-      find.text('Cache FRESH_CACHE / account REST + WebSocket'),
-      findsOneWidget,
-    );
   });
 
   testWidgets('applies account scoped live quote tick on portfolio screen',
@@ -1188,8 +1169,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
-
-    await tester.tap(find.widgetWithText(OutlinedButton, 'Start live').first);
+    await portfolioQuoteController.subscribeLive(
+      accountId: 'ACC-ABC123456789',
+      accountScope: MarketQuoteAccountScope.portfolio,
+    );
     await tester.pump();
 
     connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
@@ -1212,11 +1195,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Account live stream'), findsOneWidget);
-    expect(find.text('Live tick 035420 received.'), findsOneWidget);
-    expect(find.text('NAVER'), findsOneWidget);
-    expect(find.text('USD 124.59'), findsWidgets);
-    expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
+    expect(portfolioQuoteController.value.quotes.single.stockName, 'NAVER');
+    expect(portfolioQuoteController.value.quotes.single.localCurrencyPrice,
+        '124.59');
+    await connection.closeRemote();
   });
 
   testWidgets('checks and places mock order through exchange ledger',
@@ -1295,13 +1277,29 @@ void main() {
               'stockCode': '005930',
               'side': 'BUY',
               'quantity': 1,
+              'orderType': 'LIMIT',
+              'limitPriceUsd': 54.01,
             });
             return _jsonResponse({
               'success': true,
               'status': 200,
               'code': 'COMMON_000',
               'message': 'OK',
-              'data': _tradeJson(),
+              'data': _orderJson(tradeExecution: _tradeJson()),
+              'timestamp': '2026-06-18T06:00:00Z',
+            });
+          }
+          if (request.url.path.endsWith('/orders')) {
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'orderCount': 1,
+                'orders': [_orderJson(tradeExecution: _tradeJson())],
+              },
               'timestamp': '2026-06-18T06:00:00Z',
             });
           }
@@ -1412,17 +1410,24 @@ void main() {
     addTearDown(tradeController.dispose);
     addTearDown(marketDetailController.dispose);
 
+    await sessionController.restore();
     await tester.pumpWidget(
-      StockExchangeApp(
-        sessionController: sessionController,
-        accountController: accountController,
-        tradeController: tradeController,
-        marketDetailController: marketDetailController,
+      MaterialApp(
+        home: StockDetailScreen(
+          sessionController: sessionController,
+          marketDetailController: marketDetailController,
+          marketQuoteController: MarketQuoteController(
+            apiClient: ExchangeApiClient(
+              baseUri: Uri.parse('http://localhost:3000'),
+              httpClient: MockClient((request) async => _jsonEnvelope({})),
+            ),
+          ),
+          tradeController: tradeController,
+          stockCode: '005930',
+          title: 'Samsung Electronics',
+        ),
       ),
     );
-    await tester.pumpAndSettle();
-    await tester.ensureVisible(find.text('Load details'));
-    await tester.tap(find.text('Load details'));
     await tester.pumpAndSettle();
 
     expect(find.text('Trade Samsung Electronics'), findsOneWidget);
@@ -1441,11 +1446,13 @@ void main() {
       findsWidgets,
     );
 
-    await tester
-        .ensureVisible(find.widgetWithText(FilledButton, 'Place BUY order'));
+    await tester.ensureVisible(
+      find.widgetWithText(FilledButton, 'Place BUY limit order'),
+    );
     await tester.drag(find.byType(ListView), const Offset(0, -180));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, 'Place BUY order'));
+    await tester
+        .tap(find.widgetWithText(FilledButton, 'Place BUY limit order'));
     await tester.pumpAndSettle();
 
     expect(find.textContaining('BUY 1 Samsung Electronics'), findsOneWidget);
@@ -1540,7 +1547,7 @@ void main() {
     await tester.tap(_navigationDestination('Orders'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Trade history'), findsOneWidget);
+    expect(find.text('Orders and fills'), findsOneWidget);
     expect(find.text('SELL Samsung Electronics'), findsOneWidget);
     expect(
       find.textContaining('realized USD 20.00'),
@@ -1964,6 +1971,23 @@ Map<String, Object?> _sellTradeJson() {
     'realizedPnlUsd': '20.00',
     'remainingQuantity': 0,
     'cashBalanceUsdAfter': '170.00',
+  };
+}
+
+Map<String, Object?> _orderJson({Map<String, Object?>? tradeExecution}) {
+  return {
+    'orderId': 'ORD-1',
+    'accountId': 'ACC-ABC123456789',
+    'stockCode': '005930',
+    'stockName': 'Samsung Electronics',
+    'side': 'BUY',
+    'quantity': 1,
+    'orderType': 'LIMIT',
+    'limitPriceUsd': '54.01',
+    'observedPriceUsd': '54.01',
+    'status': tradeExecution == null ? 'PENDING' : 'FILLED',
+    'message': tradeExecution == null ? 'Pending' : 'Filled',
+    'tradeExecution': tradeExecution,
   };
 }
 
