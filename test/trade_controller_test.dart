@@ -108,13 +108,29 @@ void main() {
             'stockCode': '005930',
             'side': 'BUY',
             'quantity': 2,
+            'orderType': 'LIMIT',
+            'limitPriceUsd': 50.0,
           });
           return _jsonResponse({
             'success': true,
             'status': 200,
             'code': 'COMMON_000',
             'message': 'OK',
-            'data': _tradeJson(),
+            'data': _orderJson(tradeExecution: _tradeJson()),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+        if (request.url.path.endsWith('/orders')) {
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'accountId': 'ACC-ABC123456789',
+              'orderCount': 1,
+              'orders': [_orderJson(tradeExecution: _tradeJson())],
+            },
             'timestamp': '2026-06-18T06:00:00Z',
           });
         }
@@ -135,12 +151,14 @@ void main() {
       stockCode: '005930',
       side: 'BUY',
       quantity: 2,
+      limitPriceUsd: 50.00,
     );
 
     expect(paths, [
       'POST /api/v1/accounts/ACC-ABC123456789/trades',
       'GET /api/v1/accounts/ACC-ABC123456789/portfolio',
       'GET /api/v1/accounts/ACC-ABC123456789/trades',
+      'GET /api/v1/accounts/ACC-ABC123456789/orders',
     ]);
     expect(controller.value.lastTrade?.stockName, 'Samsung Electronics');
     expect(controller.value.portfolio?.holdings.single.quantity, 2);
@@ -154,18 +172,47 @@ void main() {
             'stockCode': '005930',
             'side': 'SELL',
             'quantity': 1,
+            'orderType': 'LIMIT',
+            'limitPriceUsd': 70.0,
           });
+          final trade = _tradeJson(
+            side: 'SELL',
+            quantity: 1,
+            realizedPnlUsd: '20.00',
+            remainingQuantity: 1,
+          );
           return _jsonResponse({
             'success': true,
             'status': 200,
             'code': 'COMMON_000',
             'message': 'OK',
-            'data': _tradeJson(
-              side: 'SELL',
-              quantity: 1,
-              realizedPnlUsd: '20.00',
-              remainingQuantity: 1,
-            ),
+            'data':
+                _orderJson(side: 'SELL', quantity: 1, tradeExecution: trade),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+        if (request.url.path.endsWith('/orders')) {
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'accountId': 'ACC-ABC123456789',
+              'orderCount': 1,
+              'orders': [
+                _orderJson(
+                  side: 'SELL',
+                  quantity: 1,
+                  tradeExecution: _tradeJson(
+                    side: 'SELL',
+                    quantity: 1,
+                    realizedPnlUsd: '20.00',
+                    remainingQuantity: 1,
+                  ),
+                )
+              ],
+            },
             'timestamp': '2026-06-18T06:00:00Z',
           });
         }
@@ -196,6 +243,7 @@ void main() {
       stockCode: '005930',
       side: 'SELL',
       quantity: 1,
+      limitPriceUsd: 70.00,
     );
 
     expect(controller.value.lastTrade?.isSell, isTrue);
@@ -218,9 +266,9 @@ void main() {
       stockCode: '005930',
       side: 'BUY',
       quantity: 1,
+      limitPriceUsd: 50.00,
     );
-    expect(
-        controller.value.errorMessage, 'Sign in before placing a mock order.');
+    expect(controller.value.errorMessage, 'Sign in before placing an order.');
 
     await controller.checkOrderability(
       accountId: 'ACC-ABC123456789',
@@ -269,6 +317,27 @@ Map<String, Object?> _tradeJson({
     'remainingQuantity': remainingQuantity,
     'cashBalanceUsdAfter': '100.00',
     'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+  };
+}
+
+Map<String, Object?> _orderJson({
+  String side = 'BUY',
+  int quantity = 2,
+  Map<String, Object?>? tradeExecution,
+}) {
+  return {
+    'orderId': 'ORD-1',
+    'accountId': 'ACC-ABC123456789',
+    'stockCode': '005930',
+    'stockName': 'Samsung Electronics',
+    'side': side,
+    'quantity': quantity,
+    'orderType': 'LIMIT',
+    'limitPriceUsd': side == 'SELL' ? '70.00' : '50.00',
+    'observedPriceUsd': side == 'SELL' ? '70.00' : '50.00',
+    'status': tradeExecution == null ? 'PENDING' : 'FILLED',
+    'message': tradeExecution == null ? 'Pending' : 'Filled',
+    'tradeExecution': tradeExecution,
   };
 }
 
