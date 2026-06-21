@@ -14,8 +14,10 @@ class TradeState {
     required this.status,
     this.portfolio,
     this.tradeHistory = const [],
+    this.orderHistory = const [],
     this.orderability,
     this.lastTrade,
+    this.lastOrder,
     this.errorMessage,
   });
 
@@ -23,23 +25,29 @@ class TradeState {
       : status = TradeStatus.idle,
         portfolio = null,
         tradeHistory = const [],
+        orderHistory = const [],
         orderability = null,
         lastTrade = null,
+        lastOrder = null,
         errorMessage = null;
 
   const TradeState.loading({
     this.portfolio,
     this.tradeHistory = const [],
+    this.orderHistory = const [],
     this.orderability,
     this.lastTrade,
+    this.lastOrder,
   })  : status = TradeStatus.loading,
         errorMessage = null;
 
   const TradeState.loaded({
     this.portfolio,
     this.tradeHistory = const [],
+    this.orderHistory = const [],
     this.orderability,
     this.lastTrade,
+    this.lastOrder,
   })  : status = TradeStatus.loaded,
         errorMessage = null;
 
@@ -47,15 +55,19 @@ class TradeState {
     required this.errorMessage,
     this.portfolio,
     this.tradeHistory = const [],
+    this.orderHistory = const [],
     this.orderability,
     this.lastTrade,
+    this.lastOrder,
   }) : status = TradeStatus.failure;
 
   final TradeStatus status;
   final PortfolioSnapshot? portfolio;
   final List<TradeExecution> tradeHistory;
+  final List<TradeOrderPlacement> orderHistory;
   final TradeOrderability? orderability;
   final TradeExecution? lastTrade;
+  final TradeOrderPlacement? lastOrder;
   final String? errorMessage;
 }
 
@@ -171,7 +183,7 @@ class TradeOrderability {
     if (warnings.isNotEmpty) {
       return 'Warnings: ${warnings.map(_orderabilityMessage).join(', ')}';
     }
-    return 'Mock order is available.';
+    return 'Order can be submitted during Korea market hours.';
   }
 
   static TradeOrderability fromJson(Map<String, dynamic> json) {
@@ -282,6 +294,83 @@ class TradeLedgerHistory {
   }
 }
 
+class TradeOrderPlacement {
+  const TradeOrderPlacement({
+    required this.orderId,
+    required this.stockCode,
+    required this.stockName,
+    required this.side,
+    required this.quantity,
+    required this.orderType,
+    required this.limitPriceUsd,
+    required this.observedPriceUsd,
+    required this.status,
+    required this.message,
+    this.tradeExecution,
+  });
+
+  final String orderId;
+  final String stockCode;
+  final String stockName;
+  final String side;
+  final int quantity;
+  final String orderType;
+  final String limitPriceUsd;
+  final String observedPriceUsd;
+  final String status;
+  final String message;
+  final TradeExecution? tradeExecution;
+
+  bool get isFilled => status.toUpperCase() == 'FILLED';
+
+  String get summary {
+    if (isFilled && tradeExecution != null) {
+      return tradeExecution!.summary;
+    }
+    return '$side $quantity $stockName limit USD $limitPriceUsd / waiting at USD $observedPriceUsd';
+  }
+
+  static TradeOrderPlacement fromJson(Map<String, dynamic> json) {
+    final tradeJson = json['tradeExecution'];
+    return TradeOrderPlacement(
+      orderId: _string(json['orderId'], fallback: ''),
+      stockCode: _string(json['stockCode'], fallback: ''),
+      stockName: _string(json['stockName'], fallback: 'Unknown stock'),
+      side: _string(json['side'], fallback: 'BUY'),
+      quantity: _int(json['quantity']),
+      orderType: _string(json['orderType'], fallback: 'LIMIT'),
+      limitPriceUsd: _string(json['limitPriceUsd'], fallback: '0.00'),
+      observedPriceUsd: _string(json['observedPriceUsd'], fallback: '0.00'),
+      status: _string(json['status'], fallback: 'PENDING'),
+      message: _string(json['message'], fallback: ''),
+      tradeExecution:
+          tradeJson == null ? null : TradeExecution.fromJson(_map(tradeJson)),
+    );
+  }
+}
+
+class TradeOrderHistory {
+  const TradeOrderHistory({
+    required this.accountId,
+    required this.orderCount,
+    required this.orders,
+  });
+
+  final String accountId;
+  final int orderCount;
+  final List<TradeOrderPlacement> orders;
+
+  static TradeOrderHistory fromJson(Map<String, dynamic> json) {
+    return TradeOrderHistory(
+      accountId: _string(json['accountId'], fallback: ''),
+      orderCount: _int(json['orderCount']),
+      orders: _list(json['orders'])
+          .map((value) => TradeOrderPlacement.fromJson(_map(value)))
+          .toList(),
+    );
+  }
+}
+
 class TradeController extends ValueNotifier<TradeState> {
   TradeController({required ExchangeApiClient apiClient})
       : _apiClient = apiClient,
@@ -295,8 +384,10 @@ class TradeController extends ValueNotifier<TradeState> {
         errorMessage: 'Sign in to load mock portfolio.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
       return;
     }
@@ -306,8 +397,10 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.loaded(
         portfolio: PortfolioSnapshot.fromJson(response.data ?? {}),
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
     });
   }
@@ -318,8 +411,10 @@ class TradeController extends ValueNotifier<TradeState> {
         errorMessage: 'Sign in to load trade history.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
       return;
     }
@@ -331,8 +426,39 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.loaded(
         portfolio: value.portfolio,
         tradeHistory: history.trades,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
+      );
+    });
+  }
+
+  Future<void> loadOrderHistory(String? accountId, {int limit = 50}) async {
+    if (accountId == null || accountId.isEmpty) {
+      value = TradeState.failure(
+        errorMessage: 'Sign in to load order history.',
+        portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
+        orderability: value.orderability,
+        lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
+      );
+      return;
+    }
+
+    await _run(() async {
+      final response =
+          await _apiClient.getOrderHistory(accountId, limit: limit);
+      final history = TradeOrderHistory.fromJson(response.data ?? {});
+      value = TradeState.loaded(
+        portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
+        orderHistory: history.orders,
+        orderability: value.orderability,
+        lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
     });
   }
@@ -357,8 +483,10 @@ class TradeController extends ValueNotifier<TradeState> {
       value = TradeState.loaded(
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: TradeOrderability.fromJson(response.data ?? {}),
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
     });
   }
@@ -368,8 +496,9 @@ class TradeController extends ValueNotifier<TradeState> {
     required String stockCode,
     required String side,
     required int quantity,
+    required num limitPriceUsd,
   }) async {
-    if (!_isValid(accountId, stockCode, quantity)) {
+    if (!_isValid(accountId, stockCode, quantity, limitPriceUsd)) {
       return;
     }
 
@@ -379,28 +508,40 @@ class TradeController extends ValueNotifier<TradeState> {
         stockCode: stockCode,
         side: side,
         quantity: quantity,
+        limitPriceUsd: limitPriceUsd,
       );
-      final trade = TradeExecution.fromJson(response.data ?? {});
+      final order = TradeOrderPlacement.fromJson(response.data ?? {});
       final portfolioResponse = await _apiClient.getPortfolio(accountId);
       final historyResponse = await _apiClient.getTradeHistory(accountId);
+      final orderHistoryResponse = await _apiClient.getOrderHistory(accountId);
       value = TradeState.loaded(
         portfolio: PortfolioSnapshot.fromJson(portfolioResponse.data ?? {}),
         tradeHistory:
             TradeLedgerHistory.fromJson(historyResponse.data ?? {}).trades,
+        orderHistory:
+            TradeOrderHistory.fromJson(orderHistoryResponse.data ?? {}).orders,
         orderability: value.orderability,
-        lastTrade: trade,
+        lastTrade: order.tradeExecution,
+        lastOrder: order,
       );
     });
   }
 
-  bool _isValid(String? accountId, String stockCode, int quantity) {
+  bool _isValid(
+    String? accountId,
+    String stockCode,
+    int quantity, [
+    num? limitPriceUsd,
+  ]) {
     if (accountId == null || accountId.isEmpty) {
       value = TradeState.failure(
-        errorMessage: 'Sign in before placing a mock order.',
+        errorMessage: 'Sign in before placing an order.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
       return false;
     }
@@ -409,8 +550,10 @@ class TradeController extends ValueNotifier<TradeState> {
         errorMessage: 'Enter a 6 digit Korean stock code.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
       return false;
     }
@@ -419,8 +562,22 @@ class TradeController extends ValueNotifier<TradeState> {
         errorMessage: 'Quantity must be at least 1.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
+      );
+      return false;
+    }
+    if (limitPriceUsd != null && limitPriceUsd <= 0) {
+      value = TradeState.failure(
+        errorMessage: 'Limit price must be greater than 0.',
+        portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
+        orderability: value.orderability,
+        lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
       return false;
     }
@@ -431,8 +588,10 @@ class TradeController extends ValueNotifier<TradeState> {
     value = TradeState.loading(
       portfolio: value.portfolio,
       tradeHistory: value.tradeHistory,
+      orderHistory: value.orderHistory,
       orderability: value.orderability,
       lastTrade: value.lastTrade,
+      lastOrder: value.lastOrder,
     );
     try {
       await action();
@@ -441,16 +600,20 @@ class TradeController extends ValueNotifier<TradeState> {
         errorMessage: error.message,
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
     } on Object {
       value = TradeState.failure(
-        errorMessage: 'Unable to process mock trade.',
+        errorMessage: 'Unable to process order.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
         orderability: value.orderability,
         lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
       );
     }
   }

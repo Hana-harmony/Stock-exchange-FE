@@ -339,6 +339,14 @@ class _MarketScreenState extends State<MarketScreen> {
         }
       });
     }
+    if (widget.marketQuoteController.canSubscribeLive &&
+        quoteState.liveStatus == MarketQuoteLiveStatus.disconnected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.marketQuoteController.subscribeLive(market: _marketQuery);
+        }
+      });
+    }
   }
 
   void _selectMarket(String market) {
@@ -351,6 +359,11 @@ class _MarketScreenState extends State<MarketScreen> {
     widget.marketQuoteController.loadSnapshot(
       market: market == 'ALL' ? null : market,
     );
+    if (widget.marketQuoteController.canSubscribeLive) {
+      widget.marketQuoteController.subscribeLive(
+        market: market == 'ALL' ? null : market,
+      );
+    }
   }
 
   void _searchStocks(String query) {
@@ -359,8 +372,19 @@ class _MarketScreenState extends State<MarketScreen> {
     });
   }
 
-  Future<void> _loadStockDetails(String stockCode) {
-    return widget.marketDetailController.loadStock(stockCode: stockCode);
+  void _openStockDetails(MarketQuote quote) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => StockDetailScreen(
+          sessionController: widget.sessionController,
+          marketDetailController: widget.marketDetailController,
+          marketQuoteController: widget.marketQuoteController,
+          tradeController: widget.tradeController,
+          stockCode: quote.stockCode,
+          title: quote.stockName,
+        ),
+      ),
+    );
   }
 
   @override
@@ -377,21 +401,57 @@ class _MarketScreenState extends State<MarketScreen> {
         _PopularStocksPanel(
           marketQuoteController: widget.marketQuoteController,
           selectedMarket: _marketQuery,
-          onSelectQuote: (quote) => _loadStockDetails(quote.stockCode),
+          onSelectQuote: _openStockDetails,
         ),
         _QuoteSnapshotPanel(
           marketQuoteController: widget.marketQuoteController,
           selectedMarket: _marketQuery,
           searchQuery: _searchQuery,
-          onSelectQuote: (quote) => _loadStockDetails(quote.stockCode),
-        ),
-        _StockDetailPanel(
-          sessionController: widget.sessionController,
-          marketDetailController: widget.marketDetailController,
-          marketQuoteController: widget.marketQuoteController,
-          tradeController: widget.tradeController,
+          onSelectQuote: _openStockDetails,
         ),
       ],
+    );
+  }
+}
+
+class StockDetailScreen extends StatelessWidget {
+  const StockDetailScreen({
+    super.key,
+    required this.sessionController,
+    required this.marketDetailController,
+    required this.marketQuoteController,
+    required this.tradeController,
+    required this.stockCode,
+    required this.title,
+  });
+
+  final ExchangeSessionController sessionController;
+  final MarketDetailController marketDetailController;
+  final MarketQuoteController marketQuoteController;
+  final TradeController tradeController;
+  final String stockCode;
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('$title $stockCode'),
+      ),
+      body: SafeArea(
+        child: ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            _StockDetailPanel(
+              sessionController: sessionController,
+              marketDetailController: marketDetailController,
+              marketQuoteController: marketQuoteController,
+              tradeController: tradeController,
+              initialStockCode: stockCode,
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -427,9 +487,9 @@ class PortfolioScreen extends StatelessWidget {
           tradeController: tradeController,
         ),
         _AccountQuoteSnapshotPanel(
-          title: 'Portfolio quote snapshot',
+          title: 'Held stock prices',
           emptyTitle: 'No holdings quotes',
-          emptyBody: 'No holding quote snapshot is available yet.',
+          emptyBody: 'No holding prices are available yet.',
           marketQuoteController: portfolioQuoteController,
           sessionController: sessionController,
           accountScope: MarketQuoteAccountScope.portfolio,
@@ -439,9 +499,9 @@ class PortfolioScreen extends StatelessWidget {
           ),
         ),
         _AccountQuoteSnapshotPanel(
-          title: 'Watchlist quote snapshot',
+          title: 'Watchlist prices',
           emptyTitle: 'No watchlist quotes',
-          emptyBody: 'No watchlist quote snapshot is available yet.',
+          emptyBody: 'No watchlist prices are available yet.',
           marketQuoteController: watchlistQuoteController,
           sessionController: sessionController,
           accountScope: MarketQuoteAccountScope.watchlist,
@@ -2317,26 +2377,6 @@ class _TranslationQualityWrap extends StatelessWidget {
   }
 }
 
-class _StatusStrip extends StatelessWidget {
-  const _StatusStrip();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: 12),
-      child: Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          _StatusChip(icon: Icons.wifi_tethering, label: 'WebSocket live'),
-          _StatusChip(icon: Icons.sync, label: 'REST snapshot ready'),
-          _StatusChip(icon: Icons.schedule, label: 'No stale ticks'),
-        ],
-      ),
-    );
-  }
-}
-
 class _PopularStocksPanel extends StatelessWidget {
   const _PopularStocksPanel({
     required this.marketQuoteController,
@@ -2537,52 +2577,34 @@ class _QuoteSnapshotPanel extends StatelessWidget {
     return ValueListenableBuilder<MarketQuoteState>(
       valueListenable: marketQuoteController,
       builder: (context, quoteState, child) {
-        final snapshot = quoteState.snapshot;
-        final firstQuote =
-            quoteState.quotes.isNotEmpty ? quoteState.quotes.first : null;
         final visibleQuotes = _filterQuotes(
           quoteState.quotes,
           searchQuery,
           selectedMarket,
         );
+        final isLoading = quoteState.status == MarketQuoteStatus.loading;
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _QuoteSnapshotActions(
-              quoteState: quoteState,
-              selectedMarket: selectedMarket,
-              onRefresh: () => marketQuoteController.loadSnapshot(
-                market: selectedMarket,
-              ),
-              onStartLive: () => marketQuoteController.subscribeLive(
-                market: selectedMarket,
-              ),
-              onStopLive: () => marketQuoteController.unsubscribeLive(),
-            ),
-            const _StatusStrip(),
-            _InfoPanel(
-              icon: Icons.currency_exchange,
-              title: 'FX applied',
-              body: snapshot == null
-                  ? 'USD prices use the latest KRW/USD rate from Stock-exchange-BE.'
-                  : '${snapshot.quoteCount} quotes from ${snapshot.dataSource}.',
-              meta: firstQuote?.fxMeta ??
-                  'FX pending / source Stock-exchange-BE snapshot',
-            ),
-            if (quoteState.errorMessage != null)
-              _InfoPanel(
-                icon: Icons.error_outline,
-                title: 'Snapshot unavailable',
-                body: quoteState.errorMessage!,
-                meta: 'Keeping the latest visible quote list on screen.',
+            if (isLoading) const LinearProgressIndicator(minHeight: 2),
+            if (isLoading) const SizedBox(height: 12),
+            if (quoteState.errorMessage != null && quoteState.quotes.isNotEmpty)
+              const _InfoPanel(
+                icon: Icons.info_outline,
+                title: 'Prices may be delayed',
+                body: 'Keeping the latest prices on screen.',
+                meta: 'Korea market data',
               ),
             if (quoteState.quotes.isEmpty)
-              const _InfoPanel(
+              _InfoPanel(
                 icon: Icons.search_off,
-                title: 'No quotes',
-                body: 'No Korean stock quote snapshot is available yet.',
-                meta: 'Use REST snapshot refresh after the backend is running.',
+                title: quoteState.errorMessage == null
+                    ? 'No stocks available'
+                    : 'Prices temporarily unavailable',
+                body: quoteState.errorMessage ??
+                    'Market prices will appear when the exchange API is ready.',
+                meta: 'Korea market data',
               )
             else if (visibleQuotes.isEmpty)
               _InfoPanel(
@@ -2653,58 +2675,48 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
             final accountId = sessionState.session?.accountId;
             final isSignedIn = sessionState.isSignedIn;
             final isLoading = quoteState.status == MarketQuoteStatus.loading;
-            final isConnecting =
-                quoteState.liveStatus == MarketQuoteLiveStatus.connecting;
-            final isLive = quoteState.liveStatus == MarketQuoteLiveStatus.live;
             final snapshot = quoteState.snapshot;
+            if (isSignedIn &&
+                quoteState.status == MarketQuoteStatus.idle &&
+                quoteState.quotes.isEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                onRefresh(accountId);
+              });
+            }
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _AccountQuoteSnapshotActions(
-                  title: title,
-                  isSignedIn: isSignedIn,
-                  isLoading: isLoading,
-                  isConnecting: isConnecting,
-                  isLive: isLive,
-                  liveStale: quoteState.liveStale,
-                  cacheStatus: snapshot?.cacheStatus ?? 'idle',
-                  onRefresh: isLoading ? null : () => onRefresh(accountId),
-                  onStartLive: isSignedIn && !isConnecting
-                      ? () => marketQuoteController.subscribeLive(
-                            accountId: accountId,
-                            accountScope: accountScope,
-                          )
-                      : null,
-                  onStopLive: isLive
-                      ? () => marketQuoteController.unsubscribeLive()
-                      : null,
-                ),
-                if (quoteState.liveMessage != null)
-                  _InfoPanel(
-                    icon: Icons.wifi_tethering,
-                    title: 'Account live stream',
-                    body: quoteState.liveMessage!,
-                    meta: isSignedIn
-                        ? 'Stock-exchange-BE account quote WebSocket topic'
-                        : 'Sign in before opening account WebSocket topic.',
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: Text(
+                    title,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
                   ),
-                if (quoteState.errorMessage != null)
+                ),
+                if (isLoading) const LinearProgressIndicator(minHeight: 2),
+                if (isLoading) const SizedBox(height: 12),
+                if (quoteState.errorMessage != null &&
+                    quoteState.quotes.isNotEmpty)
                   _InfoPanel(
-                    icon: Icons.error_outline,
-                    title: 'Snapshot unavailable',
-                    body: quoteState.errorMessage!,
-                    meta: 'Account scoped quote snapshot uses bearer auth.',
+                    icon: Icons.info_outline,
+                    title: 'Prices may be delayed',
+                    body: 'Keeping the latest prices on screen.',
+                    meta: 'Account prices',
                   ),
                 if (quoteState.quotes.isEmpty)
                   _InfoPanel(
                     icon: Icons.list_alt_outlined,
-                    title: emptyTitle,
+                    title: quoteState.errorMessage == null
+                        ? emptyTitle
+                        : 'Prices temporarily unavailable',
                     body: isSignedIn
-                        ? emptyBody
+                        ? quoteState.errorMessage ?? emptyBody
                         : 'Sign in to load this account scope.',
                     meta: snapshot == null
-                        ? 'REST snapshot pending'
+                        ? 'Account prices'
                         : '${snapshot.quoteCount} quotes from ${snapshot.dataSource}',
                   )
                 else
@@ -2716,206 +2728,6 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
           },
         );
       },
-    );
-  }
-}
-
-class _AccountQuoteSnapshotActions extends StatelessWidget {
-  const _AccountQuoteSnapshotActions({
-    required this.title,
-    required this.isSignedIn,
-    required this.isLoading,
-    required this.isConnecting,
-    required this.isLive,
-    required this.liveStale,
-    required this.cacheStatus,
-    required this.onRefresh,
-    required this.onStartLive,
-    required this.onStopLive,
-  });
-
-  final String title;
-  final bool isSignedIn;
-  final bool isLoading;
-  final bool isConnecting;
-  final bool isLive;
-  final bool liveStale;
-  final String cacheStatus;
-  final VoidCallback? onRefresh;
-  final VoidCallback? onStartLive;
-  final VoidCallback? onStopLive;
-
-  @override
-  Widget build(BuildContext context) {
-    final accountTransportLabel = liveStale
-        ? 'Cache $cacheStatus / account REST + WebSocket / live stale'
-        : 'Cache $cacheStatus / account REST + WebSocket';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border:
-              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-          color: Theme.of(context).colorScheme.surface,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isSignedIn
-                          ? accountTransportLabel
-                          : 'Sign in required / account REST + WebSocket',
-                    ),
-                  ],
-                ),
-              ),
-              Wrap(
-                spacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: isLive ? onStopLive : onStartLive,
-                    icon: isConnecting
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(isLive ? Icons.wifi_off : Icons.wifi_tethering),
-                    label: Text(isLive ? 'Stop' : 'Start live'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: isSignedIn && !isLoading ? onRefresh : null,
-                    icon: isLoading
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.sync),
-                    label: const Text('Refresh'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _QuoteSnapshotActions extends StatelessWidget {
-  const _QuoteSnapshotActions({
-    required this.quoteState,
-    required this.selectedMarket,
-    required this.onRefresh,
-    required this.onStartLive,
-    required this.onStopLive,
-  });
-
-  final MarketQuoteState quoteState;
-  final String? selectedMarket;
-  final VoidCallback onRefresh;
-  final VoidCallback onStartLive;
-  final VoidCallback onStopLive;
-
-  @override
-  Widget build(BuildContext context) {
-    final isLoading = quoteState.status == MarketQuoteStatus.loading;
-    final isConnecting =
-        quoteState.liveStatus == MarketQuoteLiveStatus.connecting;
-    final isLive = quoteState.liveStatus == MarketQuoteLiveStatus.live;
-    final snapshot = quoteState.snapshot;
-    final cacheStatus = snapshot?.cacheStatus ?? 'idle';
-    final marketLabel = selectedMarket ?? snapshot?.marketCoverage ?? 'ALL';
-    final transport = snapshot == null
-        ? 'REST snapshot / WebSocket later'
-        : '${snapshot.transportSnapshot} snapshot / ${snapshot.transportRealtime} live';
-    final liveLabel = switch (quoteState.liveStatus) {
-      MarketQuoteLiveStatus.disconnected => 'WebSocket disconnected',
-      MarketQuoteLiveStatus.connecting => 'WebSocket connecting',
-      MarketQuoteLiveStatus.live => 'WebSocket live',
-      MarketQuoteLiveStatus.failure => 'WebSocket unavailable',
-    };
-    final liveMessage = quoteState.liveMessage ?? liveLabel;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border:
-              Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-          color: Theme.of(context).colorScheme.surface,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'REST quote snapshot',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text('Market $marketLabel / Cache $cacheStatus / $transport'),
-              const SizedBox(height: 4),
-              Text(liveMessage),
-              if (quoteState.liveStale) ...[
-                const SizedBox(height: 4),
-                const Text('Live feed stale / REST refresh recommended'),
-              ],
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  OutlinedButton.icon(
-                    onPressed: isLive
-                        ? quoteState.status == MarketQuoteStatus.loading
-                            ? null
-                            : onStopLive
-                        : isConnecting
-                            ? null
-                            : onStartLive,
-                    icon: isConnecting
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : Icon(isLive ? Icons.wifi_off : Icons.wifi_tethering),
-                    label: Text(isLive ? 'Stop' : 'Start live'),
-                  ),
-                  FilledButton.icon(
-                    onPressed: isLoading ? null : onRefresh,
-                    icon: isLoading
-                        ? const SizedBox.square(
-                            dimension: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.sync),
-                    label: const Text('Refresh'),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }
@@ -3036,27 +2848,53 @@ double? _decimalValue(String value) {
   return double.tryParse(normalized);
 }
 
+String _defaultLimitPrice(StockDetail detail) {
+  final parsed = _decimalValue(
+    detail.localCurrencyDisplay.replaceAll(detail.displayCurrency, ''),
+  );
+  return (parsed ?? 0).toStringAsFixed(2);
+}
+
 class _StockDetailPanel extends StatefulWidget {
   const _StockDetailPanel({
     required this.sessionController,
     required this.marketDetailController,
     required this.marketQuoteController,
     required this.tradeController,
+    this.initialStockCode,
   });
 
   final ExchangeSessionController sessionController;
   final MarketDetailController marketDetailController;
   final MarketQuoteController marketQuoteController;
   final TradeController tradeController;
+  final String? initialStockCode;
 
   @override
   State<_StockDetailPanel> createState() => _StockDetailPanelState();
 }
 
 class _StockDetailPanelState extends State<_StockDetailPanel> {
-  final TextEditingController _stockCodeController =
-      TextEditingController(text: '005930');
+  late final TextEditingController _stockCodeController;
   String _selectedInterval = '1d';
+
+  @override
+  void initState() {
+    super.initState();
+    _stockCodeController = TextEditingController(
+      text: widget.initialStockCode ?? '005930',
+    );
+    if (widget.initialStockCode != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.marketDetailController.loadStock(
+            stockCode: widget.initialStockCode!,
+            interval: _selectedInterval,
+          );
+        }
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -3558,15 +3396,36 @@ class _DetailOrderPanel extends StatefulWidget {
 class _DetailOrderPanelState extends State<_DetailOrderPanel> {
   final TextEditingController _quantityController =
       TextEditingController(text: '1');
+  late final TextEditingController _limitPriceController;
   String _side = 'BUY';
+
+  @override
+  void initState() {
+    super.initState();
+    _limitPriceController = TextEditingController(
+      text: _defaultLimitPrice(widget.detail),
+    );
+  }
+
+  @override
+  void didUpdateWidget(covariant _DetailOrderPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.detail.stockCode != widget.detail.stockCode) {
+      _limitPriceController.text = _defaultLimitPrice(widget.detail);
+    }
+  }
 
   @override
   void dispose() {
     _quantityController.dispose();
+    _limitPriceController.dispose();
     super.dispose();
   }
 
   int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 0;
+
+  double get _limitPrice =>
+      double.tryParse(_limitPriceController.text.trim()) ?? 0;
 
   Future<void> _checkOrderability() async {
     await widget.tradeController.checkOrderability(
@@ -3583,6 +3442,7 @@ class _DetailOrderPanelState extends State<_DetailOrderPanel> {
       stockCode: widget.detail.stockCode,
       side: _side,
       quantity: _quantity,
+      limitPriceUsd: _limitPrice,
     );
   }
 
@@ -3633,7 +3493,7 @@ class _DetailOrderPanelState extends State<_DetailOrderPanel> {
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${widget.detail.stockCode} / execution uses current BE quote and orderability.',
+                                  '${widget.detail.stockCode} / Korea market hours 09:00-15:30 KST.',
                                 ),
                               ],
                             ),
@@ -3671,6 +3531,21 @@ class _DetailOrderPanelState extends State<_DetailOrderPanel> {
                             ),
                           ),
                           const SizedBox(width: 8),
+                          Expanded(
+                            child: TextField(
+                              controller: _limitPriceController,
+                              enabled: isSignedIn && !isLoading,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Limit USD',
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           OutlinedButton.icon(
                             onPressed: isSignedIn && !isLoading
                                 ? _checkOrderability
@@ -3700,16 +3575,25 @@ class _DetailOrderPanelState extends State<_DetailOrderPanel> {
                                       ? Icons.add_shopping_cart
                                       : Icons.sell_outlined,
                                 ),
-                          label: Text('Place $_side order'),
+                          label: Text('Place $_side limit order'),
                         ),
                       ),
                       if (orderability != null) ...[
                         const SizedBox(height: 12),
                         Text(orderability.summary),
                       ],
-                      if (tradeState.lastTrade != null) ...[
+                      if (tradeState.lastOrder != null) ...[
                         const SizedBox(height: 12),
-                        Text(tradeState.lastTrade!.summary),
+                        _InfoPanel(
+                          icon: tradeState.lastOrder!.isFilled
+                              ? Icons.check_circle_outline
+                              : Icons.pending_actions,
+                          title: tradeState.lastOrder!.isFilled
+                              ? 'Order filled'
+                              : 'Limit order pending',
+                          body: tradeState.lastOrder!.summary,
+                          meta: tradeState.lastOrder!.message,
+                        ),
                       ],
                       if (tradeState.errorMessage != null) ...[
                         const SizedBox(height: 12),
@@ -4414,6 +4298,7 @@ class _TradeHistoryPanelState extends State<_TradeHistoryPanel> {
     final session = widget.sessionController.session;
     if (session != null) {
       widget.tradeController.loadTradeHistory(session.accountId);
+      widget.tradeController.loadOrderHistory(session.accountId);
     }
   }
 
@@ -4433,6 +4318,7 @@ class _TradeHistoryPanelState extends State<_TradeHistoryPanel> {
                 ? tradeState.tradeHistory
                 : tradeState.portfolio?.recentTrades ??
                     const <TradeExecution>[];
+            final orders = tradeState.orderHistory;
 
             return Padding(
               padding: const EdgeInsets.only(bottom: 12),
@@ -4456,7 +4342,7 @@ class _TradeHistoryPanelState extends State<_TradeHistoryPanel> {
                           const SizedBox(width: 10),
                           Expanded(
                             child: Text(
-                              'Trade history',
+                              'Orders and fills',
                               style: Theme.of(context)
                                   .textTheme
                                   .titleMedium
@@ -4465,9 +4351,14 @@ class _TradeHistoryPanelState extends State<_TradeHistoryPanel> {
                           ),
                           OutlinedButton.icon(
                             onPressed: isSignedIn && !isLoading
-                                ? () => widget.tradeController.loadTradeHistory(
+                                ? () {
+                                    widget.tradeController.loadTradeHistory(
                                       sessionState.session?.accountId,
-                                    )
+                                    );
+                                    widget.tradeController.loadOrderHistory(
+                                      sessionState.session?.accountId,
+                                    );
+                                  }
                                 : () => _showAuthDialog(
                                       context,
                                       widget.sessionController,
@@ -4486,11 +4377,13 @@ class _TradeHistoryPanelState extends State<_TradeHistoryPanel> {
                       ),
                       const SizedBox(height: 12),
                       if (!isSignedIn)
-                        const Text('Sign in to view buy and sell records.')
-                      else if (trades.isEmpty)
-                        const Text('No buy or sell record yet.')
-                      else
+                        const Text('Sign in to view orders and fills.')
+                      else if (orders.isEmpty && trades.isEmpty)
+                        const Text('No order record yet.')
+                      else ...[
+                        ...orders.map(_TradeOrderRow.new),
                         ...trades.map(_TradeLedgerRow.new),
+                      ],
                       if (tradeState.errorMessage != null) ...[
                         const SizedBox(height: 12),
                         Text(
@@ -4528,6 +4421,8 @@ class _MockTradePanelState extends State<_MockTradePanel> {
       TextEditingController(text: '005930');
   final TextEditingController _quantityController =
       TextEditingController(text: '1');
+  final TextEditingController _limitPriceController =
+      TextEditingController(text: '50.00');
   String _side = 'BUY';
 
   @override
@@ -4542,6 +4437,7 @@ class _MockTradePanelState extends State<_MockTradePanel> {
     widget.sessionController.removeListener(_loadSignedInPortfolio);
     _stockCodeController.dispose();
     _quantityController.dispose();
+    _limitPriceController.dispose();
     super.dispose();
   }
 
@@ -4553,6 +4449,9 @@ class _MockTradePanelState extends State<_MockTradePanel> {
   }
 
   int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 0;
+
+  double get _limitPrice =>
+      double.tryParse(_limitPriceController.text.trim()) ?? 0;
 
   Future<void> _checkOrderability() async {
     await widget.tradeController.checkOrderability(
@@ -4578,6 +4477,7 @@ class _MockTradePanelState extends State<_MockTradePanel> {
       stockCode: _stockCodeController.text.trim(),
       side: _side,
       quantity: _quantity,
+      limitPriceUsd: _limitPrice,
     );
   }
 
@@ -4705,6 +4605,22 @@ class _MockTradePanelState extends State<_MockTradePanel> {
                               ),
                             ),
                           ),
+                          const SizedBox(width: 8),
+                          SizedBox(
+                            width: 140,
+                            child: TextField(
+                              controller: _limitPriceController,
+                              enabled: isSignedIn && !isLoading,
+                              keyboardType:
+                                  const TextInputType.numberWithOptions(
+                                decimal: true,
+                              ),
+                              decoration: const InputDecoration(
+                                border: OutlineInputBorder(),
+                                labelText: 'Limit USD',
+                              ),
+                            ),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 12),
@@ -4747,16 +4663,17 @@ class _MockTradePanelState extends State<_MockTradePanel> {
                               '${orderability.orderabilitySource} / ${orderability.tradingMode}',
                         ),
                       ],
-                      if (tradeState.lastTrade != null) ...[
+                      if (tradeState.lastOrder != null) ...[
                         const SizedBox(height: 12),
                         _InfoPanel(
-                          icon: Icons.receipt_long,
-                          title: 'Last mock trade',
-                          body: tradeState.lastTrade!.summary,
-                          meta: 'Realized PnL '
-                              '${tradeState.lastTrade!.realizedPnlDisplay} / '
-                              'cash after USD '
-                              '${tradeState.lastTrade!.cashBalanceUsdAfter}',
+                          icon: tradeState.lastOrder!.isFilled
+                              ? Icons.receipt_long
+                              : Icons.pending_actions,
+                          title: tradeState.lastOrder!.isFilled
+                              ? 'Last filled order'
+                              : 'Last pending order',
+                          body: tradeState.lastOrder!.summary,
+                          meta: tradeState.lastOrder!.message,
                         ),
                       ],
                       if (portfolio != null &&
@@ -4846,8 +4763,7 @@ class _RealizedPnlPanel extends StatelessWidget {
           title: 'Sell trades and realized PnL',
           body:
               'Portfolio realized PnL USD ${portfolio.realizedPnlUsd} feeds tax refund input.',
-          meta:
-              'Recent sell trades are from the Stock-exchange-BE ledger.',
+          meta: 'Recent sell trades are from the Stock-exchange-BE ledger.',
         ),
         ...sellTrades.map(_SellTradeRow.new),
       ],
@@ -4888,6 +4804,27 @@ class _TradeLedgerRow extends StatelessWidget {
           '${trade.quantity} shares at USD ${trade.executionPriceUsd} / gross USD ${trade.grossAmountUsd}',
       meta:
           '${trade.tradeId} / realized ${trade.realizedPnlDisplay} / cash after USD ${trade.cashBalanceUsdAfter}',
+    );
+  }
+}
+
+class _TradeOrderRow extends StatelessWidget {
+  const _TradeOrderRow(this.order);
+
+  final TradeOrderPlacement order;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSell = order.side.toUpperCase() == 'SELL';
+    return _InfoPanel(
+      icon: order.isFilled
+          ? Icons.check_circle_outline
+          : Icons.pending_actions_outlined,
+      title: '${order.status} ${order.side} ${order.stockName}',
+      body:
+          '${order.quantity} shares / limit USD ${order.limitPriceUsd} / last USD ${order.observedPriceUsd}',
+      meta:
+          '${order.orderId} / ${isSell ? 'sell' : 'buy'} limit order / ${order.message}',
     );
   }
 }
