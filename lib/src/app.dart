@@ -222,7 +222,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Hana Local Exchange'),
+        title: const Text('Hana X'),
         actions: [
           _SessionAction(sessionController: _sessionController),
           const SizedBox(width: 8),
@@ -327,6 +327,20 @@ class _MarketScreenState extends State<MarketScreen> {
 
   String? get _marketQuery => _selectedMarket == 'ALL' ? null : _selectedMarket;
 
+  @override
+  void initState() {
+    super.initState();
+    final quoteState = widget.marketQuoteController.value;
+    if (quoteState.status == MarketQuoteStatus.idle &&
+        quoteState.quotes.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.marketQuoteController.loadSnapshot(market: _marketQuery);
+        }
+      });
+    }
+  }
+
   void _selectMarket(String market) {
     if (_selectedMarket == market) {
       return;
@@ -334,6 +348,9 @@ class _MarketScreenState extends State<MarketScreen> {
     setState(() {
       _selectedMarket = market;
     });
+    widget.marketQuoteController.loadSnapshot(
+      market: market == 'ALL' ? null : market,
+    );
   }
 
   void _searchStocks(String query) {

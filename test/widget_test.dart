@@ -20,19 +20,23 @@ void main() {
   testWidgets('renders market shell with USD quote context', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    final marketQuoteController = _marketQuoteControllerWithSnapshot();
+    addTearDown(marketQuoteController.dispose);
 
-    await tester.pumpWidget(_stockExchangeTestApp());
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Hana Local Exchange'), findsOneWidget);
+    expect(find.text('Hana X'), findsOneWidget);
     expect(find.text('Korea Market'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Search all Korean stocks'), findsOneWidget);
     expect(find.text('WebSocket live'), findsOneWidget);
     expect(find.text('REST snapshot ready'), findsOneWidget);
     expect(find.text('Popular stocks'), findsOneWidget);
-    expect(find.text('No Korean stock quote snapshot is available yet.'),
-        findsOneWidget);
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.text('USD 54.01'), findsWidgets);
   });
 
   testWidgets('filters visible market quotes by stock search', (tester) async {
@@ -78,8 +82,12 @@ void main() {
   testWidgets('navigates portfolio, alerts, and tax tabs', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    final marketQuoteController = _marketQuoteControllerWithSnapshot();
+    addTearDown(marketQuoteController.dispose);
 
-    await tester.pumpWidget(_stockExchangeTestApp());
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(_navigationDestination('Portfolio'));
@@ -1841,6 +1849,45 @@ StockExchangeApp _stockExchangeTestApp({
     portfolioQuoteController: portfolioQuoteController,
     notificationController: notificationController,
     taxController: taxController,
+  );
+}
+
+MarketQuoteController _marketQuoteControllerWithSnapshot() {
+  return MarketQuoteController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/api/v1/market/quotes');
+        return _jsonEnvelope({
+          'dataSource': 'Hana-OmniLens-API',
+          'marketCoverage': request.url.queryParameters['market'] ?? 'ALL',
+          'displayCurrency': 'USD',
+          'transport': {
+            'snapshot': 'REST',
+            'realtime': 'WebSocket',
+          },
+          'cache': {'status': 'FRESH_CACHE'},
+          'quoteCount': 1,
+          'quotes': [
+            {
+              'stockCode': '005930',
+              'stockName': 'Samsung Electronics',
+              'market': 'KOSPI',
+              'currentPriceKrw': '82400',
+              'changeRate': '+1.23%',
+              'volume': 18300000,
+              'localCurrency': 'USD',
+              'localCurrencyPrice': '54.01',
+              'fxRate': '1525.80',
+              'fxRateTime': '2026-06-18T06:00:00Z',
+              'fxRateSource': 'Hana-OmniLens-API',
+              'fxStale': false,
+            }
+          ],
+          'servedAt': '2026-06-18T06:00:01Z',
+        });
+      }),
+    ),
   );
 }
 
