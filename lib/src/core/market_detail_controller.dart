@@ -263,6 +263,9 @@ class MarketChartPoint {
     required this.lowPriceKrw,
     required this.closePriceKrw,
     required this.localCurrency,
+    required this.openLocalCurrencyPrice,
+    required this.highLocalCurrencyPrice,
+    required this.lowLocalCurrencyPrice,
     required this.closeLocalCurrencyPrice,
     required this.volume,
     required this.adjusted,
@@ -274,6 +277,9 @@ class MarketChartPoint {
   final String lowPriceKrw;
   final String closePriceKrw;
   final String localCurrency;
+  final String openLocalCurrencyPrice;
+  final String highLocalCurrencyPrice;
+  final String lowLocalCurrencyPrice;
   final String closeLocalCurrencyPrice;
   final int volume;
   final bool adjusted;
@@ -290,6 +296,12 @@ class MarketChartPoint {
       lowPriceKrw: _string(json['lowPriceKrw'], fallback: '0'),
       closePriceKrw: _string(json['closePriceKrw'], fallback: '0'),
       localCurrency: _string(json['localCurrency'], fallback: 'USD'),
+      openLocalCurrencyPrice:
+          _string(json['openLocalCurrencyPrice'], fallback: '0'),
+      highLocalCurrencyPrice:
+          _string(json['highLocalCurrencyPrice'], fallback: '0'),
+      lowLocalCurrencyPrice:
+          _string(json['lowLocalCurrencyPrice'], fallback: '0'),
       closeLocalCurrencyPrice:
           _string(json['closeLocalCurrencyPrice'], fallback: '0'),
       volume: _int(json['volume']),

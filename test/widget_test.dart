@@ -20,33 +20,41 @@ void main() {
   testWidgets('renders market shell with USD quote context', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    final marketQuoteController = _marketQuoteControllerWithSnapshot();
+    addTearDown(marketQuoteController.dispose);
 
-    await tester.pumpWidget(_stockExchangeTestApp());
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
     await tester.pumpAndSettle();
 
-    expect(find.text('Hana Local Exchange'), findsOneWidget);
+    expect(find.text('Hana X'), findsOneWidget);
     expect(find.text('Korea Market'), findsOneWidget);
-    expect(find.text('Sign in with username and password'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Search all Korean stocks'), findsOneWidget);
     expect(find.text('WebSocket live'), findsOneWidget);
     expect(find.text('REST snapshot ready'), findsOneWidget);
     expect(find.text('Popular stocks'), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('popular-sparkline-005930')), findsOneWidget);
-    expect(find.byKey(const ValueKey('quote-row-sparkline-005930')),
-        findsOneWidget);
-    expect(find.text('USD 54.00'), findsWidgets);
-    expect(
-      find.text('FX 1525.93 / unknown time / source Hana-OmniLens-API'),
-      findsWidgets,
-    );
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.text('USD 54.01'), findsWidgets);
   });
 
   testWidgets('filters visible market quotes by stock search', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(_stockExchangeTestApp());
+    final marketQuoteController = MarketQuoteController(
+      seedQuotes: seedMarketQuotes,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonEnvelope({})),
+      ),
+    );
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text('Samsung Electronics'), findsWidgets);
@@ -59,8 +67,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Samsung Electronics'), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('quote-row-sparkline-005930')), findsNothing);
+    expect(find.text('USD 54.00'), findsOneWidget);
     expect(find.text('NAVER'), findsWidgets);
 
     await tester.enterText(
@@ -75,15 +82,24 @@ void main() {
   testWidgets('navigates portfolio, alerts, and tax tabs', (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
+    final marketQuoteController = _marketQuoteControllerWithSnapshot();
+    addTearDown(marketQuoteController.dispose);
 
-    await tester.pumpWidget(_stockExchangeTestApp());
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
-    expect(find.text('Mock USD cash'), findsWidgets);
-    expect(find.text('Mock USD trading ledger. No real order is sent.'),
+    expect(find.text('USD cash'), findsWidgets);
+    expect(
+        find.text('USD cash, holdings, and account scoped Korea stock quotes.'),
         findsOneWidget);
+
+    await tester.tap(_navigationDestination('Orders'));
+    await tester.pumpAndSettle();
+    expect(find.text('Trade history'), findsOneWidget);
 
     await tester.tap(_navigationDestination('Alerts'));
     await tester.pumpAndSettle();
@@ -148,25 +164,41 @@ void main() {
     final tradeController = TradeController(
       apiClient: ExchangeApiClient(
         baseUri: Uri.parse('http://localhost:3000'),
-        httpClient: MockClient((request) async => _jsonResponse({
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/trades')) {
+            return _jsonResponse({
               'success': true,
               'status': 200,
               'code': 'COMMON_000',
               'message': 'OK',
               'data': {
                 'accountId': 'ACC-ABC123456789',
-                'currency': 'USD',
-                'cashBalanceUsd': '0.00',
-                'totalMarketValueUsd': '0.00',
-                'totalAssetValueUsd': '0.00',
-                'realizedPnlUsd': '0.00',
-                'unrealizedPnlUsd': '0.00',
-                'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
-                'holdings': [],
-                'recentTrades': [],
+                'tradeCount': 1,
+                'trades': [_sellTradeJson()],
               },
               'timestamp': '2026-06-18T06:00:00Z',
-            })),
+            });
+          }
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'accountId': 'ACC-ABC123456789',
+              'currency': 'USD',
+              'cashBalanceUsd': '0.00',
+              'totalMarketValueUsd': '0.00',
+              'totalAssetValueUsd': '0.00',
+              'realizedPnlUsd': '0.00',
+              'unrealizedPnlUsd': '0.00',
+              'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+              'holdings': [],
+              'recentTrades': [],
+            },
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
       ),
     );
     addTearDown(controller.dispose);
@@ -181,13 +213,17 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField).at(0), 'hana');
-    await tester.enterText(find.byType(TextField).at(1), 'secret');
-    await tester.tap(find.text('Sign in'));
+    await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Username'), 'hana');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'secret',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Signed in as hana'), findsOneWidget);
-    expect(find.text('Account ACC-ABC123456789'), findsOneWidget);
+    expect(find.text('hana'), findsOneWidget);
   });
 
   testWidgets('creates account then loads mock USD account screen',
@@ -302,22 +338,26 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField).at(0), 'hana');
-    await tester.enterText(find.byType(TextField).at(1), 'secret');
-    await tester.tap(find.text('Create account'));
+    await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextField, 'Username'), 'hana');
+    await tester.enterText(
+      find.widgetWithText(TextField, 'Password'),
+      'secret',
+    );
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Create account'));
     await tester.pumpAndSettle();
 
     expect(authPaths, ['/api/v1/auth/signup', '/api/v1/auth/login']);
-    expect(find.text('Signed in as hana'), findsOneWidget);
-    expect(find.text('Account ACC-ABC123456789'), findsOneWidget);
+    expect(find.text('hana'), findsOneWidget);
 
     await tester.tap(_navigationDestination('Portfolio'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Mock USD cash'), findsWidgets);
+    expect(find.text('USD cash'), findsWidgets);
     expect(find.text('USD 0.00'), findsWidgets);
     expect(
-      find.text('No real payment settlement. Ledger only.'),
+      find.text('Exchange ledger balance.'),
       findsOneWidget,
     );
   });
@@ -381,8 +421,6 @@ void main() {
 
     expect(find.text('SK hynix'), findsWidgets);
     expect(find.text('USD 184.16'), findsWidgets);
-    expect(
-        find.byKey(const ValueKey('popular-sparkline-000660')), findsOneWidget);
     expect(
       find.text(
         'Market ALL / Cache FRESH_CACHE / REST snapshot / WebSocket live',
@@ -461,8 +499,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Samsung Electronics'), findsWidgets);
-    expect(
-        find.byKey(const ValueKey('popular-sparkline-005930')), findsOneWidget);
+    expect(find.text('USD 54.01'), findsWidgets);
     expect(
       find.text(
         'Market KOSPI / Cache FRESH_CACHE / REST snapshot / WebSocket live',
@@ -520,8 +557,6 @@ void main() {
 
     expect(find.text('USD 60.00'), findsWidgets);
     expect(find.text('+3.10%'), findsWidgets);
-    expect(
-        find.byKey(const ValueKey('popular-sparkline-005930')), findsOneWidget);
     expect(find.text('Live tick 005930 received.'), findsOneWidget);
     expect(find.widgetWithText(OutlinedButton, 'Stop'), findsOneWidget);
 
@@ -577,6 +612,9 @@ void main() {
                     'lowPriceKrw': '79800',
                     'closePriceKrw': '81200',
                     'localCurrency': 'USD',
+                    'openLocalCurrencyPrice': '52.40',
+                    'highLocalCurrencyPrice': '53.62',
+                    'lowLocalCurrencyPrice': '52.27',
                     'closeLocalCurrencyPrice': '53.22',
                     'volume': 17100000,
                     'adjusted': false,
@@ -588,6 +626,9 @@ void main() {
                     'lowPriceKrw': '80500',
                     'closePriceKrw': '82400',
                     'localCurrency': 'USD',
+                    'openLocalCurrencyPrice': '53.09',
+                    'highLocalCurrencyPrice': '54.34',
+                    'lowLocalCurrencyPrice': '52.76',
                     'closeLocalCurrencyPrice': '54.01',
                     'volume': 18300000,
                     'adjusted': false,
@@ -700,7 +741,7 @@ void main() {
       find.textContaining('Best bid KRW 82400 / USD 54.01 x 1200'),
       findsOneWidget,
     );
-    expect(find.text('Single-price trading'), findsOneWidget);
+    expect(find.text('Single-price trading'), findsWidgets);
     expect(find.text('UPPER_LIMIT'), findsWidgets);
     expect(find.text('Foreign ownership gauge'), findsOneWidget);
     expect(find.text('Today forecast boundary'), findsOneWidget);
@@ -724,9 +765,9 @@ void main() {
       find.byKey(const ValueKey('foreign-limit-rate-gauge')),
       findsOneWidget,
     );
-    expect(find.text('Historical price line'), findsOneWidget);
+    expect(find.text('Price candles and volume'), findsOneWidget);
     expect(
-      find.byKey(const ValueKey('market-history-chart-line')),
+      find.byKey(const ValueKey('market-history-candle-volume-chart')),
       findsOneWidget,
     );
     expect(
@@ -897,7 +938,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Refresh').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Signed in as hana'), findsOneWidget);
+    expect(find.text('hana'), findsOneWidget);
     expect(find.text('USD 125.50'), findsWidgets);
     expect(find.text('NAVER'), findsOneWidget);
     expect(
@@ -1275,27 +1316,122 @@ void main() {
         }),
       ),
     );
+    final marketDetailController = MarketDetailController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/chart')) {
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'dataSource': 'Hana-OmniLens-API',
+                'stockCode': '005930',
+                'interval': '1d',
+                'from': '2026-06-01',
+                'to': '2026-06-18',
+                'baseCurrency': 'KRW',
+                'displayCurrency': 'USD',
+                'pointCount': 1,
+                'points': [
+                  {
+                    'tradeDate': '2026-06-18',
+                    'openPriceKrw': '81000',
+                    'highPriceKrw': '82900',
+                    'lowPriceKrw': '80500',
+                    'closePriceKrw': '82400',
+                    'localCurrency': 'USD',
+                    'openLocalCurrencyPrice': '53.09',
+                    'highLocalCurrencyPrice': '54.34',
+                    'lowLocalCurrencyPrice': '52.76',
+                    'closeLocalCurrencyPrice': '54.01',
+                    'volume': 18300000,
+                    'adjusted': false,
+                  }
+                ],
+                'servedAt': '2026-06-18T06:00:01Z',
+              },
+              'timestamp': '2026-06-18T06:00:01Z',
+            });
+          }
+          if (request.url.path.endsWith('/orderbook')) {
+            return _jsonResponse({
+              'success': true,
+              'status': 200,
+              'code': 'COMMON_000',
+              'message': 'OK',
+              'data': {
+                'dataSource': 'Hana-OmniLens-API',
+                'stockCode': '005930',
+                'market': 'KOSPI',
+                'baseCurrency': 'KRW',
+                'displayCurrency': 'USD',
+                'asks': [],
+                'bids': [],
+                'servedAt': '2026-06-18T06:00:01Z',
+              },
+              'timestamp': '2026-06-18T06:00:01Z',
+            });
+          }
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': {
+              'stockCode': '005930',
+              'stockName': 'Samsung Electronics',
+              'market': 'KOSPI',
+              'sector': 'Semiconductor',
+              'baseCurrency': 'KRW',
+              'displayCurrency': 'USD',
+              'currentPriceKrw': '82400',
+              'localCurrencyPrice': '54.01',
+              'changeRate': '+1.23%',
+              'volume': 18300000,
+              'foreignOwnershipRate': '55.31',
+              'foreignLimitExhaustionRate': '55.31',
+              'foreignOwnershipBaseDate': '2026-06-18',
+              'viActive': false,
+              'singlePriceTrading': false,
+              'priceLimitState': 'NORMAL',
+              'tradingHalted': false,
+              'orderable': true,
+              'dataSource': 'Hana-OmniLens-API',
+              'servedAt': '2026-06-18T06:00:01Z',
+            },
+            'timestamp': '2026-06-18T06:00:01Z',
+          });
+        }),
+      ),
+    );
     addTearDown(sessionController.dispose);
     addTearDown(accountController.dispose);
     addTearDown(tradeController.dispose);
+    addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
       StockExchangeApp(
         sessionController: sessionController,
         accountController: accountController,
         tradeController: tradeController,
+        marketDetailController: marketDetailController,
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(_navigationDestination('Portfolio'));
+    await tester.ensureVisible(find.text('Load details'));
+    await tester.tap(find.text('Load details'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Exchange mock ledger only. No KIS order is sent.'),
-        findsOneWidget);
+    expect(find.text('Trade Samsung Electronics'), findsOneWidget);
 
-    await tester.tap(find.text('Check orderability'));
+    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Check'));
+    await tester.drag(find.byType(ListView), const Offset(0, -180));
     await tester.pumpAndSettle();
-    expect(find.text('Mock order warning'), findsOneWidget);
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Check'));
+    await tester.pumpAndSettle();
     expect(
       find.textContaining('Volatility interruption is active'),
       findsWidgets,
@@ -1304,16 +1440,16 @@ void main() {
       find.textContaining('Buy order is at the upper price limit'),
       findsWidgets,
     );
-    await tester.tap(find.text('OK'));
+
+    await tester
+        .ensureVisible(find.widgetWithText(FilledButton, 'Place BUY order'));
+    await tester.drag(find.byType(ListView), const Offset(0, -180));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Place BUY order'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Place mock order'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Last mock trade'), findsOneWidget);
     expect(find.textContaining('BUY 1 Samsung Electronics'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
-    expect(find.text('USD 150.00'), findsWidgets);
   });
 
   testWidgets('shows sell trade realized PnL for tax refund input',
@@ -1358,17 +1494,33 @@ void main() {
     final tradeController = TradeController(
       apiClient: ExchangeApiClient(
         baseUri: Uri.parse('http://localhost:3000'),
-        httpClient: MockClient((request) async => _jsonResponse({
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/trades')) {
+            return _jsonResponse({
               'success': true,
               'status': 200,
               'code': 'COMMON_000',
               'message': 'OK',
-              'data': _portfolioJson(
-                realizedPnlUsd: '20.00',
-                recentTrades: [_sellTradeJson()],
-              ),
+              'data': {
+                'accountId': 'ACC-ABC123456789',
+                'tradeCount': 1,
+                'trades': [_sellTradeJson()],
+              },
               'timestamp': '2026-06-18T06:00:00Z',
-            })),
+            });
+          }
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': _portfolioJson(
+              realizedPnlUsd: '20.00',
+              recentTrades: [_sellTradeJson()],
+            ),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
       ),
     );
     addTearDown(sessionController.dispose);
@@ -1385,20 +1537,15 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(_navigationDestination('Portfolio'));
+    await tester.tap(_navigationDestination('Orders'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Sell trades and realized PnL'), findsOneWidget);
+    expect(find.text('Trade history'), findsOneWidget);
+    expect(find.text('SELL Samsung Electronics'), findsOneWidget);
     expect(
-      find.text('Portfolio realized PnL USD 20.00 feeds tax refund input.'),
+      find.textContaining('realized USD 20.00'),
       findsOneWidget,
     );
-    expect(find.text('Realized sell trade'), findsOneWidget);
-    expect(
-      find.text('Samsung Electronics 1 shares / realized PnL USD 20.00'),
-      findsOneWidget,
-    );
-    expect(find.text('USD 20.00'), findsWidgets);
   });
 
   testWidgets('loads tax refund status with government reference',
@@ -1467,10 +1614,10 @@ void main() {
     expect(find.textContaining('residence.pdf'), findsWidgets);
     expect(find.text('Refund status timeline'), findsOneWidget);
     expect(find.text('Documents received'), findsOneWidget);
-    expect(find.text('Mock sell ledger matched'), findsOneWidget);
+    expect(find.text('Sell ledger matched'), findsOneWidget);
     expect(find.text('Government sync REFUND_APPROVED'), findsOneWidget);
     expect(find.text('Advance review requested'), findsOneWidget);
-    expect(find.text('Refund input from mock sells'), findsOneWidget);
+    expect(find.text('Refund input from sell trades'), findsOneWidget);
     expect(find.textContaining('Total sells USD 70.00'), findsOneWidget);
     expect(find.text('Post-payment recapture notice'), findsOneWidget);
     expect(find.text('Matched sell trade'), findsOneWidget);
@@ -1702,6 +1849,45 @@ StockExchangeApp _stockExchangeTestApp({
     portfolioQuoteController: portfolioQuoteController,
     notificationController: notificationController,
     taxController: taxController,
+  );
+}
+
+MarketQuoteController _marketQuoteControllerWithSnapshot() {
+  return MarketQuoteController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/api/v1/market/quotes');
+        return _jsonEnvelope({
+          'dataSource': 'Hana-OmniLens-API',
+          'marketCoverage': request.url.queryParameters['market'] ?? 'ALL',
+          'displayCurrency': 'USD',
+          'transport': {
+            'snapshot': 'REST',
+            'realtime': 'WebSocket',
+          },
+          'cache': {'status': 'FRESH_CACHE'},
+          'quoteCount': 1,
+          'quotes': [
+            {
+              'stockCode': '005930',
+              'stockName': 'Samsung Electronics',
+              'market': 'KOSPI',
+              'currentPriceKrw': '82400',
+              'changeRate': '+1.23%',
+              'volume': 18300000,
+              'localCurrency': 'USD',
+              'localCurrencyPrice': '54.01',
+              'fxRate': '1525.80',
+              'fxRateTime': '2026-06-18T06:00:00Z',
+              'fxRateSource': 'Hana-OmniLens-API',
+              'fxStale': false,
+            }
+          ],
+          'servedAt': '2026-06-18T06:00:01Z',
+        });
+      }),
+    ),
   );
 }
 

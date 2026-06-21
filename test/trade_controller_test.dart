@@ -140,6 +140,7 @@ void main() {
     expect(paths, [
       'POST /api/v1/accounts/ACC-ABC123456789/trades',
       'GET /api/v1/accounts/ACC-ABC123456789/portfolio',
+      'GET /api/v1/accounts/ACC-ABC123456789/trades',
     ]);
     expect(controller.value.lastTrade?.stockName, 'Samsung Electronics');
     expect(controller.value.portfolio?.holdings.single.quantity, 2);
@@ -218,7 +219,8 @@ void main() {
       side: 'BUY',
       quantity: 1,
     );
-    expect(controller.value.errorMessage, 'Sign in before placing a mock order.');
+    expect(
+        controller.value.errorMessage, 'Sign in before placing a mock order.');
 
     await controller.checkOrderability(
       accountId: 'ACC-ABC123456789',

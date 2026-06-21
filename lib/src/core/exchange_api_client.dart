@@ -307,6 +307,16 @@ class ExchangeApiClient {
     return get<Map<String, dynamic>>('/api/v1/accounts/$accountId/portfolio');
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getTradeHistory(
+    String accountId, {
+    int limit = 50,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/trades',
+      query: {'limit': '$limit'},
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> checkOrderability({
     required String accountId,
     required String stockCode,
@@ -342,7 +352,8 @@ class ExchangeApiClient {
   Future<ApiEnvelope<Map<String, dynamic>>> getNotifications(
     String accountId,
   ) {
-    return get<Map<String, dynamic>>('/api/v1/accounts/$accountId/notifications');
+    return get<Map<String, dynamic>>(
+        '/api/v1/accounts/$accountId/notifications');
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getNotificationDevices(
