@@ -2564,7 +2564,7 @@ class _PopularStockRow extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    quote.changeRate,
+                    _rateDisplay(quote.changeRate),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: positive
                               ? Colors.teal.shade700
@@ -2617,7 +2617,7 @@ class _QuoteSnapshotPanel extends StatelessWidget {
                 icon: Icons.info_outline,
                 title: 'Prices may be delayed',
                 body: 'Keeping the latest prices on screen.',
-                meta: 'Korea market data',
+                meta: '',
               ),
             if (quoteState.quotes.isEmpty)
               _InfoPanel(
@@ -2627,14 +2627,14 @@ class _QuoteSnapshotPanel extends StatelessWidget {
                     : 'Prices temporarily unavailable',
                 body: quoteState.errorMessage ??
                     'Market prices will appear when the exchange API is ready.',
-                meta: 'Korea market data',
+                meta: '',
               )
             else if (visibleQuotes.isEmpty)
               _InfoPanel(
                 icon: Icons.search_off,
                 title: 'No matching stocks',
                 body: 'No visible quote matches "$searchQuery".',
-                meta: 'Search checks stock code, name, and market.',
+                meta: '',
               )
             else
               ...visibleQuotes.map(
@@ -2740,7 +2740,7 @@ class _AccountQuoteSnapshotPanel extends StatelessWidget {
                         : 'Sign in to load this account scope.',
                     meta: snapshot == null
                         ? 'Account prices'
-                        : '${snapshot.quoteCount} quotes from ${snapshot.dataSource}',
+                        : '${snapshot.quoteCount} quotes',
                   )
                 else
                   ...quoteState.quotes.map(
@@ -2826,8 +2826,7 @@ class _QuoteRow extends StatelessWidget {
                                 ),
                       ),
                     ),
-                    _SmallBadge(
-                        label: quote.fxStale ? 'FX stale' : quote.badge),
+                    _SmallBadge(label: quote.market),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -2842,18 +2841,12 @@ class _QuoteRow extends StatelessWidget {
                       label: quote.localCurrency,
                       value: quote.localCurrencyDisplay,
                     ),
-                    _Metric(label: 'Move', value: quote.changeRate),
+                    _Metric(
+                      label: 'Move',
+                      value: _rateDisplay(quote.changeRate),
+                    ),
                     _Metric(label: 'Volume', value: '${quote.volume}'),
                   ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  quote.fxMeta,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: quote.fxStale
-                            ? colorScheme.error
-                            : colorScheme.onSurfaceVariant,
-                      ),
                 ),
               ],
             ),
@@ -2866,6 +2859,14 @@ class _QuoteRow extends StatelessWidget {
 
 bool _isPositiveMove(String value) => !value.trim().startsWith('-');
 
+String _rateDisplay(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty || trimmed.endsWith('%')) {
+    return trimmed;
+  }
+  return '$trimmed%';
+}
+
 double? _decimalValue(String value) {
   final normalized = value.replaceAll(',', '').trim();
   return double.tryParse(normalized);
@@ -2876,6 +2877,27 @@ String _defaultLimitPrice(StockDetail detail) {
     detail.localCurrencyDisplay.replaceAll(detail.displayCurrency, ''),
   );
   return (parsed ?? 0).toStringAsFixed(2);
+}
+
+class _ChartPeriodRange {
+  const _ChartPeriodRange({required this.from, required this.to});
+
+  final DateTime from;
+  final DateTime to;
+
+  factory _ChartPeriodRange.fromPeriod(String period) {
+    final to = DateTime.now().toUtc();
+    final days = switch (period) {
+      '1D' => 5,
+      '1W' => 14,
+      '1M' => 45,
+      _ => 30,
+    };
+    return _ChartPeriodRange(
+      from: to.subtract(Duration(days: days)),
+      to: to,
+    );
+  }
 }
 
 class _StockDetailPanel extends StatefulWidget {
@@ -2898,31 +2920,28 @@ class _StockDetailPanel extends StatefulWidget {
 }
 
 class _StockDetailPanelState extends State<_StockDetailPanel> {
-  late final TextEditingController _stockCodeController;
-  String _selectedInterval = '1d';
+  late final String _stockCode;
+  String _selectedPeriod = '1D';
 
   @override
   void initState() {
     super.initState();
-    _stockCodeController = TextEditingController(
-      text: widget.initialStockCode ?? '005930',
-    );
-    if (widget.initialStockCode != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          widget.marketDetailController.loadStock(
-            stockCode: widget.initialStockCode!,
-            interval: _selectedInterval,
-          );
-        }
-      });
-    }
+    _stockCode = widget.initialStockCode ?? '005930';
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _loadSelectedPeriod();
+      }
+    });
   }
 
-  @override
-  void dispose() {
-    _stockCodeController.dispose();
-    super.dispose();
+  void _loadSelectedPeriod() {
+    final chartRange = _ChartPeriodRange.fromPeriod(_selectedPeriod);
+    widget.marketDetailController.loadStock(
+      stockCode: _stockCode,
+      interval: '1d',
+      from: chartRange.from,
+      to: chartRange.to,
+    );
   }
 
   @override
@@ -2954,7 +2973,7 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                     children: [
                       Expanded(
                         child: Text(
-                          'Stock detail, chart, and order book',
+                          detail == null ? 'Stock detail' : detail.stockName,
                           style:
                               Theme.of(context).textTheme.titleMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
@@ -2965,63 +2984,24 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                     ],
                   ),
                   const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    children: [
-                      SizedBox(
-                        width: 180,
-                        child: TextField(
-                          controller: _stockCodeController,
-                          keyboardType: TextInputType.number,
-                          maxLength: 6,
-                          decoration: const InputDecoration(
-                            counterText: '',
-                            labelText: 'Stock code',
-                            border: OutlineInputBorder(),
-                          ),
-                        ),
-                      ),
-                      FilledButton.icon(
-                        onPressed: isLoading
-                            ? null
-                            : () => widget.marketDetailController.loadStock(
-                                  stockCode: _stockCodeController.text,
-                                  interval: _selectedInterval,
-                                ),
-                        icon: isLoading
-                            ? const SizedBox.square(
-                                dimension: 16,
-                                child:
-                                    CircularProgressIndicator(strokeWidth: 2),
-                              )
-                            : const Icon(Icons.candlestick_chart_outlined),
-                        label: const Text('Load details'),
-                      ),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: '1d', label: Text('D')),
-                          ButtonSegment(value: '1w', label: Text('W')),
-                          ButtonSegment(value: '1mo', label: Text('M')),
-                        ],
-                        selected: {_selectedInterval},
-                        onSelectionChanged: isLoading
-                            ? null
-                            : (selected) {
-                                final interval = selected.single;
-                                setState(() {
-                                  _selectedInterval = interval;
-                                });
-                                final stockCode = detail?.stockCode ??
-                                    _stockCodeController.text.trim();
-                                widget.marketDetailController.loadStock(
-                                  stockCode: stockCode,
-                                  interval: interval,
-                                );
-                              },
-                      ),
-                    ],
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: '1D', label: Text('1D')),
+                        ButtonSegment(value: '1W', label: Text('1W')),
+                        ButtonSegment(value: '1M', label: Text('1M')),
+                      ],
+                      selected: {_selectedPeriod},
+                      onSelectionChanged: isLoading
+                          ? null
+                          : (selected) {
+                              setState(() {
+                                _selectedPeriod = selected.single;
+                              });
+                              _loadSelectedPeriod();
+                            },
+                    ),
                   ),
                   const SizedBox(height: 12),
                   if (detailState.errorMessage != null)
@@ -3029,17 +3009,14 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                       icon: Icons.error_outline,
                       title: 'Stock detail unavailable',
                       body: detailState.errorMessage!,
-                      meta:
-                          'Detail, chart, and order book use Stock-exchange-BE REST.',
+                      meta: 'Try again shortly.',
                     ),
                   if (detail == null)
                     const _InfoPanel(
                       icon: Icons.query_stats,
-                      title: 'Detail REST ready',
-                      body:
-                          'Load a Korean stock code to show current price, historical chart data, and order book.',
-                      meta:
-                          'Source path: Stock-exchange-BE to Hana-OmniLens-API',
+                      title: 'Loading stock detail',
+                      body: 'Preparing price, chart, and quotes.',
+                      meta: '',
                     )
                   else
                     ValueListenableBuilder<MarketQuoteState>(
@@ -3056,6 +3033,7 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                             _DetailLivePricePanel(
                               detail: detail,
                               liveQuote: liveQuote,
+                              liveStatus: quoteState.liveStatus,
                             ),
                             _CurrentPriceSummaryPanel(
                               detail: detail,
@@ -3072,7 +3050,9 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                                   value: detail.localCurrencyDisplay,
                                 ),
                                 _Metric(
-                                    label: 'Move', value: detail.changeRate),
+                                  label: 'Move',
+                                  value: _rateDisplay(detail.changeRate),
+                                ),
                                 _Metric(
                                   label: 'Foreign owned',
                                   value: '${detail.foreignOwnershipRate}%',
@@ -3097,11 +3077,10 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                             const SizedBox(height: 12),
                             _InfoPanel(
                               icon: Icons.public,
-                              title: 'Hana-OmniLens market detail',
+                              title: 'Trading status',
                               body:
                                   '${detail.market} / ${detail.sector} / volume ${detail.volume}',
-                              meta:
-                                  '${detail.dataSource} / foreign base ${detail.foreignOwnershipBaseDate}',
+                              meta: detail.riskBadge,
                             ),
                             _ForeignOwnershipGaugePanel(detail: detail),
                             _ForeignBoundaryPanel(detail: detail),
@@ -3110,7 +3089,10 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                               tradeController: widget.tradeController,
                               detail: detail,
                             ),
-                            _MarketHistoryChartPanel(chart: chart),
+                            _MarketHistoryChartPanel(
+                              chart: chart,
+                              selectedPeriod: _selectedPeriod,
+                            ),
                             _OrderBookPreview(orderBook: orderBook),
                           ],
                         );
@@ -3130,10 +3112,12 @@ class _DetailLivePricePanel extends StatelessWidget {
   const _DetailLivePricePanel({
     required this.detail,
     required this.liveQuote,
+    required this.liveStatus,
   });
 
   final StockDetail detail;
   final MarketQuote? liveQuote;
+  final MarketQuoteLiveStatus liveStatus;
 
   @override
   Widget build(BuildContext context) {
@@ -3163,13 +3147,13 @@ class _DetailLivePricePanel extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Live detail movement',
+                      'Price',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                     ),
                   ),
-                  _SmallBadge(label: liveQuote == null ? 'REST' : 'LIVE'),
+                  _SmallBadge(label: _liveStatusLabel(liveStatus, liveQuote)),
                 ],
               ),
               const SizedBox(height: 12),
@@ -3188,23 +3172,35 @@ class _DetailLivePricePanel extends StatelessWidget {
                     ),
                   ),
                   _Metric(label: 'KRW', value: currentKrw),
-                  _Metric(label: 'Move', value: currentMove),
+                  _Metric(label: 'Move', value: _rateDisplay(currentMove)),
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                liveQuote == null
-                    ? 'REST detail price with historical chart data.'
-                    : 'WebSocket tick updates the current price summary.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-              ),
+              if (liveQuote == null)
+                Text(
+                  'Latest confirmed quote',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                ),
             ],
           ),
         ),
       ),
     );
+  }
+
+  static String _liveStatusLabel(
+    MarketQuoteLiveStatus status,
+    MarketQuote? liveQuote,
+  ) {
+    if (status == MarketQuoteLiveStatus.live && liveQuote != null) {
+      return 'Live';
+    }
+    if (status == MarketQuoteLiveStatus.connecting) {
+      return 'Connecting';
+    }
+    return 'Delayed';
   }
 }
 
@@ -3237,7 +3233,7 @@ class _CurrentPriceSummaryPanel extends StatelessWidget {
       icon: Icons.price_change_outlined,
       title: 'Current price and best quote',
       body:
-          '${detail.krwDisplay} / ${detail.localCurrencyDisplay} / ${detail.changeRate}',
+          '${detail.krwDisplay} / ${detail.localCurrencyDisplay} / ${_rateDisplay(detail.changeRate)}',
       meta:
           'Best ask ${_levelDisplay(bestAsk, orderBook)} / Best bid ${_levelDisplay(bestBid, orderBook)} / $orderBookTime',
     );
@@ -3311,7 +3307,7 @@ class _ForeignOwnershipGaugePanel extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                'Source ${detail.dataSource} / order state ${detail.riskBadge}',
+                'Order state ${detail.riskBadge}',
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: colorScheme.onSurfaceVariant,
                     ),
@@ -3341,8 +3337,7 @@ class _ForeignBoundaryPanel extends StatelessWidget {
       title: 'Today forecast boundary',
       body:
           'Ownership ${detail.predictedOwnershipRangeDisplay} / Limit ${detail.predictedLimitRangeDisplay}',
-      meta:
-          'Base ${detail.foreignOwnershipBaseDate} / ${detail.predictionModelDisplay}',
+      meta: 'Base date ${detail.foreignOwnershipBaseDate}',
     );
   }
 }
@@ -3638,9 +3633,13 @@ class _DetailOrderPanelState extends State<_DetailOrderPanel> {
 }
 
 class _MarketHistoryChartPanel extends StatelessWidget {
-  const _MarketHistoryChartPanel({required this.chart});
+  const _MarketHistoryChartPanel({
+    required this.chart,
+    required this.selectedPeriod,
+  });
 
   final MarketChart? chart;
+  final String selectedPeriod;
 
   @override
   Widget build(BuildContext context) {
@@ -3682,13 +3681,13 @@ class _MarketHistoryChartPanel extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Price candles and volume',
+                      'Price chart',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                     ),
                   ),
-                  if (chart != null) _SmallBadge(label: chart!.interval),
+                  _SmallBadge(label: selectedPeriod),
                   if (marketClosedOnRequestedDay) ...[
                     const SizedBox(width: 8),
                     const _SmallBadge(label: 'Closed'),
@@ -3698,7 +3697,7 @@ class _MarketHistoryChartPanel extends StatelessWidget {
               const SizedBox(height: 10),
               if (!hasChartData)
                 Text(
-                  'Historical prices will appear after the chart REST snapshot loads. No zero-price fallback is rendered.',
+                  'Chart data is not available yet.',
                   style: TextStyle(color: colorScheme.onSurfaceVariant),
                 )
               else ...[
@@ -3742,8 +3741,8 @@ class _MarketHistoryChartPanel extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   marketClosedOnRequestedDay
-                      ? '${chart!.pointCount} points from ${chart!.from} to ${chart!.to} / last trading day ${latestPoint.tradeDate} / ${chart!.dataSource}'
-                      : '${chart!.pointCount} points from ${chart!.from} to ${chart!.to} / ${chart!.dataSource} / adjusted ${latestPoint.adjusted}',
+                      ? 'Last trading day ${latestPoint.tradeDate}'
+                      : '${chart!.from} - ${chart!.to}',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: colorScheme.onSurfaceVariant,
                       ),
@@ -3898,39 +3897,140 @@ class _OrderBookPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final asks = orderBook?.asks.take(3).toList() ?? const <OrderBookLevel>[];
-    final bids = orderBook?.bids.take(3).toList() ?? const <OrderBookLevel>[];
+    final asks = orderBook?.asks.take(5).toList() ?? const <OrderBookLevel>[];
+    final bids = orderBook?.bids.take(5).toList() ?? const <OrderBookLevel>[];
+    final colorScheme = Theme.of(context).colorScheme;
 
     if (orderBook == null) {
       return const _InfoPanel(
         icon: Icons.stacked_line_chart,
-        title: 'Order book pending',
-        body: 'Order book levels will appear after detail loading.',
-        meta: 'REST order book snapshot pending',
+        title: 'Order book',
+        body: 'Preparing quote levels.',
+        meta: '',
       );
     }
 
-    return _InfoPanel(
-      icon: Icons.stacked_bar_chart,
-      title: 'Order book snapshot',
-      body: 'Ask ${_levelText(asks, orderBook!)} / '
-          'Bid ${_levelText(bids, orderBook!)}',
-      meta: '${orderBook!.dataSource} / '
-          '${orderBook!.displayCurrency} converted levels',
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surface,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.stacked_bar_chart, color: colorScheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'Order book',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  _SmallBadge(label: orderBook!.market),
+                ],
+              ),
+              const SizedBox(height: 12),
+              _OrderBookHeader(displayCurrency: orderBook!.displayCurrency),
+              ...asks.reversed.map(
+                (level) => _OrderBookLevelRow(
+                  level: level,
+                  side: _OrderBookSide.ask,
+                ),
+              ),
+              Divider(color: colorScheme.outlineVariant, height: 14),
+              ...bids.map(
+                (level) => _OrderBookLevelRow(
+                  level: level,
+                  side: _OrderBookSide.bid,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
+}
 
-  static String _levelText(
-    List<OrderBookLevel> levels,
-    MarketOrderBook orderBook,
-  ) {
-    if (levels.isEmpty) {
-      return 'none';
-    }
-    return levels
-        .map((level) =>
-            '${level.displayPrice(orderBook.baseCurrency, orderBook.displayCurrency)} x ${level.quantity}')
-        .join(', ');
+enum _OrderBookSide { ask, bid }
+
+class _OrderBookHeader extends StatelessWidget {
+  const _OrderBookHeader({required this.displayCurrency});
+
+  final String displayCurrency;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontWeight: FontWeight.w700,
+        );
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        children: [
+          Expanded(child: Text('Price ($displayCurrency)', style: style)),
+          SizedBox(width: 96, child: Text('KRW', style: style)),
+          SizedBox(
+            width: 88,
+            child: Text('Qty', textAlign: TextAlign.end, style: style),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderBookLevelRow extends StatelessWidget {
+  const _OrderBookLevelRow({
+    required this.level,
+    required this.side,
+  });
+
+  final OrderBookLevel level;
+  final _OrderBookSide side;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final sideColor =
+        side == _OrderBookSide.ask ? colorScheme.error : Colors.teal.shade700;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              level.localCurrencyPrice,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: sideColor,
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+          SizedBox(width: 96, child: Text(level.priceKrw)),
+          SizedBox(
+            width: 88,
+            child: Text(
+              '${level.quantity}',
+              textAlign: TextAlign.end,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -3939,7 +4039,7 @@ class _InfoPanel extends StatelessWidget {
     required this.icon,
     required this.title,
     required this.body,
-    required this.meta,
+    this.meta = '',
   });
 
   final IconData icon;
@@ -3978,13 +4078,15 @@ class _InfoPanel extends StatelessWidget {
                     ),
                     const SizedBox(height: 6),
                     Text(body),
-                    const SizedBox(height: 8),
-                    Text(
-                      meta,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
-                    ),
+                    if (meta.isNotEmpty) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                        meta,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                   ],
                 ),
               ),
