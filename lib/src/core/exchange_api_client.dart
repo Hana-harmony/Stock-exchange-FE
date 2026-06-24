@@ -245,6 +245,24 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> searchStocks({
+    required String query,
+    String? market,
+    String currency = 'USD',
+    int limit = 20,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/stocks/search',
+      query: {
+        'query': query,
+        if (market != null && market.isNotEmpty && market != 'ALL')
+          'market': market,
+        'currency': currency,
+        'limit': '$limit',
+      },
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getMarketChart({
     required String stockCode,
     required String from,
