@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
-import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -2891,92 +2890,6 @@ class _PopularStockRow extends StatelessWidget {
   }
 }
 
-class _QuoteSnapshotPanel extends StatelessWidget {
-  const _QuoteSnapshotPanel({
-    required this.marketQuoteController,
-    required this.selectedMarket,
-    required this.searchQuery,
-    required this.onSelectQuote,
-  });
-
-  final MarketQuoteController marketQuoteController;
-  final String? selectedMarket;
-  final String searchQuery;
-  final ValueChanged<MarketQuote> onSelectQuote;
-
-  @override
-  Widget build(BuildContext context) {
-    return ValueListenableBuilder<MarketQuoteState>(
-      valueListenable: marketQuoteController,
-      builder: (context, quoteState, child) {
-        final visibleQuotes = _filterQuotes(
-          quoteState.quotes,
-          searchQuery,
-          selectedMarket,
-        );
-        final isLoading = quoteState.status == MarketQuoteStatus.loading;
-
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (isLoading) const LinearProgressIndicator(minHeight: 2),
-            if (isLoading) const SizedBox(height: 12),
-            if (quoteState.errorMessage != null && quoteState.quotes.isNotEmpty)
-              const _InfoPanel(
-                icon: Icons.info_outline,
-                title: 'Prices may be delayed',
-                body: 'Keeping the latest prices on screen.',
-                meta: '',
-              ),
-            if (quoteState.quotes.isEmpty)
-              _InfoPanel(
-                icon: Icons.search_off,
-                title: quoteState.errorMessage == null
-                    ? 'No stocks available'
-                    : 'Prices temporarily unavailable',
-                body: quoteState.errorMessage ??
-                    'Market prices will appear when the exchange API is ready.',
-                meta: '',
-              )
-            else if (visibleQuotes.isEmpty)
-              _InfoPanel(
-                icon: Icons.search_off,
-                title: 'No matching stocks',
-                body: 'No visible quote matches "$searchQuery".',
-                meta: '',
-              )
-            else
-              ...visibleQuotes.map(
-                (quote) => _QuoteRow(
-                  quote: quote,
-                  onTap: () => onSelectQuote(quote),
-                ),
-              ),
-          ],
-        );
-      },
-    );
-  }
-
-  static List<MarketQuote> _filterQuotes(
-    List<MarketQuote> quotes,
-    String query,
-    String? selectedMarket,
-  ) {
-    final normalized = query.toLowerCase();
-    return quotes
-        .where(
-          (quote) =>
-              (selectedMarket == null || quote.market == selectedMarket) &&
-              (normalized.isEmpty ||
-                  quote.stockCode.toLowerCase().contains(normalized) ||
-                  quote.stockName.toLowerCase().contains(normalized) ||
-                  quote.market.toLowerCase().contains(normalized)),
-        )
-        .toList();
-  }
-}
-
 class _AccountQuoteSnapshotPanel extends StatelessWidget {
   const _AccountQuoteSnapshotPanel({
     required this.title,
@@ -3170,13 +3083,6 @@ class _QuoteRow extends StatelessWidget {
 
 bool _isPositiveMove(String value) => !value.trim().startsWith('-');
 
-Widget _currentOnlySwitcherLayout(
-  Widget? currentChild,
-  List<Widget> previousChildren,
-) {
-  return currentChild ?? const SizedBox.shrink();
-}
-
 bool isKoreaRegularMarketOpen(DateTime utcNow) {
   final koreaNow = utcNow.toUtc().add(const Duration(hours: 9));
   final weekday = koreaNow.weekday;
@@ -3215,14 +3121,6 @@ String _rateDisplay(String value) {
     return trimmed;
   }
   return '$trimmed%';
-}
-
-String? _visibleLabel(String value) {
-  final trimmed = value.trim();
-  if (trimmed.isEmpty || trimmed.toUpperCase() == 'UNKNOWN') {
-    return null;
-  }
-  return trimmed;
 }
 
 double? _decimalValue(String value) {
@@ -5569,7 +5467,6 @@ class _SmallBadge extends StatelessWidget {
 
 class _Metric extends StatelessWidget {
   const _Metric({
-    super.key,
     required this.label,
     required this.value,
     this.tabular = false,
