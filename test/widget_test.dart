@@ -37,7 +37,27 @@ void main() {
     expect(find.text('USD 54.01'), findsWidgets);
   });
 
-  testWidgets('filters visible market quotes by stock search', (tester) async {
+  test('labels live quote status as closed outside Korea regular hours', () {
+    expect(
+      marketQuoteLiveStatusLabel(
+        MarketQuoteLiveStatus.connecting,
+        null,
+        nowUtc: DateTime.utc(2026, 6, 24, 7),
+      ),
+      'Closed',
+    );
+    expect(
+      marketQuoteLiveStatusLabel(
+        MarketQuoteLiveStatus.connecting,
+        null,
+        nowUtc: DateTime.utc(2026, 6, 24, 1),
+      ),
+      'Connecting',
+    );
+  });
+
+  testWidgets('searches full stock master and opens selected stock detail',
+      (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1400));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -45,13 +65,98 @@ void main() {
       seedQuotes: seedMarketQuotes,
       apiClient: ExchangeApiClient(
         baseUri: Uri.parse('http://localhost:3000'),
-        httpClient: MockClient((request) async => _jsonEnvelope({})),
+        httpClient: MockClient((request) async {
+          expect(request.url.path, '/api/v1/stocks/search');
+          expect(request.url.queryParameters['query'], '카카오');
+          return _jsonEnvelope({
+            'query': '카카오',
+            'marketFilter': 'ALL',
+            'displayCurrency': 'USD',
+            'resultCount': 2,
+            'results': [
+              {
+                'stockCode': '035720',
+                'stockName': 'Kakao (카카오)',
+                'market': 'KOSPI',
+                'sector': 'IT',
+                'dataSource': 'Hana-OmniLens-API',
+              },
+              {
+                'stockCode': '323410',
+                'stockName': 'KakaoBank (카카오뱅크)',
+                'market': 'KOSPI',
+                'sector': 'Bank',
+                'dataSource': 'Hana-OmniLens-API',
+              }
+            ],
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }),
       ),
     );
     addTearDown(marketQuoteController.dispose);
+    final marketDetailController = MarketDetailController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/chart')) {
+            return _jsonEnvelope({
+              'stockCode': '035720',
+              'interval': '1d',
+              'from': '2026-06-14',
+              'to': '2026-06-18',
+              'displayCurrency': 'USD',
+              'pointCount': 0,
+              'points': [],
+            });
+          }
+          if (request.url.path.endsWith('/orderbook')) {
+            return _jsonEnvelope({
+              'stockCode': '035720',
+              'market': 'KOSPI',
+              'displayCurrency': 'USD',
+              'asks': [],
+              'bids': [],
+            });
+          }
+          return _jsonEnvelope({
+            'stockCode': '035720',
+            'stockName': 'Kakao (카카오)',
+            'market': 'KOSPI',
+            'sector': 'IT',
+            'baseCurrency': 'KRW',
+            'displayCurrency': 'USD',
+            'currentPriceKrw': '59300',
+            'localCurrencyPrice': '38.86',
+            'changeRate': '+0.80%',
+            'volume': 1250000,
+            'foreignOwnershipRate': '28.10',
+            'foreignLimitExhaustionRate': '28.10',
+            'predictedForeignOwnershipRateMin': '28.00',
+            'predictedForeignOwnershipRateMax': '28.20',
+            'predictedForeignLimitExhaustionRateMin': '28.00',
+            'predictedForeignLimitExhaustionRateMax': '28.20',
+            'foreignOwnershipPredictionConfidenceLevel': 'KIS_MASTER',
+            'foreignOwnershipPredictionConfidenceScore': '0.8',
+            'foreignOwnershipPredictionModelVersion': 'v1',
+            'foreignOwnershipBaseDate': '2026-06-18',
+            'viActive': false,
+            'singlePriceTrading': false,
+            'priceLimitState': 'NORMAL',
+            'tradingHalted': false,
+            'orderable': true,
+            'dataSource': 'Hana-OmniLens-API',
+          });
+        }),
+      ),
+    );
+    addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
-      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketDetailController: marketDetailController,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -59,19 +164,22 @@ void main() {
 
     await tester.enterText(
       find.byKey(const ValueKey('market-stock-search-field')),
-      'NAVER',
+      '카카오',
     );
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpAndSettle();
 
-    expect(marketQuoteController.value.quotes.first.stockCode, '005930');
+    expect(find.text('Popular stocks'), findsNothing);
+    expect(find.text('Kakao (카카오)'), findsOneWidget);
+    expect(find.text('KakaoBank (카카오뱅크)'), findsOneWidget);
 
-    await tester.enterText(
-      find.byKey(const ValueKey('market-stock-search-field')),
-      'missing-stock',
-    );
+    final kakaoResult =
+        find.byKey(const ValueKey('stock-search-result-035720'));
+    expect(kakaoResult, findsOneWidget);
+    await tester.tap(kakaoResult);
     await tester.pumpAndSettle();
 
-    expect(find.text('No matching stocks'), findsOneWidget);
+    expect(find.text('Kakao (카카오) 035720'), findsOneWidget);
   });
 
   testWidgets('navigates portfolio, alerts, and tax tabs', (tester) async {
@@ -716,10 +824,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Stock detail, chart, and order book'), findsNothing);
-    expect(find.text('Current price and best quote'), findsOneWidget);
+    expect(find.text('Current price and best quote'), findsNothing);
+    expect(find.text('Trading status'), findsNothing);
+    expect(find.text('Trade Samsung Electronics'), findsNothing);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 54.01'), findsWidgets);
-    expect(find.textContaining('KRW 82400 / USD 54.01'), findsWidgets);
+    expect(find.text('USD / KRW 82400'), findsOneWidget);
     expect(find.text('Order book'), findsOneWidget);
     expect(find.text('54.08'), findsOneWidget);
     expect(find.text('82500'), findsOneWidget);
@@ -727,18 +837,13 @@ void main() {
     expect(find.text('54.01'), findsWidgets);
     expect(find.text('82400'), findsOneWidget);
     expect(find.text('1200'), findsOneWidget);
-    expect(find.text('Single-price trading'), findsWidgets);
-    expect(find.text('UPPER_LIMIT'), findsWidgets);
-    expect(find.text('Foreign ownership gauge'), findsOneWidget);
-    expect(find.text('Today forecast boundary'), findsOneWidget);
-    expect(
-      find.textContaining('Ownership 55.20% - 55.45%'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Limit 55.25% - 55.60%'),
-      findsOneWidget,
-    );
+    expect(find.text('Single-price trading'), findsNothing);
+    expect(find.text('Upper limit'), findsNothing);
+    expect(find.text('Foreign ownership'), findsOneWidget);
+    expect(find.text('Today forecast boundary'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, 'Sell'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Buy'), findsOneWidget);
+    expect(find.textContaining('Limit USD'), findsNothing);
     expect(
       find.textContaining('hannah-foreign-ownership-timeseries-v1'),
       findsNothing,
@@ -756,6 +861,7 @@ void main() {
       find.byKey(const ValueKey('market-history-candle-volume-chart')),
       findsOneWidget,
     );
+    expect(find.widgetWithText(SegmentedButton<String>, '1D'), findsOneWidget);
     expect(find.text('Price (USD)'), findsOneWidget);
   });
 
@@ -1193,7 +1299,7 @@ void main() {
     await connection.closeRemote();
   });
 
-  testWidgets('checks and places mock order through exchange ledger',
+  testWidgets('opens stock detail order sheet from buy and sell actions',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(900, 1900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -1324,23 +1430,8 @@ void main() {
                 'to': '2026-06-18',
                 'baseCurrency': 'KRW',
                 'displayCurrency': 'USD',
-                'pointCount': 1,
-                'points': [
-                  {
-                    'tradeDate': '2026-06-18',
-                    'openPriceKrw': '81000',
-                    'highPriceKrw': '82900',
-                    'lowPriceKrw': '80500',
-                    'closePriceKrw': '82400',
-                    'localCurrency': 'USD',
-                    'openLocalCurrencyPrice': '53.09',
-                    'highLocalCurrencyPrice': '54.34',
-                    'lowLocalCurrencyPrice': '52.76',
-                    'closeLocalCurrencyPrice': '54.01',
-                    'volume': 18300000,
-                    'adjusted': false,
-                  }
-                ],
+                'pointCount': 0,
+                'points': [],
                 'servedAt': '2026-06-18T06:00:01Z',
               },
               'timestamp': '2026-06-18T06:00:01Z',
@@ -1422,33 +1513,39 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Trade Samsung Electronics'), findsOneWidget);
+    expect(find.text('Trade Samsung Electronics'), findsNothing);
+    expect(find.widgetWithText(OutlinedButton, 'Check'), findsNothing);
+    expect(
+      find.widgetWithText(FilledButton, 'Place BUY limit order'),
+      findsNothing,
+    );
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.widgetWithText(OutlinedButton, 'Sell'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Buy'), findsOneWidget);
+    expect(find.text('Limit USD'), findsNothing);
+    expect(find.text('Chart data is not available yet.'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('market-history-candle-volume-chart')),
+      findsOneWidget,
+    );
 
-    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Check'));
-    await tester.drag(find.byType(ListView), const Offset(0, -180));
+    await tester.tap(find.widgetWithText(FilledButton, 'Buy'));
     await tester.pumpAndSettle();
+
+    expect(find.text('Buy Samsung Electronics'), findsOneWidget);
+    expect(find.text('Qty'), findsWidgets);
+    expect(find.text('Limit USD'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Check'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Buy'), findsWidgets);
+
     await tester.tap(find.widgetWithText(OutlinedButton, 'Check'));
     await tester.pumpAndSettle();
-    expect(
-      find.textContaining('Volatility interruption is active'),
-      findsWidgets,
-    );
-    expect(
-      find.textContaining('Buy order is at the upper price limit'),
-      findsWidgets,
-    );
+    expect(find.textContaining('Volatility interruption is active'),
+        findsOneWidget);
 
-    await tester.ensureVisible(
-      find.widgetWithText(FilledButton, 'Place BUY limit order'),
-    );
-    await tester.drag(find.byType(ListView), const Offset(0, -180));
+    await tester.tap(find.widgetWithText(FilledButton, 'Buy').last);
     await tester.pumpAndSettle();
-    await tester
-        .tap(find.widgetWithText(FilledButton, 'Place BUY limit order'));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('BUY 1 Samsung Electronics'), findsOneWidget);
-    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.text('Buy Samsung Electronics'), findsNothing);
   });
 
   testWidgets('shows sell trade realized PnL for tax refund input',
@@ -1857,6 +1954,7 @@ MarketQuoteController _marketQuoteControllerWithSnapshot() {
       baseUri: Uri.parse('http://localhost:3000'),
       httpClient: MockClient((request) async {
         expect(request.url.path, '/api/v1/market/quotes');
+        expect(request.url.queryParameters['stockCodes'], contains('005930'));
         return _jsonEnvelope({
           'dataSource': 'Hana-OmniLens-API',
           'marketCoverage': request.url.queryParameters['market'] ?? 'ALL',

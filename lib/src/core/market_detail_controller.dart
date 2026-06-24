@@ -128,6 +128,24 @@ class StockDetail {
       '$foreignOwnershipPredictionModelVersion / $foreignOwnershipPredictionConfidenceLevel'
       ' $foreignOwnershipPredictionConfidenceScore';
 
+  String get normalizedPriceLimitState {
+    final normalized = priceLimitState.trim().toUpperCase();
+    return switch (normalized) {
+      'UPPER' || 'UPPER_LIMIT' => 'UPPER',
+      'LOWER' || 'LOWER_LIMIT' => 'LOWER',
+      'NORMAL' => 'NORMAL',
+      _ => 'NORMAL',
+    };
+  }
+
+  String get priceLimitDisplay {
+    return switch (normalizedPriceLimitState) {
+      'UPPER' => 'Upper limit',
+      'LOWER' => 'Lower limit',
+      _ => 'Normal',
+    };
+  }
+
   String get riskBadge {
     if (tradingHalted) {
       return 'Trading halted';
@@ -138,8 +156,8 @@ class StockDetail {
     if (singlePriceTrading) {
       return 'Single-price trading';
     }
-    if (priceLimitState != 'NORMAL') {
-      return priceLimitState;
+    if (normalizedPriceLimitState != 'NORMAL') {
+      return priceLimitDisplay;
     }
     return orderable ? 'Orderable' : 'Restricted';
   }
@@ -449,7 +467,7 @@ class MarketDetailController extends ValueNotifier<MarketDetailState> {
       );
     } on ExchangeApiException catch (error) {
       value = MarketDetailState.failure(
-        errorMessage: error.message,
+        errorMessage: _stockDetailErrorMessage(error),
         detail: value.detail,
         chart: value.chart,
         orderBook: value.orderBook,
@@ -463,6 +481,54 @@ class MarketDetailController extends ValueNotifier<MarketDetailState> {
       );
     }
   }
+
+  Future<void> refreshOrderBook({
+    required String stockCode,
+    String currency = 'USD',
+  }) async {
+    final normalizedStockCode = stockCode.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(normalizedStockCode)) {
+      return;
+    }
+
+    try {
+      final response = await _apiClient.getOrderBook(
+        stockCode: normalizedStockCode,
+        currency: currency,
+      );
+      value = MarketDetailState(
+        status: _statusAfterOrderBookRefresh(value),
+        detail: value.detail,
+        chart: value.chart,
+        orderBook: MarketOrderBook.fromJson(response.data ?? {}),
+        errorMessage: value.status == MarketDetailStatus.failure
+            ? value.errorMessage
+            : null,
+      );
+    } on Object {
+      value = MarketDetailState(
+        status: value.status,
+        detail: value.detail,
+        chart: value.chart,
+        orderBook: value.orderBook,
+        errorMessage: value.errorMessage,
+      );
+    }
+  }
+}
+
+MarketDetailStatus _statusAfterOrderBookRefresh(MarketDetailState state) {
+  if (state.detail != null && state.chart != null) {
+    return MarketDetailStatus.loaded;
+  }
+  return state.status;
+}
+
+String _stockDetailErrorMessage(ExchangeApiException error) {
+  if (error.status == 503 || error.code.startsWith('MARKET_')) {
+    return 'Market data is temporarily unavailable.';
+  }
+  return error.message;
 }
 
 Map<String, dynamic> _map(Object? value) {

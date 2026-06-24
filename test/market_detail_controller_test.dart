@@ -91,6 +91,81 @@ void main() {
     expect(controller.value.status, MarketDetailStatus.failure);
     expect(controller.value.errorMessage, 'Enter a 6 digit Korean stock code.');
   });
+
+  test('refreshes order book without reloading detail or chart', () async {
+    final paths = <String>[];
+    var orderBookCalls = 0;
+    final controller = MarketDetailController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          paths.add(request.url.path);
+
+          if (request.url.path.endsWith('/chart')) {
+            return _jsonResponse(_chartJson());
+          }
+          if (request.url.path.endsWith('/orderbook')) {
+            orderBookCalls += 1;
+            return _jsonResponse(
+              _orderBookJson(bidQuantity: orderBookCalls == 1 ? 1200 : 2400),
+            );
+          }
+          return _jsonResponse(_detailJson());
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.loadStock(
+      stockCode: '005930',
+      from: DateTime.utc(2026, 6, 1),
+      to: DateTime.utc(2026, 6, 18),
+    );
+    await controller.refreshOrderBook(stockCode: '005930');
+
+    expect(controller.value.status, MarketDetailStatus.loaded);
+    expect(controller.value.detail?.stockName, 'Samsung Electronics');
+    expect(controller.value.chart?.pointCount, 1);
+    expect(controller.value.orderBook?.bestBid?.quantity, 2400);
+    expect(paths, [
+      '/api/v1/stocks/005930',
+      '/api/v1/market/stocks/005930/chart',
+      '/api/v1/market/stocks/005930/orderbook',
+      '/api/v1/market/stocks/005930/orderbook',
+    ]);
+  });
+
+  test('hides upstream market json when stock detail provider is unavailable',
+      () async {
+    final controller = MarketDetailController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          return http.Response(
+            jsonEncode({
+              'success': false,
+              'status': 503,
+              'code': 'MARKET_002',
+              'message':
+                  'No live provider price is available for stockCode=000660',
+              'timestamp': '2026-06-24T04:55:13Z',
+            }),
+            503,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.loadStock(stockCode: '000660');
+
+    expect(controller.value.status, MarketDetailStatus.failure);
+    expect(
+      controller.value.errorMessage,
+      'Market data is temporarily unavailable.',
+    );
+  });
 }
 
 http.Response _jsonResponse(Map<String, Object?> data) {
@@ -169,7 +244,10 @@ Map<String, Object?> _chartJson() {
   };
 }
 
-Map<String, Object?> _orderBookJson() {
+Map<String, Object?> _orderBookJson({
+  int askQuantity = 800,
+  int bidQuantity = 1200,
+}) {
   return {
     'dataSource': 'Hana-OmniLens-API',
     'stockCode': '005930',
@@ -180,7 +258,7 @@ Map<String, Object?> _orderBookJson() {
       {
         'priceKrw': '82500',
         'localCurrencyPrice': '54.08',
-        'quantity': 800,
+        'quantity': askQuantity,
         'orderCount': 12,
       }
     ],
@@ -188,7 +266,7 @@ Map<String, Object?> _orderBookJson() {
       {
         'priceKrw': '82400',
         'localCurrencyPrice': '54.01',
-        'quantity': 1200,
+        'quantity': bidQuantity,
         'orderCount': 19,
       }
     ],
