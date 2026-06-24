@@ -417,12 +417,8 @@ void main() {
     expect(marketQuoteController.value.quotes.single.stockName, 'SK hynix');
     expect(
         marketQuoteController.value.quotes.single.localCurrencyPrice, '184.16');
-    expect(
-      find.text(
-        'FX 1525.80 / 2026-06-18T06:00:00.000Z / source Hana-OmniLens-API / stale',
-      ),
-      findsWidgets,
-    );
+    expect(find.text('USD 184.16'), findsWidgets);
+    expect(find.textContaining('source Hana-OmniLens-API'), findsNothing);
   });
 
   testWidgets('filters market quote snapshot by selected market',
@@ -719,19 +715,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Stock detail, chart, and order book'), findsOneWidget);
+    expect(find.text('Stock detail, chart, and order book'), findsNothing);
     expect(find.text('Current price and best quote'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 54.01'), findsWidgets);
     expect(find.textContaining('KRW 82400 / USD 54.01'), findsWidgets);
-    expect(
-      find.textContaining('Best ask KRW 82500 / USD 54.08 x 800'),
-      findsOneWidget,
-    );
-    expect(
-      find.textContaining('Best bid KRW 82400 / USD 54.01 x 1200'),
-      findsOneWidget,
-    );
+    expect(find.text('Order book'), findsOneWidget);
+    expect(find.text('54.08'), findsOneWidget);
+    expect(find.text('82500'), findsOneWidget);
+    expect(find.text('800'), findsOneWidget);
+    expect(find.text('54.01'), findsWidgets);
+    expect(find.text('82400'), findsOneWidget);
+    expect(find.text('1200'), findsOneWidget);
     expect(find.text('Single-price trading'), findsWidgets);
     expect(find.text('UPPER_LIMIT'), findsWidgets);
     expect(find.text('Foreign ownership gauge'), findsOneWidget);
@@ -746,7 +741,7 @@ void main() {
     );
     expect(
       find.textContaining('hannah-foreign-ownership-timeseries-v1'),
-      findsOneWidget,
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey('foreign-ownership-rate-gauge')),
@@ -756,15 +751,12 @@ void main() {
       find.byKey(const ValueKey('foreign-limit-rate-gauge')),
       findsOneWidget,
     );
-    expect(find.text('Price candles and volume'), findsOneWidget);
+    expect(find.text('Price chart'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('market-history-candle-volume-chart')),
       findsOneWidget,
     );
-    expect(
-      find.textContaining('Ask KRW 82500 / USD 54.08 x 800'),
-      findsOneWidget,
-    );
+    expect(find.text('Price (USD)'), findsOneWidget);
   });
 
   testWidgets('refreshes account portfolio quotes after sign in',
