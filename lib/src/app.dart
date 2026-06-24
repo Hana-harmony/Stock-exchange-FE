@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' show FontFeature;
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -322,8 +324,25 @@ class MarketScreen extends StatefulWidget {
 }
 
 class _MarketScreenState extends State<MarketScreen> {
+  static const List<String> _homePopularStockCodes = [
+    '005930',
+    '000660',
+    '035720',
+    '035420',
+    '005380',
+    '000270',
+    '068270',
+    '105560',
+    '055550',
+    '086790',
+  ];
+
   String _selectedMarket = 'ALL';
   String _searchQuery = '';
+  Timer? _searchDebounceTimer;
+  bool _isSearchingStocks = false;
+  List<StockSearchItem> _stockSearchResults = const [];
+  String? _stockSearchError;
 
   String? get _marketQuery => _selectedMarket == 'ALL' ? null : _selectedMarket;
 
@@ -335,7 +354,7 @@ class _MarketScreenState extends State<MarketScreen> {
         quoteState.quotes.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          widget.marketQuoteController.loadSnapshot(market: _marketQuery);
+          _loadHomeSnapshot();
         }
       });
     }
@@ -343,10 +362,27 @@ class _MarketScreenState extends State<MarketScreen> {
         quoteState.liveStatus == MarketQuoteLiveStatus.disconnected) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          widget.marketQuoteController.subscribeLive(market: _marketQuery);
+          _subscribeHomeLive();
         }
       });
     }
+  }
+
+  void _loadHomeSnapshot() {
+    widget.marketQuoteController.loadSnapshot(
+      market: _marketQuery,
+      stockCodes: _homePopularStockCodes,
+    );
+  }
+
+  void _subscribeHomeLive() {
+    if (!widget.marketQuoteController.canSubscribeLive) {
+      return;
+    }
+    widget.marketQuoteController.subscribeLive(
+      market: _marketQuery,
+      stockCodes: _homePopularStockCodes,
+    );
   }
 
   void _selectMarket(String market) {
@@ -356,24 +392,33 @@ class _MarketScreenState extends State<MarketScreen> {
     setState(() {
       _selectedMarket = market;
     });
-    widget.marketQuoteController.loadSnapshot(
-      market: market == 'ALL' ? null : market,
-    );
-    if (widget.marketQuoteController.canSubscribeLive) {
-      widget.marketQuoteController.subscribeLive(
-        market: market == 'ALL' ? null : market,
-      );
-    }
+    _loadHomeSnapshot();
+    _subscribeHomeLive();
   }
 
   void _searchStocks(String query) {
+    _searchDebounceTimer?.cancel();
+    final normalized = query.trim();
     setState(() {
-      _searchQuery = query.trim();
+      _searchQuery = normalized;
+      _stockSearchError = null;
+      if (normalized.isEmpty) {
+        _isSearchingStocks = false;
+        _stockSearchResults = const [];
+      }
     });
+    if (normalized.isEmpty) {
+      return;
+    }
+    _searchDebounceTimer = Timer(
+      const Duration(milliseconds: 250),
+      () => _loadStockSearchResults(normalized),
+    );
   }
 
   void _openStockDetails(MarketQuote quote) {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute<void>(
         builder: (context) => StockDetailScreen(
           sessionController: widget.sessionController,
@@ -384,31 +429,102 @@ class _MarketScreenState extends State<MarketScreen> {
           title: quote.stockName,
         ),
       ),
-    );
+    )
+        .then((_) {
+      if (mounted) {
+        _subscribeHomeLive();
+      }
+    });
+  }
+
+  void _openStockSearchResult(StockSearchItem item) {
+    Navigator.of(context)
+        .push(
+      MaterialPageRoute<void>(
+        builder: (context) => StockDetailScreen(
+          sessionController: widget.sessionController,
+          marketDetailController: widget.marketDetailController,
+          marketQuoteController: widget.marketQuoteController,
+          tradeController: widget.tradeController,
+          stockCode: item.stockCode,
+          title: item.stockName,
+        ),
+      ),
+    )
+        .then((_) {
+      if (mounted) {
+        _subscribeHomeLive();
+      }
+    });
+  }
+
+  Future<void> _loadStockSearchResults(String query) async {
+    if (!mounted || query != _searchQuery) {
+      return;
+    }
+    setState(() {
+      _isSearchingStocks = true;
+      _stockSearchError = null;
+    });
+    try {
+      final response = await widget.marketQuoteController.searchStocks(
+        query: query,
+        market: _marketQuery,
+        limit: 20,
+      );
+      if (!mounted || query != _searchQuery) {
+        return;
+      }
+      setState(() {
+        _stockSearchResults = response.results;
+        _isSearchingStocks = false;
+      });
+    } on Object {
+      if (!mounted || query != _searchQuery) {
+        return;
+      }
+      setState(() {
+        _stockSearchResults = const [];
+        _isSearchingStocks = false;
+        _stockSearchError = 'Unable to search Korean stocks.';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _searchDebounceTimer?.cancel();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final hasSearchQuery = _searchQuery.isNotEmpty;
     return _ScreenFrame(
       title: 'Korea Market',
       subtitle: 'Live Korea stock quotes with KRW and USD pricing.',
       children: [
         _SearchField(onChanged: _searchStocks),
-        _MarketFilters(
-          selectedMarket: _selectedMarket,
-          onSelected: _selectMarket,
-        ),
-        _PopularStocksPanel(
-          marketQuoteController: widget.marketQuoteController,
-          selectedMarket: _marketQuery,
-          onSelectQuote: _openStockDetails,
-        ),
-        _QuoteSnapshotPanel(
-          marketQuoteController: widget.marketQuoteController,
-          selectedMarket: _marketQuery,
-          searchQuery: _searchQuery,
-          onSelectQuote: _openStockDetails,
-        ),
+        if (hasSearchQuery)
+          _StockSearchResultsPanel(
+            query: _searchQuery,
+            isLoading: _isSearchingStocks,
+            results: _stockSearchResults,
+            errorMessage: _stockSearchError,
+            onSelect: _openStockSearchResult,
+          )
+        else ...[
+          _MarketFilters(
+            selectedMarket: _selectedMarket,
+            onSelected: _selectMarket,
+          ),
+          _PopularStocksPanel(
+            marketQuoteController: widget.marketQuoteController,
+            selectedMarket: _marketQuery,
+            stockCodes: _homePopularStockCodes,
+            onSelectQuote: _openStockDetails,
+          ),
+        ],
       ],
     );
   }
@@ -1769,6 +1885,167 @@ class _SearchField extends StatelessWidget {
   }
 }
 
+class _StockSearchResultsPanel extends StatelessWidget {
+  const _StockSearchResultsPanel({
+    required this.query,
+    required this.isLoading,
+    required this.results,
+    required this.errorMessage,
+    required this.onSelect,
+  });
+
+  final String query;
+  final bool isLoading;
+  final List<StockSearchItem> results;
+  final String? errorMessage;
+  final ValueChanged<StockSearchItem> onSelect;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (isLoading) const LinearProgressIndicator(minHeight: 2),
+        if (isLoading) const SizedBox(height: 12),
+        if (errorMessage != null)
+          _InfoPanel(
+            icon: Icons.search_off,
+            title: 'Search unavailable',
+            body: errorMessage!,
+            meta: '',
+          )
+        else if (!isLoading && results.isEmpty)
+          _InfoPanel(
+            icon: Icons.search_off,
+            title: 'No matching stocks',
+            body: 'No Korean stock matches "$query".',
+            meta: '',
+          )
+        else
+          ...results.map(
+            (result) => Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: InkWell(
+                key: ValueKey('stock-search-result-${result.stockCode}'),
+                onTap: () => onSelect(result),
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Row(
+                    children: [
+                      _StockSearchAvatar(result: result),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _HighlightedStockName(
+                              name: result.stockName,
+                              query: query,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${result.stockCode} / ${result.market}',
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color: colorScheme.onSurfaceVariant,
+                                  ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Icon(
+                        Icons.chevron_right,
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _StockSearchAvatar extends StatelessWidget {
+  const _StockSearchAvatar({required this.result});
+
+  final StockSearchItem result;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (result.market) {
+      'KOSDAQ' => const Color(0xFF2563EB),
+      'KONEX' => const Color(0xFF7C3AED),
+      _ => const Color(0xFF0F766E),
+    };
+    final label = result.stockName.isEmpty
+        ? result.stockCode
+        : result.stockName.substring(0, math.min(result.stockName.length, 2));
+
+    return CircleAvatar(
+      radius: 28,
+      backgroundColor: color.withAlpha(24),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.clip,
+        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+              color: color,
+              fontWeight: FontWeight.w800,
+            ),
+      ),
+    );
+  }
+}
+
+class _HighlightedStockName extends StatelessWidget {
+  const _HighlightedStockName({
+    required this.name,
+    required this.query,
+  });
+
+  final String name;
+  final String query;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedName = name.toLowerCase();
+    final normalizedQuery = query.toLowerCase();
+    final start = normalizedName.indexOf(normalizedQuery);
+    final style = Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w700,
+        );
+    if (start < 0 || normalizedQuery.isEmpty) {
+      return Text(name,
+          maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
+    }
+
+    final end = start + query.length;
+    return Text.rich(
+      TextSpan(
+        style: style,
+        children: [
+          TextSpan(text: name.substring(0, start)),
+          TextSpan(
+            text: name.substring(start, end),
+            style: TextStyle(color: Theme.of(context).colorScheme.primary),
+          ),
+          TextSpan(text: name.substring(end)),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
 class _MarketFilters extends StatelessWidget {
   const _MarketFilters({
     required this.selectedMarket,
@@ -2404,11 +2681,13 @@ class _PopularStocksPanel extends StatelessWidget {
   const _PopularStocksPanel({
     required this.marketQuoteController,
     required this.selectedMarket,
+    required this.stockCodes,
     required this.onSelectQuote,
   });
 
   final MarketQuoteController marketQuoteController;
   final String? selectedMarket;
+  final List<String> stockCodes;
   final ValueChanged<MarketQuote> onSelectQuote;
 
   @override
@@ -2416,7 +2695,11 @@ class _PopularStocksPanel extends StatelessWidget {
     return ValueListenableBuilder<MarketQuoteState>(
       valueListenable: marketQuoteController,
       builder: (context, quoteState, child) {
-        final popularQuotes = _popularQuotes(quoteState.quotes, selectedMarket);
+        final popularQuotes = _popularQuotes(
+          quoteState.quotes,
+          selectedMarket,
+          stockCodes,
+        );
         final colorScheme = Theme.of(context).colorScheme;
 
         return Padding(
@@ -2476,14 +2759,18 @@ class _PopularStocksPanel extends StatelessWidget {
   static List<MarketQuote> _popularQuotes(
     List<MarketQuote> quotes,
     String? selectedMarket,
+    List<String> stockCodes,
   ) {
+    final allowed = stockCodes.toSet();
     final filtered = quotes
         .where(
-          (quote) => selectedMarket == null || quote.market == selectedMarket,
+          (quote) =>
+              allowed.contains(quote.stockCode) &&
+              (selectedMarket == null || quote.market == selectedMarket),
         )
         .toList()
       ..sort((left, right) => right.volume.compareTo(left.volume));
-    return filtered.take(5).toList(growable: false);
+    return filtered.toList(growable: false);
   }
 }
 
@@ -2502,6 +2789,8 @@ class _PopularStockRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final positive = _isPositiveMove(quote.changeRate);
+    final afterHoursMove = quote.afterHoursChangeRate ?? '';
+    final afterHoursPositive = _isPositiveMove(afterHoursMove);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -2527,6 +2816,7 @@ class _PopularStockRow extends StatelessWidget {
                 children: [
                   Text(
                     quote.stockName,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                           fontWeight: FontWeight.w700,
@@ -2548,18 +2838,13 @@ class _PopularStockRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: Text(
-                      quote.localCurrencyDisplay,
-                      key: ValueKey(
-                        'popular-price-${quote.stockCode}-${quote.localCurrencyPrice}',
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                      textAlign: TextAlign.end,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                  Text(
+                    quote.localCurrencyDisplay,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -2572,6 +2857,30 @@ class _PopularStockRow extends StatelessWidget {
                           fontWeight: FontWeight.w700,
                         ),
                   ),
+                  if (quote.hasAfterHoursPrice) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'AH ${quote.afterHoursLocalCurrencyDisplay}',
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.end,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                    if (afterHoursMove.trim().isNotEmpty)
+                      Text(
+                        _rateDisplay(afterHoursMove),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: afterHoursPositive
+                              ? Colors.teal.shade700
+                              : colorScheme.error,
+                          fontWeight: FontWeight.w700,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                  ],
                 ],
               ),
             ),
@@ -2836,10 +3145,12 @@ class _QuoteRow extends StatelessWidget {
                   spacing: 16,
                   runSpacing: 8,
                   children: [
-                    _Metric(label: 'KRW', value: quote.krwDisplay),
+                    _Metric(
+                        label: 'KRW', value: quote.krwDisplay, tabular: true),
                     _Metric(
                       label: quote.localCurrency,
                       value: quote.localCurrencyDisplay,
+                      tabular: true,
                     ),
                     _Metric(
                       label: 'Move',
@@ -2859,6 +3170,45 @@ class _QuoteRow extends StatelessWidget {
 
 bool _isPositiveMove(String value) => !value.trim().startsWith('-');
 
+Widget _currentOnlySwitcherLayout(
+  Widget? currentChild,
+  List<Widget> previousChildren,
+) {
+  return currentChild ?? const SizedBox.shrink();
+}
+
+bool isKoreaRegularMarketOpen(DateTime utcNow) {
+  final koreaNow = utcNow.toUtc().add(const Duration(hours: 9));
+  final weekday = koreaNow.weekday;
+  if (weekday == DateTime.saturday || weekday == DateTime.sunday) {
+    return false;
+  }
+  final minutes = koreaNow.hour * 60 + koreaNow.minute;
+  const openMinutes = 9 * 60;
+  const closeMinutes = 15 * 60 + 30;
+  return minutes >= openMinutes && minutes < closeMinutes;
+}
+
+String marketQuoteLiveStatusLabel(
+  MarketQuoteLiveStatus status,
+  MarketQuote? liveQuote, {
+  DateTime? nowUtc,
+}) {
+  if (liveQuote?.hasAfterHoursPrice ?? false) {
+    return 'After-hours';
+  }
+  if (!isKoreaRegularMarketOpen(nowUtc ?? DateTime.now().toUtc())) {
+    return 'Closed';
+  }
+  if (status == MarketQuoteLiveStatus.live && liveQuote != null) {
+    return 'Live';
+  }
+  if (status == MarketQuoteLiveStatus.connecting) {
+    return 'Connecting';
+  }
+  return 'Delayed';
+}
+
 String _rateDisplay(String value) {
   final trimmed = value.trim();
   if (trimmed.isEmpty || trimmed.endsWith('%')) {
@@ -2867,16 +3217,17 @@ String _rateDisplay(String value) {
   return '$trimmed%';
 }
 
+String? _visibleLabel(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty || trimmed.toUpperCase() == 'UNKNOWN') {
+    return null;
+  }
+  return trimmed;
+}
+
 double? _decimalValue(String value) {
   final normalized = value.replaceAll(',', '').trim();
   return double.tryParse(normalized);
-}
-
-String _defaultLimitPrice(StockDetail detail) {
-  final parsed = _decimalValue(
-    detail.localCurrencyDisplay.replaceAll(detail.displayCurrency, ''),
-  );
-  return (parsed ?? 0).toStringAsFixed(2);
 }
 
 class _ChartPeriodRange {
@@ -2889,8 +3240,8 @@ class _ChartPeriodRange {
     final to = DateTime.now().toUtc();
     final days = switch (period) {
       '1D' => 5,
-      '1W' => 14,
-      '1M' => 45,
+      '1W' => 7,
+      '1M' => 30,
       _ => 30,
     };
     return _ChartPeriodRange(
@@ -2922,14 +3273,23 @@ class _StockDetailPanel extends StatefulWidget {
 class _StockDetailPanelState extends State<_StockDetailPanel> {
   late final String _stockCode;
   String _selectedPeriod = '1D';
+  Timer? _orderBookRefreshTimer;
+  bool _isRefreshingOrderBook = false;
+  final List<_LivePricePoint> _livePricePoints = [];
+  String? _lastLivePriceKey;
 
   @override
   void initState() {
     super.initState();
     _stockCode = widget.initialStockCode ?? '005930';
+    widget.marketQuoteController.addListener(_recordLivePricePoint);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         _loadSelectedPeriod();
+        if (widget.marketQuoteController.canSubscribeLive) {
+          widget.marketQuoteController.subscribeLive(stockCodes: [_stockCode]);
+        }
+        _startOrderBookRefresh();
       }
     });
   }
@@ -2942,6 +3302,79 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
       from: chartRange.from,
       to: chartRange.to,
     );
+  }
+
+  void _startOrderBookRefresh() {
+    _orderBookRefreshTimer?.cancel();
+    _orderBookRefreshTimer = Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _refreshOrderBook(),
+    );
+  }
+
+  Future<void> _refreshOrderBook() async {
+    if (_isRefreshingOrderBook) {
+      return;
+    }
+    _isRefreshingOrderBook = true;
+    try {
+      await widget.marketDetailController.refreshOrderBook(
+        stockCode: _stockCode,
+      );
+    } finally {
+      _isRefreshingOrderBook = false;
+    }
+  }
+
+  void _recordLivePricePoint() {
+    final quote = _liveQuoteForStockCode(
+      _stockCode,
+      widget.marketQuoteController.value.quotes,
+    );
+    if (quote == null) {
+      return;
+    }
+    final price = _decimalValue(quote.localCurrencyPrice);
+    if (price == null) {
+      return;
+    }
+    final key = quote.liveUpdateKey;
+    if (_lastLivePriceKey == key) {
+      return;
+    }
+    _lastLivePriceKey = key;
+    final point = _LivePricePoint(
+      at: quote.marketDataTime ?? quote.publishedAt ?? DateTime.now().toUtc(),
+      price: price,
+      volume: quote.volume,
+      currency: quote.localCurrency,
+    );
+    if (!mounted) {
+      _livePricePoints.add(point);
+      _trimLivePricePoints();
+      return;
+    }
+    setState(() {
+      _livePricePoints.add(point);
+      _trimLivePricePoints();
+    });
+  }
+
+  void _trimLivePricePoints() {
+    const maxLivePoints = 240;
+    if (_livePricePoints.length > maxLivePoints) {
+      _livePricePoints.removeRange(
+        0,
+        _livePricePoints.length - maxLivePoints,
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _orderBookRefreshTimer?.cancel();
+    widget.marketQuoteController.removeListener(_recordLivePricePoint);
+    super.dispose();
   }
 
   @override
@@ -2980,28 +3413,8 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                                   ),
                         ),
                       ),
-                      if (detail != null) _SmallBadge(label: detail.riskBadge),
+                      if (detail != null) _SmallBadge(label: detail.stockCode),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: SegmentedButton<String>(
-                      segments: const [
-                        ButtonSegment(value: '1D', label: Text('1D')),
-                        ButtonSegment(value: '1W', label: Text('1W')),
-                        ButtonSegment(value: '1M', label: Text('1M')),
-                      ],
-                      selected: {_selectedPeriod},
-                      onSelectionChanged: isLoading
-                          ? null
-                          : (selected) {
-                              setState(() {
-                                _selectedPeriod = selected.single;
-                              });
-                              _loadSelectedPeriod();
-                            },
-                    ),
                   ),
                   const SizedBox(height: 12),
                   if (detailState.errorMessage != null)
@@ -3035,65 +3448,28 @@ class _StockDetailPanelState extends State<_StockDetailPanel> {
                               liveQuote: liveQuote,
                               liveStatus: quoteState.liveStatus,
                             ),
-                            _CurrentPriceSummaryPanel(
-                              detail: detail,
-                              orderBook: orderBook,
-                            ),
-                            Wrap(
-                              spacing: 16,
-                              runSpacing: 10,
-                              children: [
-                                _Metric(label: 'Name', value: detail.stockName),
-                                _Metric(label: 'KRW', value: detail.krwDisplay),
-                                _Metric(
-                                  label: detail.displayCurrency,
-                                  value: detail.localCurrencyDisplay,
-                                ),
-                                _Metric(
-                                  label: 'Move',
-                                  value: _rateDisplay(detail.changeRate),
-                                ),
-                                _Metric(
-                                  label: 'Foreign owned',
-                                  value: '${detail.foreignOwnershipRate}%',
-                                ),
-                                _Metric(
-                                  label: 'Foreign limit',
-                                  value:
-                                      '${detail.foreignLimitExhaustionRate}%',
-                                ),
-                                _Metric(
-                                  label: 'Price limit',
-                                  value: detail.priceLimitState,
-                                ),
-                                _Metric(
-                                  label: 'Single price',
-                                  value: detail.singlePriceTrading
-                                      ? 'Active'
-                                      : 'Normal',
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            _InfoPanel(
-                              icon: Icons.public,
-                              title: 'Trading status',
-                              body:
-                                  '${detail.market} / ${detail.sector} / volume ${detail.volume}',
-                              meta: detail.riskBadge,
-                            ),
-                            _ForeignOwnershipGaugePanel(detail: detail),
-                            _ForeignBoundaryPanel(detail: detail),
-                            _DetailOrderPanel(
-                              sessionController: widget.sessionController,
-                              tradeController: widget.tradeController,
-                              detail: detail,
-                            ),
                             _MarketHistoryChartPanel(
                               chart: chart,
                               selectedPeriod: _selectedPeriod,
+                              livePoints: List.unmodifiable(_livePricePoints),
+                              fallbackCandle:
+                                  _fallbackCandle(detail, liveQuote),
+                              isLoading: isLoading,
+                              onPeriodSelected: (period) {
+                                setState(() {
+                                  _selectedPeriod = period;
+                                });
+                                _loadSelectedPeriod();
+                              },
                             ),
                             _OrderBookPreview(orderBook: orderBook),
+                            _ForeignOwnershipGaugePanel(detail: detail),
+                            _DetailTradeActionBar(
+                              sessionController: widget.sessionController,
+                              tradeController: widget.tradeController,
+                              detail: detail,
+                              liveQuote: liveQuote,
+                            ),
                           ],
                         );
                       },
@@ -3127,127 +3503,374 @@ class _DetailLivePricePanel extends StatelessWidget {
         liveQuote?.localCurrencyDisplay ?? detail.localCurrencyDisplay;
     final currentKrw = liveQuote?.krwDisplay ?? detail.krwDisplay;
     final currentMove = liveQuote?.changeRate ?? detail.changeRate;
+    final positive = _isPositiveMove(currentMove);
+    final quote = liveQuote;
+    final afterHoursQuote =
+        quote != null && quote.hasAfterHoursPrice ? quote : null;
+    final afterHoursMove = afterHoursQuote?.afterHoursChangeRate ?? '';
+    final afterHoursPositive = _isPositiveMove(afterHoursMove);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border.all(color: colorScheme.outlineVariant),
-          borderRadius: BorderRadius.circular(8),
-          color: colorScheme.surface,
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(14),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            currentPrice,
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+              fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          const SizedBox(height: 4),
+          Wrap(
+            spacing: 10,
+            runSpacing: 4,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.bolt_outlined, color: colorScheme.primary),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'Price',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+              Text(
+                '$currentCurrency / $currentKrw',
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
                     ),
-                  ),
-                  _SmallBadge(label: _liveStatusLabel(liveStatus, liveQuote)),
-                ],
               ),
-              const SizedBox(height: 12),
-              Wrap(
-                spacing: 16,
-                runSpacing: 8,
-                children: [
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: _Metric(
-                      key: ValueKey(
-                        'detail-live-price-${detail.stockCode}-$currentPrice',
-                      ),
-                      label: currentCurrency,
-                      value: currentPrice,
-                    ),
-                  ),
-                  _Metric(label: 'KRW', value: currentKrw),
-                  _Metric(label: 'Move', value: _rateDisplay(currentMove)),
-                ],
-              ),
-              const SizedBox(height: 8),
-              if (liveQuote == null)
-                Text(
-                  'Latest confirmed quote',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+              Text(
+                _rateDisplay(currentMove),
+                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  color: positive ? Colors.teal.shade700 : colorScheme.error,
+                  fontWeight: FontWeight.w800,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
+              ),
+              _SmallBadge(
+                label: marketQuoteLiveStatusLabel(liveStatus, liveQuote),
+              ),
             ],
           ),
-        ),
+          if (afterHoursQuote != null) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'After-hours',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w700,
+                      ),
+                ),
+                Text(
+                  afterHoursQuote.afterHoursLocalCurrencyDisplay,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                Text(
+                  afterHoursQuote.afterHoursKrwDisplay,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                  ),
+                ),
+                if (afterHoursMove.trim().isNotEmpty)
+                  Text(
+                    _rateDisplay(afterHoursMove),
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: afterHoursPositive
+                          ? Colors.teal.shade700
+                          : colorScheme.error,
+                      fontWeight: FontWeight.w800,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+        ],
       ),
     );
-  }
-
-  static String _liveStatusLabel(
-    MarketQuoteLiveStatus status,
-    MarketQuote? liveQuote,
-  ) {
-    if (status == MarketQuoteLiveStatus.live && liveQuote != null) {
-      return 'Live';
-    }
-    if (status == MarketQuoteLiveStatus.connecting) {
-      return 'Connecting';
-    }
-    return 'Delayed';
   }
 }
 
 MarketQuote? _liveQuoteForDetail(StockDetail detail, List<MarketQuote> quotes) {
+  return _liveQuoteForStockCode(detail.stockCode, quotes);
+}
+
+MarketQuote? _liveQuoteForStockCode(
+    String stockCode, List<MarketQuote> quotes) {
   for (final quote in quotes) {
-    if (quote.stockCode == detail.stockCode) {
+    if (quote.stockCode == stockCode) {
       return quote;
     }
   }
   return null;
 }
 
-class _CurrentPriceSummaryPanel extends StatelessWidget {
-  const _CurrentPriceSummaryPanel({
+_ChartCandle? _fallbackCandle(StockDetail detail, MarketQuote? liveQuote) {
+  final price = _decimalValue(
+    liveQuote?.localCurrencyPrice ?? detail.localCurrencyPrice,
+  );
+  if (price == null || price <= 0) {
+    return null;
+  }
+  return _ChartCandle(
+    at: liveQuote?.marketDataTime ?? detail.marketDataTime ?? DateTime.now(),
+    open: price,
+    high: price,
+    low: price,
+    close: price,
+    volume: liveQuote?.volume ?? detail.volume,
+    currency: liveQuote?.localCurrency ?? detail.displayCurrency,
+  );
+}
+
+class _DetailTradeActionBar extends StatelessWidget {
+  const _DetailTradeActionBar({
+    required this.sessionController,
+    required this.tradeController,
     required this.detail,
-    required this.orderBook,
+    required this.liveQuote,
   });
 
+  final ExchangeSessionController sessionController;
+  final TradeController tradeController;
   final StockDetail detail;
-  final MarketOrderBook? orderBook;
+  final MarketQuote? liveQuote;
 
   @override
   Widget build(BuildContext context) {
-    final bestAsk = orderBook?.bestAsk;
-    final bestBid = orderBook?.bestBid;
-    final orderBookTime =
-        orderBook?.marketDataTime?.toUtc().toIso8601String() ?? 'pending';
-
-    return _InfoPanel(
-      icon: Icons.price_change_outlined,
-      title: 'Current price and best quote',
-      body:
-          '${detail.krwDisplay} / ${detail.localCurrencyDisplay} / ${_rateDisplay(detail.changeRate)}',
-      meta:
-          'Best ask ${_levelDisplay(bestAsk, orderBook)} / Best bid ${_levelDisplay(bestBid, orderBook)} / $orderBookTime',
+    return ValueListenableBuilder<ExchangeSessionState>(
+      valueListenable: sessionController,
+      builder: (context, sessionState, child) {
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: () => _openOrderSheet(context, 'SELL'),
+                  icon: const Icon(Icons.sell_outlined),
+                  label: const Text('Sell'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: () => _openOrderSheet(context, 'BUY'),
+                  icon: const Icon(Icons.add_shopping_cart),
+                  label: const Text('Buy'),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  static String _levelDisplay(
-    OrderBookLevel? level,
-    MarketOrderBook? orderBook,
-  ) {
-    if (level == null || orderBook == null) {
-      return 'pending';
+  void _openOrderSheet(BuildContext context, String side) {
+    if (!sessionController.value.isSignedIn) {
+      _showAuthDialog(context, sessionController);
+      return;
     }
-    return '${level.displayPrice(orderBook.baseCurrency, orderBook.displayCurrency)} x ${level.quantity}';
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => _DetailOrderSheet(
+        sessionController: sessionController,
+        tradeController: tradeController,
+        detail: detail,
+        liveQuote: liveQuote,
+        side: side,
+      ),
+    );
   }
+}
+
+class _DetailOrderSheet extends StatefulWidget {
+  const _DetailOrderSheet({
+    required this.sessionController,
+    required this.tradeController,
+    required this.detail,
+    required this.liveQuote,
+    required this.side,
+  });
+
+  final ExchangeSessionController sessionController;
+  final TradeController tradeController;
+  final StockDetail detail;
+  final MarketQuote? liveQuote;
+  final String side;
+
+  @override
+  State<_DetailOrderSheet> createState() => _DetailOrderSheetState();
+}
+
+class _DetailOrderSheetState extends State<_DetailOrderSheet> {
+  late final TextEditingController _quantityController;
+  late final TextEditingController _limitPriceController;
+
+  @override
+  void initState() {
+    super.initState();
+    _quantityController = TextEditingController(text: '1');
+    _limitPriceController = TextEditingController(
+      text: _defaultOrderPrice(widget.detail, widget.liveQuote),
+    );
+  }
+
+  @override
+  void dispose() {
+    _quantityController.dispose();
+    _limitPriceController.dispose();
+    super.dispose();
+  }
+
+  int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 0;
+
+  double get _limitPrice =>
+      double.tryParse(_limitPriceController.text.trim()) ?? 0;
+
+  Future<void> _checkOrderability() async {
+    await widget.tradeController.checkOrderability(
+      accountId: widget.sessionController.session?.accountId,
+      stockCode: widget.detail.stockCode,
+      side: widget.side,
+      quantity: _quantity,
+    );
+  }
+
+  Future<void> _submitOrder() async {
+    await widget.tradeController.executeTrade(
+      accountId: widget.sessionController.session?.accountId,
+      stockCode: widget.detail.stockCode,
+      side: widget.side,
+      quantity: _quantity,
+      limitPriceUsd: _limitPrice,
+    );
+    if (mounted && widget.tradeController.value.errorMessage == null) {
+      Navigator.of(context).pop();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final viewInsets = MediaQuery.viewInsetsOf(context);
+    final isBuy = widget.side == 'BUY';
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, viewInsets.bottom + 16),
+      child: ValueListenableBuilder<TradeState>(
+        valueListenable: widget.tradeController,
+        builder: (context, tradeState, child) {
+          final isLoading = tradeState.status == TradeStatus.loading;
+          final orderability = tradeState.orderability;
+          final canSubmit = !isLoading &&
+              (orderability == null || orderability.canPlaceMockOrder);
+
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      '${isBuy ? 'Buy' : 'Sell'} ${widget.detail.stockName}',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    tooltip: 'Close',
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _quantityController,
+                      enabled: !isLoading,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        border: OutlineInputBorder(),
+                        labelText: 'Qty',
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: _limitPriceController,
+                      enabled: !isLoading,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      decoration: InputDecoration(
+                        border: const OutlineInputBorder(),
+                        labelText: 'Limit ${widget.detail.displayCurrency}',
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              if (orderability != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  orderability.summary,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: orderability.canPlaceMockOrder
+                            ? colorScheme.onSurfaceVariant
+                            : colorScheme.error,
+                      ),
+                ),
+              ],
+              if (tradeState.errorMessage != null) ...[
+                const SizedBox(height: 12),
+                Text(
+                  tradeState.errorMessage!,
+                  style: TextStyle(color: colorScheme.error),
+                ),
+              ],
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: isLoading ? null : _checkOrderability,
+                      child: const Text('Check'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: canSubmit ? _submitOrder : null,
+                      child: Text(isBuy ? 'Buy' : 'Sell'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+String _defaultOrderPrice(StockDetail detail, MarketQuote? liveQuote) {
+  final parsed = _decimalValue(
+    liveQuote?.localCurrencyPrice ?? detail.localCurrencyPrice,
+  );
+  return (parsed ?? 0).toStringAsFixed(2);
 }
 
 class _ForeignOwnershipGaugePanel extends StatelessWidget {
@@ -3280,7 +3903,7 @@ class _ForeignOwnershipGaugePanel extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Foreign ownership gauge',
+                      'Foreign ownership',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -3305,13 +3928,6 @@ class _ForeignOwnershipGaugePanel extends StatelessWidget {
                 value: limitRate,
                 color: colorScheme.tertiary,
               ),
-              const SizedBox(height: 8),
-              Text(
-                'Order state ${detail.riskBadge}',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-              ),
             ],
           ),
         ),
@@ -3322,23 +3938,6 @@ class _ForeignOwnershipGaugePanel extends StatelessWidget {
   static double _percentValue(String value) {
     final parsed = double.tryParse(value.replaceAll(',', '').trim()) ?? 0.0;
     return (parsed / 100).clamp(0.0, 1.0).toDouble();
-  }
-}
-
-class _ForeignBoundaryPanel extends StatelessWidget {
-  const _ForeignBoundaryPanel({required this.detail});
-
-  final StockDetail detail;
-
-  @override
-  Widget build(BuildContext context) {
-    return _InfoPanel(
-      icon: Icons.insights_outlined,
-      title: 'Today forecast boundary',
-      body:
-          'Ownership ${detail.predictedOwnershipRangeDisplay} / Limit ${detail.predictedLimitRangeDisplay}',
-      meta: 'Base date ${detail.foreignOwnershipBaseDate}',
-    );
   }
 }
 
@@ -3396,271 +3995,52 @@ class _GaugeLine extends StatelessWidget {
   }
 }
 
-class _DetailOrderPanel extends StatefulWidget {
-  const _DetailOrderPanel({
-    required this.sessionController,
-    required this.tradeController,
-    required this.detail,
-  });
-
-  final ExchangeSessionController sessionController;
-  final TradeController tradeController;
-  final StockDetail detail;
-
-  @override
-  State<_DetailOrderPanel> createState() => _DetailOrderPanelState();
-}
-
-class _DetailOrderPanelState extends State<_DetailOrderPanel> {
-  final TextEditingController _quantityController =
-      TextEditingController(text: '1');
-  late final TextEditingController _limitPriceController;
-  String _side = 'BUY';
-
-  @override
-  void initState() {
-    super.initState();
-    _limitPriceController = TextEditingController(
-      text: _defaultLimitPrice(widget.detail),
-    );
-  }
-
-  @override
-  void didUpdateWidget(covariant _DetailOrderPanel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.detail.stockCode != widget.detail.stockCode) {
-      _limitPriceController.text = _defaultLimitPrice(widget.detail);
-    }
-  }
-
-  @override
-  void dispose() {
-    _quantityController.dispose();
-    _limitPriceController.dispose();
-    super.dispose();
-  }
-
-  int get _quantity => int.tryParse(_quantityController.text.trim()) ?? 0;
-
-  double get _limitPrice =>
-      double.tryParse(_limitPriceController.text.trim()) ?? 0;
-
-  Future<void> _checkOrderability() async {
-    await widget.tradeController.checkOrderability(
-      accountId: widget.sessionController.session?.accountId,
-      stockCode: widget.detail.stockCode,
-      side: _side,
-      quantity: _quantity,
-    );
-  }
-
-  Future<void> _executeTrade() async {
-    await widget.tradeController.executeTrade(
-      accountId: widget.sessionController.session?.accountId,
-      stockCode: widget.detail.stockCode,
-      side: _side,
-      quantity: _quantity,
-      limitPriceUsd: _limitPrice,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return ValueListenableBuilder<ExchangeSessionState>(
-      valueListenable: widget.sessionController,
-      builder: (context, sessionState, child) {
-        return ValueListenableBuilder<TradeState>(
-          valueListenable: widget.tradeController,
-          builder: (context, tradeState, child) {
-            final isSignedIn = sessionState.isSignedIn;
-            final isLoading = tradeState.status == TradeStatus.loading;
-            final orderability = tradeState.orderability;
-            final canExecute = isSignedIn &&
-                !isLoading &&
-                (orderability?.canPlaceMockOrder ?? true);
-
-            return Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  border: Border.all(color: colorScheme.outlineVariant),
-                  borderRadius: BorderRadius.circular(8),
-                  color: colorScheme.surface,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Icon(Icons.swap_horiz, color: colorScheme.primary),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Trade ${widget.detail.stockName}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${widget.detail.stockCode} / Korea market hours 09:00-15:30 KST.',
-                                ),
-                              ],
-                            ),
-                          ),
-                          _SmallBadge(label: widget.detail.riskBadge),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(value: 'BUY', label: Text('BUY')),
-                          ButtonSegment(value: 'SELL', label: Text('SELL')),
-                        ],
-                        selected: {_side},
-                        onSelectionChanged: isLoading
-                            ? null
-                            : (selected) {
-                                setState(() {
-                                  _side = selected.single;
-                                });
-                              },
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextField(
-                              controller: _quantityController,
-                              enabled: isSignedIn && !isLoading,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: 'Quantity',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: TextField(
-                              controller: _limitPriceController,
-                              enabled: isSignedIn && !isLoading,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                decimal: true,
-                              ),
-                              decoration: const InputDecoration(
-                                border: OutlineInputBorder(),
-                                labelText: 'Limit USD',
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          OutlinedButton.icon(
-                            onPressed: isSignedIn && !isLoading
-                                ? _checkOrderability
-                                : () => _showAuthDialog(
-                                      context,
-                                      widget.sessionController,
-                                    ),
-                            icon: const Icon(Icons.rule),
-                            label: Text(isSignedIn ? 'Check' : 'Sign in'),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          onPressed: canExecute ? _executeTrade : null,
-                          icon: isLoading
-                              ? const SizedBox.square(
-                                  dimension: 16,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                  ),
-                                )
-                              : Icon(
-                                  _side == 'BUY'
-                                      ? Icons.add_shopping_cart
-                                      : Icons.sell_outlined,
-                                ),
-                          label: Text('Place $_side limit order'),
-                        ),
-                      ),
-                      if (orderability != null) ...[
-                        const SizedBox(height: 12),
-                        Text(orderability.summary),
-                      ],
-                      if (tradeState.lastOrder != null) ...[
-                        const SizedBox(height: 12),
-                        _InfoPanel(
-                          icon: tradeState.lastOrder!.isFilled
-                              ? Icons.check_circle_outline
-                              : Icons.pending_actions,
-                          title: tradeState.lastOrder!.isFilled
-                              ? 'Order filled'
-                              : 'Limit order pending',
-                          body: tradeState.lastOrder!.summary,
-                          meta: tradeState.lastOrder!.message,
-                        ),
-                      ],
-                      if (tradeState.errorMessage != null) ...[
-                        const SizedBox(height: 12),
-                        Text(
-                          tradeState.errorMessage!,
-                          style: TextStyle(color: colorScheme.error),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
 class _MarketHistoryChartPanel extends StatelessWidget {
   const _MarketHistoryChartPanel({
     required this.chart,
     required this.selectedPeriod,
+    required this.livePoints,
+    required this.fallbackCandle,
+    required this.isLoading,
+    required this.onPeriodSelected,
   });
 
   final MarketChart? chart;
   final String selectedPeriod;
+  final List<_LivePricePoint> livePoints;
+  final _ChartCandle? fallbackCandle;
+  final bool isLoading;
+  final ValueChanged<String> onPeriodSelected;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final points = chart?.points ?? const <MarketChartPoint>[];
     final latestPoint = chart?.latestPoint;
-    final candles = points
+    final historySeries = points
         .map(_ChartCandle.fromPoint)
         .whereType<_ChartCandle>()
         .toList(growable: false);
-    final hasChartData = candles.isNotEmpty && latestPoint != null;
+    final liveSeries = _liveCandles(livePoints);
+    final mergedSeries = selectedPeriod == '1D' && liveSeries.length >= 2
+        ? liveSeries
+        : _mergeLiveCandles(historySeries, liveSeries);
+    final series = mergedSeries.isNotEmpty
+        ? mergedSeries
+        : [
+            if (fallbackCandle case final candle?) candle,
+          ];
+    final hasChartData = series.isNotEmpty;
     final minLow = hasChartData
-        ? candles.map((candle) => candle.low).reduce(math.min)
+        ? series.map((candle) => candle.low).reduce(math.min)
         : null;
     final maxHigh = hasChartData
-        ? candles.map((candle) => candle.high).reduce(math.max)
+        ? series.map((candle) => candle.high).reduce(math.max)
         : null;
-    final marketClosedOnRequestedDay = chart?.interval == '1d' &&
-        latestPoint != null &&
-        chart != null &&
-        latestPoint.tradeDate != chart!.to;
+    final latestLivePoint = liveSeries.isEmpty ? null : liveSeries.last;
+    final displayCurrency =
+        latestLivePoint?.currency ?? chart?.displayCurrency ?? 'USD';
+    final chartRange = chart;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -3687,12 +4067,22 @@ class _MarketHistoryChartPanel extends StatelessWidget {
                           ),
                     ),
                   ),
-                  _SmallBadge(label: selectedPeriod),
-                  if (marketClosedOnRequestedDay) ...[
-                    const SizedBox(width: 8),
-                    const _SmallBadge(label: 'Closed'),
-                  ],
                 ],
+              ),
+              const SizedBox(height: 10),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: SegmentedButton<String>(
+                  segments: const [
+                    ButtonSegment(value: '1D', label: Text('1D')),
+                    ButtonSegment(value: '1W', label: Text('1W')),
+                    ButtonSegment(value: '1M', label: Text('1M')),
+                  ],
+                  selected: {selectedPeriod},
+                  onSelectionChanged: isLoading
+                      ? null
+                      : (selected) => onPeriodSelected(selected.single),
+                ),
               ),
               const SizedBox(height: 10),
               if (!hasChartData)
@@ -3707,10 +4097,12 @@ class _MarketHistoryChartPanel extends StatelessWidget {
                   child: CustomPaint(
                     key: const ValueKey('market-history-candle-volume-chart'),
                     painter: _MarketCandleVolumePainter(
-                      candles: candles,
+                      candles: series,
                       upColor: Colors.teal.shade700,
+                      neutralColor: colorScheme.outline,
                       downColor: colorScheme.error,
                       gridColor: colorScheme.outlineVariant,
+                      labelColor: colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -3721,32 +4113,35 @@ class _MarketHistoryChartPanel extends StatelessWidget {
                   children: [
                     _Metric(
                       label: 'Latest',
-                      value: latestPoint.closeLocalDisplay,
+                      value: latestLivePoint == null
+                          ? latestPoint?.closeLocalDisplay ??
+                              '$displayCurrency ${series.last.close.toStringAsFixed(2)}'
+                          : '$displayCurrency ${latestLivePoint.close.toStringAsFixed(2)}',
                     ),
                     _Metric(
                       label: 'KRW close',
-                      value: latestPoint.closeKrwDisplay,
+                      value: latestPoint?.closeKrwDisplay ?? '-',
                     ),
                     _Metric(
                       label: 'Range',
                       value:
-                          '${chart!.displayCurrency} ${minLow!.toStringAsFixed(2)} - ${maxHigh!.toStringAsFixed(2)}',
+                          '$displayCurrency ${minLow!.toStringAsFixed(2)} - ${maxHigh!.toStringAsFixed(2)}',
                     ),
                     _Metric(
                       label: 'Volume',
-                      value: '${latestPoint.volume}',
+                      value:
+                          '${latestLivePoint?.volume ?? latestPoint?.volume ?? 0}',
                     ),
                   ],
                 ),
                 const SizedBox(height: 8),
-                Text(
-                  marketClosedOnRequestedDay
-                      ? 'Last trading day ${latestPoint.tradeDate}'
-                      : '${chart!.from} - ${chart!.to}',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                ),
+                if (chartRange != null)
+                  Text(
+                    '${chartRange.from} - ${chartRange.to}',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: colorScheme.onSurfaceVariant,
+                        ),
+                  ),
               ],
             ],
           ),
@@ -3758,18 +4153,22 @@ class _MarketHistoryChartPanel extends StatelessWidget {
 
 class _ChartCandle {
   const _ChartCandle({
+    required this.at,
     required this.open,
     required this.high,
     required this.low,
     required this.close,
     required this.volume,
+    required this.currency,
   });
 
+  final DateTime? at;
   final double open;
   final double high;
   final double low;
   final double close;
   final int volume;
+  final String? currency;
 
   bool get isUp => close >= open;
 
@@ -3782,27 +4181,124 @@ class _ChartCandle {
       return null;
     }
     return _ChartCandle(
+      at: DateTime.tryParse(point.tradeDate),
       open: open,
       high: high,
       low: low,
       close: close,
       volume: point.volume,
+      currency: null,
     );
   }
+
+  _ChartCandle mergeLivePoint(_LivePricePoint point) {
+    return _ChartCandle(
+      at: at,
+      open: open,
+      high: math.max(high, point.price),
+      low: math.min(low, point.price),
+      close: point.price,
+      volume: math.max(volume, point.volume),
+      currency: point.currency,
+    );
+  }
+
+  _ChartCandle mergeLiveCandle(_ChartCandle candle) {
+    return _ChartCandle(
+      at: at,
+      open: open,
+      high: math.max(high, candle.high),
+      low: math.min(low, candle.low),
+      close: candle.close,
+      volume: math.max(volume, candle.volume),
+      currency: candle.currency ?? currency,
+    );
+  }
+}
+
+List<_ChartCandle> _liveCandles(List<_LivePricePoint> points) {
+  if (points.isEmpty) {
+    return const <_ChartCandle>[];
+  }
+  final candles = <_ChartCandle>[];
+  DateTime? currentBucket;
+  for (final point in points) {
+    final bucket = _minuteBucket(point.at);
+    if (currentBucket == null || bucket != currentBucket) {
+      currentBucket = bucket;
+      candles.add(
+        _ChartCandle(
+          at: bucket,
+          open: point.price,
+          high: point.price,
+          low: point.price,
+          close: point.price,
+          volume: point.volume,
+          currency: point.currency,
+        ),
+      );
+    } else {
+      candles[candles.length - 1] = candles.last.mergeLivePoint(point);
+    }
+  }
+  return candles.length > 48 ? candles.sublist(candles.length - 48) : candles;
+}
+
+List<_ChartCandle> _mergeLiveCandles(
+  List<_ChartCandle> historySeries,
+  List<_ChartCandle> liveSeries,
+) {
+  if (liveSeries.isEmpty) {
+    return historySeries;
+  }
+  if (historySeries.isEmpty) {
+    return liveSeries;
+  }
+
+  final merged = List<_ChartCandle>.of(historySeries);
+  var current = merged.removeLast();
+  for (final liveCandle in liveSeries) {
+    current = current.mergeLiveCandle(liveCandle);
+  }
+  merged.add(current);
+  return merged;
+}
+
+DateTime _minuteBucket(DateTime at) {
+  final utc = at.toUtc();
+  return DateTime.utc(utc.year, utc.month, utc.day, utc.hour, utc.minute);
+}
+
+class _LivePricePoint {
+  const _LivePricePoint({
+    required this.at,
+    required this.price,
+    required this.volume,
+    required this.currency,
+  });
+
+  final DateTime at;
+  final double price;
+  final int volume;
+  final String currency;
 }
 
 class _MarketCandleVolumePainter extends CustomPainter {
   const _MarketCandleVolumePainter({
     required this.candles,
     required this.upColor,
+    required this.neutralColor,
     required this.downColor,
     required this.gridColor,
+    required this.labelColor,
   });
 
   final List<_ChartCandle> candles;
   final Color upColor;
+  final Color neutralColor;
   final Color downColor;
   final Color gridColor;
+  final Color labelColor;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -3810,21 +4306,12 @@ class _MarketCandleVolumePainter extends CustomPainter {
       return;
     }
 
-    final priceHeight = size.height * 0.68;
+    final priceHeight = size.height * 0.72;
     final volumeTop = priceHeight + 18;
     final volumeHeight = math.max(size.height - volumeTop, 1.0);
     final gridPaint = Paint()
-      ..color = gridColor
+      ..color = gridColor.withAlpha(150)
       ..strokeWidth = 1;
-    for (final fraction in const [0.0, 0.5, 1.0]) {
-      final y = priceHeight * fraction;
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-    canvas.drawLine(
-      Offset(0, volumeTop - 8),
-      Offset(size.width, volumeTop - 8),
-      gridPaint,
-    );
 
     final minLow = candles.map((candle) => candle.low).reduce(math.min);
     final maxHigh = candles.map((candle) => candle.high).reduce(math.max);
@@ -3833,25 +4320,41 @@ class _MarketCandleVolumePainter extends CustomPainter {
       candles.map((candle) => candle.volume).reduce(math.max),
       1,
     );
-    final slotWidth = size.width / candles.length;
-    final bodyWidth = math.max(math.min(slotWidth * 0.58, 14), 3).toDouble();
+    final slotWidth = math.min(size.width / math.max(candles.length, 12), 18.0);
+    final chartWidth = slotWidth * candles.length;
+    final startX = math.max((size.width - chartWidth) / 2, 0.0);
+    final bodyWidth = math.max(math.min(slotWidth * 0.58, 8), 3).toDouble();
 
     double priceY(double price) {
       return priceHeight - ((price - minLow) / priceRange * priceHeight);
     }
 
+    final midY = priceY(candles.last.close);
+    _drawDashedLine(
+        canvas, Offset(0, midY), Offset(size.width, midY), gridPaint);
+    canvas.drawLine(
+      Offset(0, volumeTop - 8),
+      Offset(size.width, volumeTop - 8),
+      gridPaint,
+    );
+
     for (var index = 0; index < candles.length; index += 1) {
       final candle = candles[index];
-      final x = slotWidth * index + slotWidth / 2;
-      final color = candle.isUp ? upColor : downColor;
-      final paint = Paint()
-        ..color = color
-        ..strokeWidth = 1.6;
+      final x = startX + slotWidth * index + slotWidth / 2;
+      final color = candle.isUp
+          ? downColor
+          : candle.close < candle.open
+              ? Colors.blue.shade600
+              : neutralColor;
+      final wickPaint = Paint()
+        ..color = color.withAlpha(185)
+        ..strokeWidth = 1.2;
       canvas.drawLine(
         Offset(x, priceY(candle.high)),
         Offset(x, priceY(candle.low)),
-        paint,
+        wickPaint,
       );
+
       final openY = priceY(candle.open);
       final closeY = priceY(candle.close);
       final top = math.min(openY, closeY).toDouble();
@@ -3859,7 +4362,7 @@ class _MarketCandleVolumePainter extends CustomPainter {
       canvas.drawRRect(
         RRect.fromRectAndRadius(
           Rect.fromLTWH(x - bodyWidth / 2, top, bodyWidth, height),
-          const Radius.circular(2),
+          const Radius.circular(1.5),
         ),
         Paint()..color = color,
       );
@@ -3876,17 +4379,57 @@ class _MarketCandleVolumePainter extends CustomPainter {
           ),
           const Radius.circular(2),
         ),
-        Paint()..color = color.withAlpha(128),
+        Paint()..color = color.withAlpha(80),
       );
     }
+
+    _drawPriceLabel(
+      canvas,
+      label: 'High ${maxHigh.toStringAsFixed(2)}',
+      anchor: Offset(8, priceY(maxHigh) - 18),
+    );
+    _drawPriceLabel(
+      canvas,
+      label: 'Low ${minLow.toStringAsFixed(2)}',
+      anchor: Offset(8, priceY(minLow) + 4),
+    );
   }
 
   @override
   bool shouldRepaint(covariant _MarketCandleVolumePainter oldDelegate) {
     return candles != oldDelegate.candles ||
         upColor != oldDelegate.upColor ||
+        neutralColor != oldDelegate.neutralColor ||
         downColor != oldDelegate.downColor ||
-        gridColor != oldDelegate.gridColor;
+        gridColor != oldDelegate.gridColor ||
+        labelColor != oldDelegate.labelColor;
+  }
+
+  void _drawDashedLine(Canvas canvas, Offset start, Offset end, Paint paint) {
+    const dashWidth = 6.0;
+    const gapWidth = 6.0;
+    var x = start.dx;
+    while (x < end.dx) {
+      canvas.drawLine(Offset(x, start.dy),
+          Offset(math.min(x + dashWidth, end.dx), end.dy), paint);
+      x += dashWidth + gapWidth;
+    }
+  }
+
+  void _drawPriceLabel(Canvas canvas,
+      {required String label, required Offset anchor}) {
+    final painter = TextPainter(
+      text: TextSpan(
+        text: label,
+        style: TextStyle(
+          color: labelColor,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    painter.paint(canvas, anchor);
   }
 }
 
@@ -5025,10 +5568,16 @@ class _SmallBadge extends StatelessWidget {
 }
 
 class _Metric extends StatelessWidget {
-  const _Metric({super.key, required this.label, required this.value});
+  const _Metric({
+    super.key,
+    required this.label,
+    required this.value,
+    this.tabular = false,
+  });
 
   final String label;
   final String value;
+  final bool tabular;
 
   @override
   Widget build(BuildContext context) {
@@ -5046,6 +5595,8 @@ class _Metric extends StatelessWidget {
           value,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w700,
+                fontFeatures:
+                    tabular ? const [FontFeature.tabularFigures()] : null,
               ),
         ),
       ],

@@ -161,12 +161,20 @@ class MarketQuote {
     required this.currentPriceKrw,
     required this.changeRate,
     required this.volume,
+    this.marketSession = 'REGULAR',
+    this.afterHoursPriceKrw,
+    this.afterHoursLocalCurrencyPrice,
+    this.afterHoursChangeRate,
+    this.afterHoursVolume,
+    this.afterHoursMarketDataTime,
     required this.localCurrency,
     required this.localCurrencyPrice,
     required this.fxRate,
     required this.fxRateTime,
     required this.fxRateSource,
     required this.fxStale,
+    this.marketDataTime,
+    this.publishedAt,
     this.badge = 'Live',
   });
 
@@ -176,20 +184,45 @@ class MarketQuote {
   final String currentPriceKrw;
   final String changeRate;
   final int volume;
+  final String marketSession;
+  final String? afterHoursPriceKrw;
+  final String? afterHoursLocalCurrencyPrice;
+  final String? afterHoursChangeRate;
+  final int? afterHoursVolume;
+  final DateTime? afterHoursMarketDataTime;
   final String localCurrency;
   final String localCurrencyPrice;
   final String fxRate;
   final DateTime? fxRateTime;
   final String fxRateSource;
   final bool fxStale;
+  final DateTime? marketDataTime;
+  final DateTime? publishedAt;
   final String badge;
 
   String get krwDisplay => 'KRW $currentPriceKrw';
 
   String get localCurrencyDisplay => '$localCurrency $localCurrencyPrice';
 
+  bool get isAfterHours => marketSession.toUpperCase() == 'AFTER_HOURS';
+
+  bool get hasAfterHoursPrice =>
+      afterHoursLocalCurrencyPrice != null &&
+      afterHoursLocalCurrencyPrice!.trim().isNotEmpty;
+
+  String get afterHoursLocalCurrencyDisplay =>
+      '$localCurrency ${afterHoursLocalCurrencyPrice ?? localCurrencyPrice}';
+
+  String get afterHoursKrwDisplay =>
+      'KRW ${afterHoursPriceKrw ?? currentPriceKrw}';
+
   String get fxTimeDisplay =>
       fxRateTime?.toUtc().toIso8601String() ?? 'unknown time';
+
+  String get liveUpdateKey =>
+      publishedAt?.toUtc().toIso8601String() ??
+      marketDataTime?.toUtc().toIso8601String() ??
+      localCurrencyPrice;
 
   String get fxMeta {
     final stale = fxStale ? ' / stale' : '';
@@ -204,13 +237,52 @@ class MarketQuote {
       currentPriceKrw: _string(json['currentPriceKrw'], fallback: '0'),
       changeRate: _string(json['changeRate'], fallback: '0'),
       volume: json['volume'] is int ? json['volume'] as int : 0,
+      marketSession: _string(json['marketSession'], fallback: 'REGULAR'),
+      afterHoursPriceKrw: _nullableString(json['afterHoursPriceKrw']),
+      afterHoursLocalCurrencyPrice:
+          _nullableString(json['afterHoursLocalCurrencyPrice']),
+      afterHoursChangeRate: _nullableString(json['afterHoursChangeRate']),
+      afterHoursVolume: json['afterHoursVolume'] is int
+          ? json['afterHoursVolume'] as int
+          : null,
+      afterHoursMarketDataTime: _dateTime(json['afterHoursMarketDataTime']),
       localCurrency: _string(json['localCurrency'], fallback: 'USD'),
       localCurrencyPrice: _string(json['localCurrencyPrice'], fallback: '0'),
       fxRate: _string(json['fxRate'], fallback: '0'),
       fxRateTime: _dateTime(json['fxRateTime']),
       fxRateSource: _string(json['fxRateSource'], fallback: 'UNKNOWN'),
       fxStale: json['fxStale'] as bool? ?? false,
+      marketDataTime: _dateTime(json['marketDataTime']),
+      publishedAt: _dateTime(json['publishedAt']),
       badge: _string(json['market'], fallback: 'Live'),
+    );
+  }
+
+  MarketQuote mergeAfterHoursTick(MarketQuote tick) {
+    return MarketQuote(
+      stockCode: stockCode,
+      stockName: tick.stockName.isEmpty ? stockName : tick.stockName,
+      market: tick.market.isEmpty ? market : tick.market,
+      currentPriceKrw: currentPriceKrw,
+      changeRate: changeRate,
+      volume: volume,
+      marketSession: tick.marketSession,
+      afterHoursPriceKrw: tick.afterHoursPriceKrw ?? tick.currentPriceKrw,
+      afterHoursLocalCurrencyPrice:
+          tick.afterHoursLocalCurrencyPrice ?? tick.localCurrencyPrice,
+      afterHoursChangeRate: tick.afterHoursChangeRate ?? tick.changeRate,
+      afterHoursVolume: tick.afterHoursVolume ?? tick.volume,
+      afterHoursMarketDataTime:
+          tick.afterHoursMarketDataTime ?? tick.marketDataTime,
+      localCurrency: tick.localCurrency,
+      localCurrencyPrice: localCurrencyPrice,
+      fxRate: tick.fxRate,
+      fxRateTime: tick.fxRateTime,
+      fxRateSource: tick.fxRateSource,
+      fxStale: tick.fxStale,
+      marketDataTime: marketDataTime,
+      publishedAt: tick.publishedAt,
+      badge: badge,
     );
   }
 }
@@ -240,14 +312,31 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
 
   bool get canSubscribeLive => _liveClient != null;
 
+  Future<StockSearchResponse> searchStocks({
+    required String query,
+    String? market,
+    String currency = 'USD',
+    int limit = 20,
+  }) async {
+    final response = await _apiClient.searchStocks(
+      query: query,
+      market: market,
+      currency: currency,
+      limit: limit,
+    );
+    return StockSearchResponse.fromJson(response.data ?? {});
+  }
+
   Future<void> loadSnapshot({
     String? market,
     String currency = 'USD',
+    List<String> stockCodes = const [],
   }) async {
     return _load(
       loader: () => _apiClient.getMarketQuotes(
         market: market,
         currency: currency,
+        stockCodes: stockCodes,
       ),
     );
   }
@@ -454,7 +543,9 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     final index =
         nextQuotes.indexWhere((quote) => quote.stockCode == tick.stockCode);
     if (index >= 0) {
-      nextQuotes[index] = tick;
+      nextQuotes[index] = tick.isAfterHours
+          ? nextQuotes[index].mergeAfterHoursTick(tick)
+          : tick;
     } else {
       nextQuotes.insert(0, tick);
     }
@@ -474,6 +565,63 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     _liveReconnectTimer?.cancel();
     _liveSubscription?.cancel();
     super.dispose();
+  }
+}
+
+class StockSearchResponse {
+  const StockSearchResponse({
+    required this.query,
+    required this.marketFilter,
+    required this.displayCurrency,
+    required this.resultCount,
+    required this.results,
+  });
+
+  final String query;
+  final String marketFilter;
+  final String displayCurrency;
+  final int resultCount;
+  final List<StockSearchItem> results;
+
+  static StockSearchResponse fromJson(Map<String, dynamic> json) {
+    final values = json['results'];
+    return StockSearchResponse(
+      query: _string(json['query'], fallback: ''),
+      marketFilter: _string(json['marketFilter'], fallback: 'ALL'),
+      displayCurrency: _string(json['displayCurrency'], fallback: 'USD'),
+      resultCount: json['resultCount'] is int ? json['resultCount'] as int : 0,
+      results: values is List
+          ? values
+              .map((value) => StockSearchItem.fromJson(_map(value)))
+              .toList(growable: false)
+          : const [],
+    );
+  }
+}
+
+class StockSearchItem {
+  const StockSearchItem({
+    required this.stockCode,
+    required this.stockName,
+    required this.market,
+    required this.sector,
+    required this.dataSource,
+  });
+
+  final String stockCode;
+  final String stockName;
+  final String market;
+  final String sector;
+  final String dataSource;
+
+  static StockSearchItem fromJson(Map<String, dynamic> json) {
+    return StockSearchItem(
+      stockCode: _string(json['stockCode'], fallback: ''),
+      stockName: _string(json['stockName'], fallback: 'Unknown stock'),
+      market: _string(json['market'], fallback: 'UNKNOWN'),
+      sector: _string(json['sector'], fallback: ''),
+      dataSource: _string(json['dataSource'], fallback: ''),
+    );
   }
 }
 
@@ -526,6 +674,14 @@ String _string(Object? value, {required String fallback}) {
   }
   final text = '$value';
   return text.isEmpty ? fallback : text;
+}
+
+String? _nullableString(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  final text = '$value'.trim();
+  return text.isEmpty ? null : text;
 }
 
 DateTime? _dateTime(Object? value) {
