@@ -235,6 +235,10 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketIndices() {
+    return get<Map<String, dynamic>>('/api/v1/market/indices');
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getStockDetail({
     required String stockCode,
     String currency = 'USD',

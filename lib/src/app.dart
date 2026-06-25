@@ -9,6 +9,7 @@ import 'package:http/http.dart' as http;
 import 'core/account_controller.dart';
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
+import 'core/market_index_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_quote_controller.dart';
 import 'core/market_quote_live_client.dart';
@@ -24,6 +25,7 @@ class StockExchangeApp extends StatelessWidget {
     this.accountController,
     this.tradeController,
     this.marketDetailController,
+    this.marketIndexController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -36,6 +38,7 @@ class StockExchangeApp extends StatelessWidget {
   final AccountController? accountController;
   final TradeController? tradeController;
   final MarketDetailController? marketDetailController;
+  final MarketIndexController? marketIndexController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -58,6 +61,7 @@ class StockExchangeApp extends StatelessWidget {
         accountController: accountController,
         tradeController: tradeController,
         marketDetailController: marketDetailController,
+        marketIndexController: marketIndexController,
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
@@ -76,6 +80,7 @@ class ExchangeShell extends StatefulWidget {
     this.accountController,
     this.tradeController,
     this.marketDetailController,
+    this.marketIndexController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -88,6 +93,7 @@ class ExchangeShell extends StatefulWidget {
   final AccountController? accountController;
   final TradeController? tradeController;
   final MarketDetailController? marketDetailController;
+  final MarketIndexController? marketIndexController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -108,6 +114,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final AccountController _accountController;
   late final TradeController _tradeController;
   late final MarketDetailController _marketDetailController;
+  late final MarketIndexController _marketIndexController;
   late final MarketQuoteController _marketQuoteController;
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
@@ -124,6 +131,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _tradeController = widget.tradeController ?? _createTradeController();
     _marketDetailController =
         widget.marketDetailController ?? _createMarketDetailController();
+    _marketIndexController =
+        widget.marketIndexController ?? _createMarketIndexController();
     _marketQuoteController =
         widget.marketQuoteController ?? _createMarketQuoteController();
     _watchlistQuoteController =
@@ -164,6 +173,13 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return MarketDetailController(apiClient: _apiClient);
   }
 
+  MarketIndexController _createMarketIndexController() {
+    return MarketIndexController(
+      apiClient: _apiClient,
+      liveClient: MarketIndexLiveClient(baseUri: _environment.apiBaseUri),
+    );
+  }
+
   MarketQuoteController _createMarketQuoteController() {
     return MarketQuoteController(
       apiClient: _apiClient,
@@ -199,6 +215,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.marketDetailController == null) {
       _marketDetailController.dispose();
+    }
+    if (widget.marketIndexController == null) {
+      _marketIndexController.dispose();
     }
     if (widget.marketQuoteController == null) {
       _marketQuoteController.dispose();
@@ -241,6 +260,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
               sessionController: _sessionController,
               tradeController: _tradeController,
               marketDetailController: _marketDetailController,
+              marketIndexController: _marketIndexController,
               marketQuoteController: _marketQuoteController,
             ),
             PortfolioScreen(
@@ -310,12 +330,14 @@ class MarketScreen extends StatefulWidget {
     required this.sessionController,
     required this.tradeController,
     required this.marketDetailController,
+    required this.marketIndexController,
     required this.marketQuoteController,
   });
 
   final ExchangeSessionController sessionController;
   final TradeController tradeController;
   final MarketDetailController marketDetailController;
+  final MarketIndexController marketIndexController;
   final MarketQuoteController marketQuoteController;
 
   @override
@@ -362,6 +384,23 @@ class _MarketScreenState extends State<MarketScreen> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           _subscribeHomeLive();
+        }
+      });
+    }
+    final indexState = widget.marketIndexController.value;
+    if (indexState.status == MarketIndexStatus.idle &&
+        indexState.indices.isEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.marketIndexController.loadSnapshot();
+        }
+      });
+    }
+    if (widget.marketIndexController.canSubscribeLive &&
+        indexState.liveStatus == MarketIndexLiveStatus.disconnected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.marketIndexController.subscribeLive();
         }
       });
     }
@@ -516,6 +555,9 @@ class _MarketScreenState extends State<MarketScreen> {
           _MarketFilters(
             selectedMarket: _selectedMarket,
             onSelected: _selectMarket,
+          ),
+          _MarketIndicesPanel(
+            marketIndexController: widget.marketIndexController,
           ),
           _PopularStocksPanel(
             marketQuoteController: widget.marketQuoteController,
@@ -2773,6 +2815,149 @@ class _PopularStocksPanel extends StatelessWidget {
   }
 }
 
+class _MarketIndicesPanel extends StatelessWidget {
+  const _MarketIndicesPanel({
+    required this.marketIndexController,
+  });
+
+  final MarketIndexController marketIndexController;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder<MarketIndexState>(
+      valueListenable: marketIndexController,
+      builder: (context, indexState, child) {
+        final colorScheme = Theme.of(context).colorScheme;
+        final indices = indexState.indices;
+
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border.all(color: colorScheme.outlineVariant),
+              borderRadius: BorderRadius.circular(8),
+              color: colorScheme.surface,
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.stacked_line_chart,
+                          color: colorScheme.primary),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Market indices',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                        ),
+                      ),
+                      _SmallBadge(
+                        label:
+                            indexState.liveStatus == MarketIndexLiveStatus.live
+                                ? 'LIVE'
+                                : 'REST',
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (indices.isEmpty)
+                    Text(
+                      'Index snapshots will appear after KIS realtime data loads.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurfaceVariant,
+                          ),
+                    )
+                  else
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: indices
+                          .map((index) => _MarketIndexChip(index: index))
+                          .toList(growable: false),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MarketIndexChip extends StatelessWidget {
+  const _MarketIndexChip({
+    required this.index,
+  });
+
+  final MarketIndex index;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final positive = _isRisingIndex(index);
+    final movePrefix = positive ? '+' : '-';
+    final moveColor = positive ? const Color(0xFF0F766E) : colorScheme.error;
+
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: 148),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                index.indexName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                index.currentValue,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                '$movePrefix${index.changeRate.replaceFirst('-', '')}%',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: moveColor,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  bool _isRisingIndex(MarketIndex index) {
+    final sign = index.changeSign.trim();
+    if (sign == '4' || sign == '5') {
+      return false;
+    }
+    return _isPositiveMove(index.changeRate);
+  }
+}
+
 class _PopularStockRow extends StatelessWidget {
   const _PopularStockRow({
     required this.rank,
@@ -3920,9 +4105,7 @@ class _MarketHistoryChartPanel extends StatelessWidget {
         .whereType<_ChartCandle>()
         .toList(growable: false);
     final liveSeries = _liveCandles(livePoints);
-    final mergedSeries = selectedPeriod == '1D' && liveSeries.length >= 2
-        ? liveSeries
-        : _mergeLiveCandles(historySeries, liveSeries);
+    final mergedSeries = _mergeLiveCandles(historySeries, liveSeries);
     final series = mergedSeries.isNotEmpty
         ? mergedSeries
         : [
@@ -4153,13 +4336,28 @@ List<_ChartCandle> _mergeLiveCandles(
     return liveSeries;
   }
 
-  final merged = List<_ChartCandle>.of(historySeries);
-  var current = merged.removeLast();
-  for (final liveCandle in liveSeries) {
-    current = current.mergeLiveCandle(liveCandle);
+  final mergedByBucket = <DateTime, _ChartCandle>{};
+  final withoutTimeBucket = <_ChartCandle>[];
+  for (final candle in historySeries) {
+    final bucket = candle.at == null ? null : _minuteBucket(candle.at!);
+    if (bucket == null) {
+      withoutTimeBucket.add(candle);
+    } else {
+      mergedByBucket[bucket] = candle;
+    }
   }
-  merged.add(current);
-  return merged;
+  for (final liveCandle in liveSeries) {
+    final bucket = liveCandle.at == null ? null : _minuteBucket(liveCandle.at!);
+    if (bucket == null) {
+      continue;
+    }
+    final existing = mergedByBucket[bucket];
+    mergedByBucket[bucket] =
+        existing == null ? liveCandle : existing.mergeLiveCandle(liveCandle);
+  }
+  final timedCandles = mergedByBucket.values.toList()
+    ..sort((left, right) => left.at!.compareTo(right.at!));
+  return [...withoutTimeBucket, ...timedCandles];
 }
 
 DateTime _minuteBucket(DateTime at) {

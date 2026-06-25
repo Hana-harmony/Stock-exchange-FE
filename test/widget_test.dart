@@ -10,6 +10,7 @@ import 'package:stock_exchange_fe/src/core/account_controller.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_index_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_live_client.dart';
 import 'package:stock_exchange_fe/src/core/notification_controller.dart';
@@ -1930,6 +1931,7 @@ StockExchangeApp _stockExchangeTestApp({
   AccountController? accountController,
   TradeController? tradeController,
   MarketDetailController? marketDetailController,
+  MarketIndexController? marketIndexController,
   MarketQuoteController? marketQuoteController,
   MarketQuoteController? portfolioQuoteController,
   NotificationController? notificationController,
@@ -1941,10 +1943,56 @@ StockExchangeApp _stockExchangeTestApp({
     accountController: accountController,
     tradeController: tradeController,
     marketDetailController: marketDetailController,
+    marketIndexController: marketIndexController ?? _marketIndexController(),
     marketQuoteController: marketQuoteController,
     portfolioQuoteController: portfolioQuoteController,
     notificationController: notificationController,
     taxController: taxController,
+  );
+}
+
+MarketIndexController _marketIndexController() {
+  return MarketIndexController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/api/v1/market/indices');
+        return _jsonEnvelope({
+          'dataSource': 'Hana-OmniLens-API',
+          'indexCount': 3,
+          'indices': [
+            {
+              'indexCode': '0001',
+              'indexName': 'KOSPI',
+              'currentValue': '2910.24',
+              'changeValue': '+12.34',
+              'changeRate': '+0.42%',
+              'marketDataTime': '2026-06-18T06:00:00Z',
+              'dataSource': 'Hana-OmniLens-API',
+            },
+            {
+              'indexCode': '1001',
+              'indexName': 'KOSDAQ',
+              'currentValue': '812.50',
+              'changeValue': '-1.20',
+              'changeRate': '-0.15%',
+              'marketDataTime': '2026-06-18T06:00:00Z',
+              'dataSource': 'Hana-OmniLens-API',
+            },
+            {
+              'indexCode': '2001',
+              'indexName': 'KOSPI 200',
+              'currentValue': '395.12',
+              'changeValue': '+0.80',
+              'changeRate': '+0.20%',
+              'marketDataTime': '2026-06-18T06:00:00Z',
+              'dataSource': 'Hana-OmniLens-API',
+            },
+          ],
+          'servedAt': '2026-06-18T06:00:01Z',
+        });
+      }),
+    ),
   );
 }
 
