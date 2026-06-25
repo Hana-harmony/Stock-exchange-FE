@@ -61,6 +61,7 @@ class StockExchangeApp extends StatelessWidget {
         accountController: accountController,
         tradeController: tradeController,
         marketDetailController: marketDetailController,
+        marketIndexController: marketIndexController,
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
