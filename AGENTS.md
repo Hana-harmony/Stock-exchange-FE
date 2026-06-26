@@ -5,6 +5,11 @@
 - 사용자 식별자, 세무 파일명, 거래내역 등 민감 데이터는 화면 예시에서도 마스킹한다.
 - 접근성, 반응형 레이아웃, 로딩/오류/빈 상태를 함께 설계한다.
 - 변경 후 가능한 범위에서 lint, type check, UI test를 실행하고 결과를 기록한다.
+- 테스트코드 작성 방법: .agents/skills/testing/SKILL.md
+
+## 피그마 MCP 지침
+- .agents/figma.md를 참고한다
+
 
 ## 서비스 경계
 - 이 레포는 Flutter 기반 iOS/Android 현지 거래소 MTS 프론트엔드다.
