@@ -135,6 +135,7 @@ class ExchangeShell extends StatefulWidget {
 class _ExchangeShellState extends State<ExchangeShell> {
   static const _initialRecentSearches = <String>[
     '삼성전자',
+    '반도체',
     '카카오',
     'NAVER',
   ];

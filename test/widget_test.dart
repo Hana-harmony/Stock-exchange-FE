@@ -25,8 +25,8 @@ void main() {
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
     expect(find.bySemanticsLabel('Search'), findsOneWidget);
     expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
-    expect(find.text('Trending stocks'), findsOneWidget);
-    expect(find.text('Samsung Electronics'), findsOneWidget);
+    expect(find.text('Trending Stocks'), findsOneWidget);
+    expect(find.text('NVDA'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
     await tester.pumpAndSettle();
@@ -64,13 +64,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('카카오 results'), findsOneWidget);
-    expect(find.text('Kakao (카카오)'), findsOneWidget);
-    expect(find.text('KakaoBank (카카오뱅크)'), findsOneWidget);
+    expect(find.byKey(const ValueKey('stock-search-result-035720')),
+        findsOneWidget);
+    expect(find.text('카카오뱅크'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Kakao (카카오)'), findsOneWidget);
+    expect(find.text('카카오'), findsWidgets);
     expect(find.text('035720'), findsOneWidget);
     expect(find.text('Order'), findsWidgets);
     expect(find.text('K-News'), findsOneWidget);

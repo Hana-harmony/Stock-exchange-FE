@@ -252,18 +252,58 @@ class SearchLandingScreen extends StatefulWidget {
 }
 
 class _SearchLandingScreenState extends State<SearchLandingScreen> {
-  static const _mostSearched = <String>[
-    '삼성전자',
-    '카카오',
-    'NAVER',
-    'SK hynix',
+  static const _mostSearched = <_MarketSearchPreview>[
+    _MarketSearchPreview(
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      priceDisplay: '864.010',
+      changeDisplay: '+37.25%',
+      secondaryPriceDisplay: '857.990',
+      secondaryChangeDisplay: '-0.70%',
+      isPositive: true,
+    ),
+    _MarketSearchPreview(
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      priceDisplay: '263.470',
+      changeDisplay: '-16.74%',
+      secondaryPriceDisplay: '272.780',
+      secondaryChangeDisplay: '+3.53%',
+      isPositive: false,
+    ),
+    _MarketSearchPreview(
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      priceDisplay: '864.010',
+      changeDisplay: '+37.25%',
+      secondaryPriceDisplay: '857.990',
+      secondaryChangeDisplay: '-0.70%',
+      isPositive: true,
+    ),
+    _MarketSearchPreview(
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      priceDisplay: '864.010',
+      changeDisplay: '+37.25%',
+      secondaryPriceDisplay: '857.990',
+      secondaryChangeDisplay: '-0.70%',
+      isPositive: true,
+    ),
+    _MarketSearchPreview(
+      symbol: 'NVDA',
+      name: 'NVIDIA',
+      priceDisplay: '864.010',
+      changeDisplay: '+37.25%',
+      secondaryPriceDisplay: '857.990',
+      secondaryChangeDisplay: '-0.70%',
+      isPositive: true,
+    ),
   ];
 
   static const _trendingTopics = <String>[
-    '반도체',
-    '2차전지',
-    'AI 인프라',
-    '인터넷',
+    'Broadcom’s post-earnings selloff drags down the chip sector - What’s your view a...',
+    'Broadcom’s post-earnings selloff drags down the chip sector - What’s your view a',
+    'Broadcom’s post-earnings selloff drags down the chip sector - What’s your view a',
   ];
 
   late final TextEditingController _controller;
@@ -312,13 +352,6 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
     );
   }
 
-  void _removeRecentSearch(String query) {
-    setState(() {
-      _recentSearches.remove(query);
-    });
-    widget.onRemoveRecentSearch(query);
-  }
-
   void _clearRecentSearches() {
     setState(() {
       _recentSearches = <String>[];
@@ -334,39 +367,58 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
+                  IconButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints.tightFor(
+                      width: 24,
+                      height: 24,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: AppSearchField(
                       fieldKey: const ValueKey('market-search-input'),
                       controller: _controller,
                       focusNode: _focusNode,
                       autofocus: true,
-                      hintText: 'Search market, stock, or ticker',
+                      hintText: 'Search Everthing',
                       onSubmitted: _submitQuery,
+                      filledColor: AppColors.surface,
+                      showBorder: false,
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 4,
+                        vertical: 14,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  AppSearchFieldAction(
-                    label: 'Cancel',
-                    onTap: () => Navigator.of(context).pop(),
                   ),
                 ],
               ),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                 children: [
                   _SectionHeader(
-                    title: 'Search history',
-                    trailing: _recentSearches.isEmpty
-                        ? null
-                        : TextButton(
-                            onPressed: _clearRecentSearches,
-                            child: const Text('Clear all'),
-                          ),
+                    title: 'Search History',
+                    trailing: IconButton(
+                      onPressed:
+                          _recentSearches.isEmpty ? null : _clearRecentSearches,
+                      icon: Image.asset(
+                        AppAssets.binIcon,
+                        width: 22,
+                        height: 22,
+                        fit: BoxFit.contain,
+                        color: _recentSearches.isEmpty
+                            ? AppColors.gray500
+                            : AppColors.gray600,
+                      ),
+                    ),
                   ),
                   if (_recentSearches.isEmpty)
                     const _MutedInfoCard(
@@ -374,38 +426,66 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
                       body:
                           'Once you search, recent tickers and company names will be stored here.',
                     )
-                  else
-                    ..._recentSearches.map(
-                      (query) => _HistoryRow(
-                        query: query,
-                        onTap: () => _submitQuery(query),
-                        onRemove: () => _removeRecentSearch(query),
+                  else ...[
+                    const SizedBox(height: 10),
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          for (var index = 0;
+                              index < _recentSearches.length;
+                              index++) ...[
+                            _HistoryChip(
+                              query: _recentSearches[index],
+                              onTap: () => _submitQuery(_recentSearches[index]),
+                            ),
+                            if (index != _recentSearches.length - 1)
+                              const SizedBox(width: 10),
+                          ],
+                        ],
                       ),
                     ),
+                  ],
                   const SizedBox(height: 24),
-                  const _SectionHeader(title: 'Most searched'),
-                  const SizedBox(height: 8),
+                  _SectionHeader(
+                    title: 'Most Searched',
+                    trailing: Image.asset(
+                      AppAssets.rightArrow,
+                      width: 18,
+                      height: 18,
+                      fit: BoxFit.contain,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
                   ..._mostSearched.map(
-                    (query) => _QuickSearchRow(
-                      label: query,
-                      onTap: () => _submitQuery(query),
+                    (item) => _MostSearchedRow(
+                      item: item,
+                      onTap: () => _submitQuery(item.symbol),
                     ),
                   ),
                   const SizedBox(height: 24),
-                  const _SectionHeader(title: 'Trending'),
-                  const SizedBox(height: 12),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _trendingTopics
-                        .map(
-                          (topic) => ActionChip(
-                            label: Text(topic),
-                            backgroundColor: AppColors.surface,
-                            onPressed: () => _submitQuery(topic),
-                          ),
-                        )
-                        .toList(growable: false),
+                  Row(
+                    children: [
+                      Image.asset(
+                        AppAssets.trendingIcon,
+                        width: 18,
+                        height: 18,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        'Trending',
+                        style: Theme.of(context).textTheme.titleLarge,
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  ...List.generate(
+                    _trendingTopics.length,
+                    (index) => _TrendingHeadlineRow(
+                      rank: index + 1,
+                      title: _trendingTopics[index],
+                    ),
                   ),
                 ],
               ),
@@ -483,6 +563,18 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       _isLoading = true;
       _errorMessage = null;
     });
+    final localResults = _searchDummyStocks(query);
+    if (localResults.isNotEmpty) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _results = localResults;
+        _isLoading = false;
+      });
+      return;
+    }
+
     try {
       final response = await widget.marketQuoteController.searchStocks(
         query: query,
@@ -502,7 +594,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       setState(() {
         _results = const [];
         _isLoading = false;
-        _errorMessage = 'Unable to load results. Try the search again.';
+        _errorMessage = null;
       });
     }
   }
@@ -991,19 +1083,51 @@ class _MarketCategoryTab extends StatelessWidget {
   }
 }
 
-class _HistoryRow extends StatelessWidget {
-  const _HistoryRow({
+class _HistoryChip extends StatelessWidget {
+  const _HistoryChip({
     required this.query,
     required this.onTap,
-    required this.onRemove,
   });
 
   final String query;
   final VoidCallback onTap;
-  final VoidCallback onRemove;
 
   @override
   Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Text(
+            query,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w500,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MostSearchedRow extends StatelessWidget {
+  const _MostSearchedRow({
+    required this.item,
+    required this.onTap,
+  });
+
+  final _MarketSearchPreview item;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final primaryColor =
+        item.isPositive ? AppColors.green500 : AppColors.red500;
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadii.medium),
@@ -1011,20 +1135,83 @@ class _HistoryRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Expanded(
-              child: Text(
-                query,
-                style: Theme.of(context).textTheme.bodyLarge,
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.surface,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColors.gray200),
               ),
             ),
-            IconButton(
-              onPressed: onRemove,
-              icon: Image.asset(
-                AppAssets.binIcon,
-                width: 18,
-                height: 18,
-                fit: BoxFit.contain,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.symbol,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    item.name,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: AppColors.gray600,
+                        ),
+                  ),
+                ],
               ),
+            ),
+            const SizedBox(width: 8),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item.priceDisplay,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: primaryColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      item.changeDisplay,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: primaryColor,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w500,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      item.secondaryPriceDisplay,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w400,
+                          ),
+                    ),
+                    const SizedBox(width: 18),
+                    Text(
+                      item.secondaryChangeDisplay,
+                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            fontWeight: FontWeight.w400,
+                          ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ],
         ),
@@ -1033,38 +1220,46 @@ class _HistoryRow extends StatelessWidget {
   }
 }
 
-class _QuickSearchRow extends StatelessWidget {
-  const _QuickSearchRow({
-    required this.label,
-    required this.onTap,
+class _TrendingHeadlineRow extends StatelessWidget {
+  const _TrendingHeadlineRow({
+    required this.rank,
+    required this.title,
   });
 
-  final String label;
-  final VoidCallback onTap;
+  final int rank;
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadii.medium),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(
-          children: [
-            Expanded(
-              child: Text(
-                label,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 18),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 26,
+            child: Text(
+              '$rank',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.orange500,
+                    fontWeight: FontWeight.w500,
+                  ),
             ),
-            Image.asset(
-              AppAssets.rightArrow,
-              width: 14,
-              height: 14,
-              fit: BoxFit.contain,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w400,
+                    height: 1.35,
+                  ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -1359,6 +1554,26 @@ class _TrendingStock {
   final bool isPositive;
 }
 
+class _MarketSearchPreview {
+  const _MarketSearchPreview({
+    required this.symbol,
+    required this.name,
+    required this.priceDisplay,
+    required this.changeDisplay,
+    required this.secondaryPriceDisplay,
+    required this.secondaryChangeDisplay,
+    required this.isPositive,
+  });
+
+  final String symbol;
+  final String name;
+  final String priceDisplay;
+  final String changeDisplay;
+  final String secondaryPriceDisplay;
+  final String secondaryChangeDisplay;
+  final bool isPositive;
+}
+
 class _SyntheticStockMeta {
   const _SyntheticStockMeta({
     required this.priceDisplay,
@@ -1402,6 +1617,102 @@ class _SyntheticStockMeta {
           : AppAssets.countryBadgeKr,
     );
   }
+}
+
+const _dummyStockSearchEntries = <_DummyStockSearchEntry>[
+  _DummyStockSearchEntry(
+    stockCode: '005930',
+    stockName: '삼성전자',
+    market: 'KOSPI',
+    sector: 'Semiconductor',
+    aliases: ['삼성전자', 'samsung', 'samsung electronics', '005930'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '000660',
+    stockName: 'SK hynix',
+    market: 'KOSPI',
+    sector: 'Semiconductor',
+    aliases: ['sk hynix', '하이닉스', 'sk하이닉스', '000660'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '035420',
+    stockName: 'NAVER',
+    market: 'KOSPI',
+    sector: 'Internet',
+    aliases: ['naver', '네이버', '035420'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '035720',
+    stockName: '카카오',
+    market: 'KOSPI',
+    sector: 'IT',
+    aliases: ['카카오', 'kakao', '035720'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '323410',
+    stockName: '카카오뱅크',
+    market: 'KOSPI',
+    sector: 'Bank',
+    aliases: ['카카오뱅크', 'kakaobank', 'kakao bank', '323410'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '005380',
+    stockName: '현대차',
+    market: 'KOSPI',
+    sector: 'Automotive',
+    aliases: ['현대차', 'hyundai', 'hyundai motor', '005380'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: 'NVDA',
+    stockName: 'NVIDIA',
+    market: 'NASDAQ',
+    sector: 'Semiconductor',
+    aliases: ['nvda', 'nvidia'],
+  ),
+];
+
+class _DummyStockSearchEntry {
+  const _DummyStockSearchEntry({
+    required this.stockCode,
+    required this.stockName,
+    required this.market,
+    required this.sector,
+    required this.aliases,
+  });
+
+  final String stockCode;
+  final String stockName;
+  final String market;
+  final String sector;
+  final List<String> aliases;
+
+  StockSearchItem toSearchItem() {
+    return StockSearchItem(
+      stockCode: stockCode,
+      stockName: stockName,
+      market: market,
+      sector: sector,
+      dataSource: 'Dummy',
+    );
+  }
+}
+
+List<StockSearchItem> _searchDummyStocks(String query) {
+  final normalized = query.trim().toLowerCase();
+  if (normalized.isEmpty) {
+    return const [];
+  }
+
+  return _dummyStockSearchEntries
+      .where((entry) {
+        return entry.aliases.any(
+              (alias) => alias.toLowerCase().contains(normalized),
+            ) ||
+            entry.stockName.toLowerCase().contains(normalized) ||
+            entry.stockCode.toLowerCase().contains(normalized);
+      })
+      .map((entry) => entry.toSearchItem())
+      .toList(growable: false);
 }
 
 bool _isHongKongMarket(String market) {

@@ -14,6 +14,9 @@ class AppSearchField extends StatelessWidget {
     this.autofocus = false,
     this.enabled = true,
     this.fieldKey,
+    this.filledColor,
+    this.showBorder = true,
+    this.contentPadding,
   });
 
   final String hintText;
@@ -24,6 +27,9 @@ class AppSearchField extends StatelessWidget {
   final bool autofocus;
   final bool enabled;
   final Key? fieldKey;
+  final Color? filledColor;
+  final bool showBorder;
+  final EdgeInsetsGeometry? contentPadding;
 
   @override
   Widget build(BuildContext context) {
@@ -38,6 +44,8 @@ class AppSearchField extends StatelessWidget {
       cursorColor: AppColors.gray1000,
       decoration: InputDecoration(
         hintText: hintText,
+        fillColor: filledColor,
+        contentPadding: contentPadding,
         prefixIcon: Padding(
           padding: const EdgeInsets.all(12),
           child: Image.asset(
@@ -51,6 +59,24 @@ class AppSearchField extends StatelessWidget {
           minWidth: 44,
           minHeight: 44,
         ),
+        enabledBorder: showBorder
+            ? null
+            : OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+        focusedBorder: showBorder
+            ? null
+            : OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+        border: showBorder
+            ? null
+            : OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
       ),
       onChanged: onChanged,
       onSubmitted: onSubmitted,
