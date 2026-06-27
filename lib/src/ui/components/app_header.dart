@@ -10,6 +10,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.actions = const <Widget>[],
     this.showBrandMark = false,
     this.showDefaultActions = false,
+    this.onSearchTap,
+    this.onNotificationTap,
   });
 
   final String title;
@@ -17,6 +19,8 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget> actions;
   final bool showBrandMark;
   final bool showDefaultActions;
+  final VoidCallback? onSearchTap;
+  final VoidCallback? onNotificationTap;
 
   @override
   Size get preferredSize => const Size.fromHeight(44);
@@ -26,7 +30,12 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     final resolvedActions = actions.isNotEmpty
         ? actions
         : showDefaultActions
-            ? const <Widget>[_HeaderActions()]
+            ? <Widget>[
+                _HeaderActions(
+                  onSearchTap: onSearchTap,
+                  onNotificationTap: onNotificationTap,
+                ),
+              ]
             : const <Widget>[];
 
     return AppBar(
@@ -58,7 +67,9 @@ class _HeaderTitle extends StatelessWidget {
       title,
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-      style: Theme.of(context).textTheme.headlineSmall,
+      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w700,
+          ),
     );
 
     if (!showBrandMark) {
@@ -71,14 +82,14 @@ class _HeaderTitle extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          height: 36,
-          width: 36,
+          height: 28,
+          width: 28,
           child: Image.asset(
             AppAssets.logoSymbol,
             fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(width: 4),
+        const SizedBox(width: 8),
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
@@ -91,26 +102,52 @@ class _HeaderTitle extends StatelessWidget {
 }
 
 class _HeaderActions extends StatelessWidget {
-  const _HeaderActions();
+  const _HeaderActions({
+    required this.onSearchTap,
+    required this.onNotificationTap,
+  });
+
+  final VoidCallback? onSearchTap;
+  final VoidCallback? onNotificationTap;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: const [
-          _HeaderActionButton(
-            assetPath: AppAssets.headerSearch,
-            semanticLabel: 'Search',
-          ),
-          SizedBox(width: 4),
-          _HeaderActionButton(
-            assetPath: AppAssets.headerNotifications,
-            semanticLabel: 'Notifications',
-          ),
-        ],
+      child: _HeaderActionsBody(
+        onSearchTap: onSearchTap,
+        onNotificationTap: onNotificationTap,
       ),
+    );
+  }
+}
+
+class _HeaderActionsBody extends StatelessWidget {
+  const _HeaderActionsBody({
+    required this.onSearchTap,
+    required this.onNotificationTap,
+  });
+
+  final VoidCallback? onSearchTap;
+  final VoidCallback? onNotificationTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _HeaderActionButton(
+          assetPath: AppAssets.headerSearch,
+          semanticLabel: 'Search',
+          onTap: onSearchTap,
+        ),
+        const SizedBox(width: 4),
+        _HeaderActionButton(
+          assetPath: AppAssets.headerNotifications,
+          semanticLabel: 'Notifications',
+          onTap: onNotificationTap,
+        ),
+      ],
     );
   }
 }
@@ -119,10 +156,12 @@ class _HeaderActionButton extends StatelessWidget {
   const _HeaderActionButton({
     required this.assetPath,
     required this.semanticLabel,
+    this.onTap,
   });
 
   final String assetPath;
   final String semanticLabel;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +169,7 @@ class _HeaderActionButton extends StatelessWidget {
       button: true,
       label: semanticLabel,
       child: InkResponse(
-        onTap: () {},
+        onTap: onTap,
         radius: 18,
         child: SizedBox(
           height: 36,

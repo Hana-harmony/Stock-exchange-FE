@@ -9,7 +9,7 @@ ThemeData buildAppTheme() {
     onPrimary: AppColors.white,
     secondary: AppColors.gray700,
     onSecondary: AppColors.white,
-    error: Colors.redAccent,
+    error: AppColors.red500,
     onError: AppColors.white,
     surface: AppColors.white,
     onSurface: AppColors.gray1000,
@@ -22,6 +22,7 @@ ThemeData buildAppTheme() {
   );
 
   return base.copyWith(
+    splashFactory: NoSplash.splashFactory,
     appBarTheme: const AppBarTheme(
       backgroundColor: AppColors.white,
       foregroundColor: AppColors.gray1000,
@@ -52,10 +53,10 @@ ThemeData buildAppTheme() {
       fillColor: AppColors.white,
       hintStyle: const TextStyle(
         color: AppColors.gray600,
-        fontSize: 14,
-        height: 1.4,
+        fontSize: 15,
+        height: 1.3,
       ),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.medium),
         borderSide: const BorderSide(color: AppColors.gray200),
@@ -70,41 +71,65 @@ ThemeData buildAppTheme() {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.medium),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(color: AppColors.red500),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadii.medium),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(color: AppColors.red500),
       ),
     ),
     textTheme: base.textTheme.copyWith(
+      headlineLarge: base.textTheme.headlineLarge?.copyWith(
+        fontSize: 30,
+        height: 1.15,
+        fontWeight: FontWeight.w700,
+        color: AppColors.gray1000,
+      ),
       headlineSmall: base.textTheme.headlineSmall?.copyWith(
-        fontSize: 22,
-        height: 1.4,
-        fontWeight: FontWeight.w600,
+        fontSize: 24,
+        height: 1.2,
+        fontWeight: FontWeight.w700,
+        color: AppColors.gray1000,
+      ),
+      titleLarge: base.textTheme.titleLarge?.copyWith(
+        fontSize: 20,
+        height: 1.2,
+        fontWeight: FontWeight.w700,
         color: AppColors.gray1000,
       ),
       titleMedium: base.textTheme.titleMedium?.copyWith(
+        fontSize: 16,
+        height: 1.25,
         fontWeight: FontWeight.w600,
         color: AppColors.gray1000,
       ),
       bodyLarge: base.textTheme.bodyLarge?.copyWith(
+        fontSize: 16,
+        fontWeight: FontWeight.w500,
         color: AppColors.gray1000,
-        height: 1.4,
+        height: 1.35,
       ),
       bodyMedium: base.textTheme.bodyMedium?.copyWith(
+        fontSize: 14,
         color: AppColors.gray700,
-        height: 1.4,
+        height: 1.35,
       ),
       bodySmall: base.textTheme.bodySmall?.copyWith(
+        fontSize: 12,
         color: AppColors.gray600,
-        height: 1.4,
+        height: 1.3,
       ),
       labelMedium: base.textTheme.labelMedium?.copyWith(
         fontSize: 12,
-        height: 1.4,
-        fontWeight: FontWeight.w500,
+        height: 1.2,
+        fontWeight: FontWeight.w600,
         color: AppColors.gray600,
+      ),
+      labelLarge: base.textTheme.labelLarge?.copyWith(
+        fontSize: 14,
+        height: 1.2,
+        fontWeight: FontWeight.w600,
+        color: AppColors.gray1000,
       ),
     ),
   );

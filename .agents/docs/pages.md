@@ -1,4 +1,5 @@
 # 페이지구조
+불확실한건 하드코딩, 더미코딩 한다.
 
 ## 첫 화면
 - https://www.figma.com/design/9moVhLUkZRSfnnCAPeqwKS/%ED%95%98%EB%82%98%EA%B8%88%EC%9C%B5%EA%B7%B8%EB%A3%B9?node-id=505-457&t=keV3umEGH6hBhejd-11
