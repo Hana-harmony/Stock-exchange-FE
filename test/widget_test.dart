@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:stock_exchange_fe/src/app.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
 
 void main() {
   testWidgets('renders markets landing page and navigates bottom tabs',
@@ -53,7 +54,7 @@ void main() {
     await tester.tap(find.bySemanticsLabel('Search'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Search history'), findsOneWidget);
+    expect(find.text('Search History'), findsOneWidget);
     expect(find.byKey(const ValueKey('market-search-input')), findsOneWidget);
 
     await tester.enterText(
@@ -63,7 +64,8 @@ void main() {
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
 
-    expect(find.text('카카오 results'), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-search-results-input')),
+        findsOneWidget);
     expect(find.byKey(const ValueKey('stock-search-result-035720')),
         findsOneWidget);
     expect(find.text('카카오뱅크'), findsOneWidget);
@@ -79,6 +81,58 @@ void main() {
     await tester.tap(find.text('Chart'));
     await tester.pumpAndSettle();
     expect(find.text('Chart view'), findsOneWidget);
+  });
+
+  testWidgets('shows samsung dummy results with orange query highlight',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      'Samsung',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('stock-search-result-005930')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('stock-search-result-07747')),
+      findsOneWidget,
+    );
+    expect(find.text('Samsung Electronics'), findsOneWidget);
+    expect(
+      find.text('CSOP Samsung Electronics Daily (2x) Leveraged Product'),
+      findsOneWidget,
+    );
+
+    final samsungText = find.descendant(
+      of: find.byKey(const ValueKey('stock-search-result-005930')),
+      matching: find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText() == 'Samsung Electronics',
+      ),
+    );
+
+    final textSpan = tester.widget<RichText>(samsungText).text;
+    final highlightSpan =
+        _allTextSpans(textSpan).firstWhere((span) => span.text == 'Samsung');
+    expect(highlightSpan.style?.color, AppColors.orange500);
   });
 
   test('labels quote status as closed outside Korea regular hours', () {
@@ -158,4 +212,15 @@ http.Response _jsonEnvelope(Map<String, Object?> data) {
     200,
     headers: const {'content-type': 'application/json'},
   );
+}
+
+Iterable<TextSpan> _allTextSpans(InlineSpan span) sync* {
+  if (span is! TextSpan) {
+    return;
+  }
+
+  yield span;
+  for (final child in span.children ?? const <InlineSpan>[]) {
+    yield* _allTextSpans(child);
+  }
 }

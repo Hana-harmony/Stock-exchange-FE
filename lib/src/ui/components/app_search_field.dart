@@ -17,6 +17,7 @@ class AppSearchField extends StatelessWidget {
     this.filledColor,
     this.showBorder = true,
     this.contentPadding,
+    this.borderRadius = 14,
   });
 
   final String hintText;
@@ -30,6 +31,7 @@ class AppSearchField extends StatelessWidget {
   final Color? filledColor;
   final bool showBorder;
   final EdgeInsetsGeometry? contentPadding;
+  final double borderRadius;
 
   @override
   Widget build(BuildContext context) {
@@ -62,19 +64,19 @@ class AppSearchField extends StatelessWidget {
         enabledBorder: showBorder
             ? null
             : OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(borderRadius),
                 borderSide: BorderSide.none,
               ),
         focusedBorder: showBorder
             ? null
             : OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(borderRadius),
                 borderSide: BorderSide.none,
               ),
         border: showBorder
             ? null
             : OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
+                borderRadius: BorderRadius.circular(borderRadius),
                 borderSide: BorderSide.none,
               ),
       ),

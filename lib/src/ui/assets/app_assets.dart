@@ -5,6 +5,7 @@ abstract final class AppAssets {
   static const logoSymbol = 'assets/icons/logo_symbol.png';
   static const headerNotifications = 'assets/icons/header_notifications.png';
   static const headerSearch = 'assets/icons/header_search.png';
+  static const backArrow = 'assets/icons/back_arrow.png';
   static const trendingIcon = 'assets/icons/Trending Icon.png';
   static const favoriteIcon = 'assets/icons/favorite_icon.png';
   static const binIcon = 'assets/icons/bin_icon.png';

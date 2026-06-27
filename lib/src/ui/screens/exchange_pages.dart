@@ -366,39 +366,14 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
         bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints.tightFor(
-                      width: 24,
-                      height: 24,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: AppSearchField(
-                      fieldKey: const ValueKey('market-search-input'),
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      autofocus: true,
-                      hintText: 'Search Everthing',
-                      onSubmitted: _submitQuery,
-                      filledColor: AppColors.surface,
-                      showBorder: false,
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 14,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+            _SearchHeaderBar(
+              fieldKey: const ValueKey('market-search-input'),
+              controller: _controller,
+              focusNode: _focusNode,
+              autofocus: true,
+              hintText: 'Search Everything',
+              onSubmitted: _submitQuery,
+              onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
               child: ListView(
@@ -636,55 +611,19 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
         bottom: false,
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: AppSearchField(
-                      fieldKey: const ValueKey('market-search-results-input'),
-                      controller: _controller,
-                      focusNode: _focusNode,
-                      hintText: 'Search market, stock, or ticker',
-                      onSubmitted: _submitQuery,
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  AppSearchFieldAction(
-                    label: 'Cancel',
-                    onTap: () => Navigator.of(context).pop(),
-                  ),
-                ],
-              ),
+            _SearchHeaderBar(
+              fieldKey: const ValueKey('market-search-results-input'),
+              controller: _controller,
+              focusNode: _focusNode,
+              autofocus: true,
+              hintText: 'Search Everything',
+              onSubmitted: _submitQuery,
+              onBack: () => Navigator.of(context).pop(),
             ),
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.fromLTRB(20, 8, 20, 28),
+                padding: const EdgeInsets.fromLTRB(14, 8, 14, 28),
                 children: [
-                  Row(
-                    children: [
-                      Image.asset(
-                        AppAssets.koreaFlagIcon,
-                        width: 28,
-                        height: 21,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        '$_query results',
-                        style: Theme.of(context).textTheme.titleLarge,
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    children: const [
-                      _MarketBadge(assetPath: AppAssets.countryBadgeKr),
-                      _MarketBadge(assetPath: AppAssets.countryBadgeHk),
-                    ],
-                  ),
-                  const SizedBox(height: 16),
                   if (_isLoading)
                     const _MutedInfoCard(
                       title: 'Searching stocks',
@@ -705,7 +644,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                     ..._results.map(
                       (item) => _SearchResultTile(
                         item: item,
-                        meta: _SyntheticStockMeta.fromItem(item),
+                        query: _query,
                         isFavorite:
                             _favoriteStockCodes.contains(item.stockCode),
                         onFavoriteTap: () => _toggleFavorite(item.stockCode),
@@ -717,6 +656,70 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _SearchHeaderBar extends StatelessWidget {
+  const _SearchHeaderBar({
+    required this.fieldKey,
+    required this.controller,
+    required this.focusNode,
+    required this.hintText,
+    required this.onSubmitted,
+    required this.onBack,
+    this.autofocus = false,
+  });
+
+  final Key fieldKey;
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final String hintText;
+  final ValueChanged<String> onSubmitted;
+  final VoidCallback onBack;
+  final bool autofocus;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 12),
+      child: Row(
+        children: [
+          IconButton(
+            onPressed: onBack,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints.tightFor(
+              width: 36,
+              height: 36,
+            ),
+            icon: Image.asset(
+              AppAssets.backArrow,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: SizedBox(
+              height: 44,
+              child: AppSearchField(
+                fieldKey: fieldKey,
+                controller: controller,
+                focusNode: focusNode,
+                autofocus: autofocus,
+                hintText: hintText,
+                onSubmitted: onSubmitted,
+                filledColor: AppColors.surface,
+                showBorder: false,
+                borderRadius: 12,
+                contentPadding:
+                    const EdgeInsets.symmetric(horizontal: 0, vertical: 10),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1268,95 +1271,130 @@ class _TrendingHeadlineRow extends StatelessWidget {
 class _SearchResultTile extends StatelessWidget {
   const _SearchResultTile({
     required this.item,
-    required this.meta,
+    required this.query,
     required this.isFavorite,
     required this.onFavoriteTap,
     required this.onTap,
   });
 
   final StockSearchItem item;
-  final _SyntheticStockMeta meta;
+  final String query;
   final bool isFavorite;
   final VoidCallback onFavoriteTap;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
+    final countryBadgeAsset = _isHongKongMarket(item.market)
+        ? AppAssets.countryBadgeHk
+        : AppAssets.countryBadgeKr;
+
+    return SizedBox(
+      height: 65,
       child: InkWell(
         key: ValueKey('stock-search-result-${item.stockCode}'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadii.large),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.circular(AppRadii.large),
-            border: Border.all(color: AppColors.gray200),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Row(
-              children: [
-                _MarketBadge(assetPath: meta.countryBadgeAsset),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.stockName,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${item.market} · ${item.stockCode} · ${item.sector}',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          child: Row(
+            children: [
+              _MarketBadge(assetPath: countryBadgeAsset),
+              const SizedBox(width: 8),
+              const _SearchResultAvatar(),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      meta.priceDisplay,
-                      style: Theme.of(context).textTheme.titleMedium,
+                      item.stockCode,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
-                    const SizedBox(height: 4),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Image.asset(
-                          meta.directionIconAsset,
-                          width: 16,
-                          height: 16,
-                          fit: BoxFit.contain,
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          meta.changeDisplay,
-                          style:
-                              Theme.of(context).textTheme.bodySmall?.copyWith(
-                                    color: meta.changeColor,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                        ),
-                      ],
+                    const SizedBox(height: 1),
+                    Text.rich(
+                      TextSpan(
+                        children: _buildDescriptionSpans(context),
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-                const SizedBox(width: 8),
-                _FavoriteButton(
-                  isFavorite: isFavorite,
-                  onTap: onFavoriteTap,
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 8),
+              _FavoriteButton(
+                isFavorite: isFavorite,
+                onTap: onFavoriteTap,
+              ),
+            ],
           ),
         ),
       ),
     );
+  }
+
+  List<TextSpan> _buildDescriptionSpans(BuildContext context) {
+    final baseStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: AppColors.gray600,
+          fontWeight: FontWeight.w400,
+        );
+    final highlightStyle = baseStyle?.copyWith(
+      color: AppColors.orange500,
+      fontWeight: FontWeight.w500,
+    );
+    final source = item.stockName;
+    final normalizedQuery = query.trim();
+
+    if (normalizedQuery.isEmpty) {
+      return [TextSpan(text: source, style: baseStyle)];
+    }
+
+    final lowerSource = source.toLowerCase();
+    final lowerQuery = normalizedQuery.toLowerCase();
+    final spans = <TextSpan>[];
+    var start = 0;
+
+    while (true) {
+      final matchIndex = lowerSource.indexOf(lowerQuery, start);
+      if (matchIndex == -1) {
+        break;
+      }
+      if (matchIndex > start) {
+        spans.add(
+          TextSpan(
+            text: source.substring(start, matchIndex),
+            style: baseStyle,
+          ),
+        );
+      }
+      spans.add(
+        TextSpan(
+          text:
+              source.substring(matchIndex, matchIndex + normalizedQuery.length),
+          style: highlightStyle,
+        ),
+      );
+      start = matchIndex + normalizedQuery.length;
+    }
+
+    if (spans.isEmpty) {
+      return [TextSpan(text: source, style: baseStyle)];
+    }
+
+    if (start < source.length) {
+      spans.add(
+        TextSpan(
+          text: source.substring(start),
+          style: baseStyle,
+        ),
+      );
+    }
+
+    return spans;
   }
 }
 
@@ -1373,6 +1411,11 @@ class _FavoriteButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return IconButton(
       onPressed: onTap,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints.tightFor(
+        width: 36,
+        height: 36,
+      ),
       icon: ColorFiltered(
         colorFilter: ColorFilter.mode(
           isFavorite ? AppColors.orange500 : AppColors.gray500,
@@ -1387,6 +1430,46 @@ class _FavoriteButton extends StatelessWidget {
       ),
     );
   }
+}
+
+class _SearchResultAvatar extends StatelessWidget {
+  const _SearchResultAvatar();
+
+  @override
+  Widget build(BuildContext context) {
+    return CustomPaint(
+      size: const Size.square(34),
+      painter: _SearchResultAvatarPainter(),
+    );
+  }
+}
+
+class _SearchResultAvatarPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final circleRect = Offset.zero & size;
+    final clipPath = Path()..addOval(circleRect);
+    canvas.save();
+    canvas.clipPath(clipPath);
+
+    final backgroundPaint = Paint()
+      ..color = AppColors.gray200.withValues(alpha: 0.45);
+    canvas.drawOval(circleRect, backgroundPaint);
+
+    final dotPaint = Paint()..color = AppColors.gray300.withValues(alpha: 0.9);
+    const spacing = 4.0;
+    const radius = 0.9;
+    for (var x = 1.5; x < size.width; x += spacing) {
+      for (var y = 1.5; y < size.height; y += spacing) {
+        canvas.drawCircle(Offset(x, y), radius, dotPaint);
+      }
+    }
+
+    canvas.restore();
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -1589,13 +1672,6 @@ class _SyntheticStockMeta {
   final String directionIconAsset;
   final String countryBadgeAsset;
 
-  factory _SyntheticStockMeta.fromItem(StockSearchItem item) {
-    return _SyntheticStockMeta.fromParts(
-      stockCode: item.stockCode,
-      market: item.market,
-    );
-  }
-
   factory _SyntheticStockMeta.fromParts({
     required String stockCode,
     required String market,
@@ -1622,10 +1698,44 @@ class _SyntheticStockMeta {
 const _dummyStockSearchEntries = <_DummyStockSearchEntry>[
   _DummyStockSearchEntry(
     stockCode: '005930',
-    stockName: '삼성전자',
+    stockName: 'Samsung Electronics',
     market: 'KOSPI',
     sector: 'Semiconductor',
     aliases: ['삼성전자', 'samsung', 'samsung electronics', '005930'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '07747',
+    stockName: 'CSOP Samsung Electronics Daily (2x) Leveraged Product',
+    market: 'HKEX',
+    sector: 'ETF',
+    aliases: [
+      'csop samsung electronics',
+      'samsung',
+      'hong kong',
+      'hk',
+      '07747',
+    ],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '207940',
+    stockName: 'Samsung Biologics',
+    market: 'KOSPI',
+    sector: 'Biotech',
+    aliases: ['삼성바이오로직스', 'samsung biologics', 'samsung', '207940'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '006400',
+    stockName: 'Samsung SDI',
+    market: 'KOSPI',
+    sector: 'Battery',
+    aliases: ['삼성sdi', 'samsung sdi', 'samsung', '006400'],
+  ),
+  _DummyStockSearchEntry(
+    stockCode: '028260',
+    stockName: 'Samsung C&T',
+    market: 'KOSPI',
+    sector: 'Industrial',
+    aliases: ['삼성물산', 'samsung c&t', 'samsung', '028260'],
   ),
   _DummyStockSearchEntry(
     stockCode: '000660',
