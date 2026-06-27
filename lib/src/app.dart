@@ -21,8 +21,37 @@ import 'ui/components/app_bottom_navigation.dart';
 import 'ui/components/app_header.dart';
 import 'ui/components/app_scaffold.dart';
 import 'ui/components/app_search_field.dart';
+import 'ui/assets/app_assets.dart';
 import 'ui/theme/app_theme.dart';
 import 'ui/theme/app_tokens.dart';
+
+const _shellNavigationItems = <AppBottomNavigationItem>[
+  AppBottomNavigationItem(
+    label: 'WatchLists',
+    defaultIconAsset: AppAssets.bottomWatchlistsDefault,
+    selectedIconAsset: AppAssets.bottomWatchlistsSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'Markets',
+    defaultIconAsset: AppAssets.bottomMarketsDefault,
+    selectedIconAsset: AppAssets.bottomMarketsSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'Accounts',
+    defaultIconAsset: AppAssets.bottomAccountsDefault,
+    selectedIconAsset: AppAssets.bottomAccountsSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'Discover',
+    defaultIconAsset: AppAssets.bottomDiscoverDefault,
+    selectedIconAsset: AppAssets.bottomDiscoverSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'MY',
+    defaultIconAsset: AppAssets.bottomMyDefault,
+    selectedIconAsset: AppAssets.bottomMySelected,
+  ),
+];
 
 class StockExchangeApp extends StatelessWidget {
   const StockExchangeApp({
@@ -108,7 +137,7 @@ class ExchangeShell extends StatefulWidget {
 }
 
 class _ExchangeShellState extends State<ExchangeShell> {
-  int _selectedIndex = 0;
+  int _selectedIndex = 1;
   http.Client? _ownedHttpClient;
   late final ExchangeEnvironment _environment;
   late final ExchangeApiClient _apiClient;
@@ -240,19 +269,16 @@ class _ExchangeShellState extends State<ExchangeShell> {
     super.dispose();
   }
 
+  String get _selectedNavigationTitle =>
+      _shellNavigationItems[_selectedIndex].label;
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
       appBar: AppHeader(
-        title: 'Markets',
+        title: _selectedNavigationTitle,
         showBrandMark: true,
-        actions: [
-          _SessionAction(sessionController: _sessionController),
-          Padding(
-            padding: const EdgeInsets.only(left: 4, right: 16),
-            child: _WalletBadge(accountController: _accountController),
-          ),
-        ],
+        showDefaultActions: true,
       ),
       bodySafeAreaBottom: false,
       body: IndexedStack(
@@ -282,6 +308,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           ),
           TaxScreen(
             sessionController: _sessionController,
+            accountController: _accountController,
             taxController: _taxController,
           ),
         ],
@@ -293,33 +320,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
             _selectedIndex = index;
           });
         },
-        items: const [
-          AppBottomNavigationItem(
-            icon: Icons.show_chart_outlined,
-            selectedIcon: Icons.show_chart,
-            label: 'Market',
-          ),
-          AppBottomNavigationItem(
-            icon: Icons.account_balance_wallet_outlined,
-            selectedIcon: Icons.account_balance_wallet,
-            label: 'Portfolio',
-          ),
-          AppBottomNavigationItem(
-            icon: Icons.receipt_long_outlined,
-            selectedIcon: Icons.receipt_long,
-            label: 'Orders',
-          ),
-          AppBottomNavigationItem(
-            icon: Icons.notifications_none,
-            selectedIcon: Icons.notifications,
-            label: 'Alerts',
-          ),
-          AppBottomNavigationItem(
-            icon: Icons.receipt_long_outlined,
-            selectedIcon: Icons.receipt_long,
-            label: 'Tax',
-          ),
-        ],
+        items: _shellNavigationItems,
       ),
     );
   }
@@ -671,12 +672,7 @@ class PortfolioScreen extends StatelessWidget {
             accountId: accountId,
           ),
         ),
-        _InfoPanel(
-          icon: Icons.point_of_sale,
-          title: 'USD cash ledger',
-          body: 'Deposits and trades update the Stock-exchange-BE ledger.',
-          meta: 'Available cash USD 12,450.00',
-        ),
+        const _BackendPendingWhiteBlock(),
       ],
     );
   }
@@ -788,10 +784,12 @@ class TaxScreen extends StatelessWidget {
   const TaxScreen({
     super.key,
     required this.sessionController,
+    required this.accountController,
     required this.taxController,
   });
 
   final ExchangeSessionController sessionController;
+  final AccountController accountController;
   final TaxController taxController;
 
   @override
@@ -800,6 +798,10 @@ class TaxScreen extends StatelessWidget {
       title: 'Tax Refund',
       subtitle: 'Document status, refund estimate, and recapture risk.',
       children: [
+        _MyPageSummaryPanel(
+          sessionController: sessionController,
+          accountController: accountController,
+        ),
         _TaxRefundStatusPanel(
           sessionController: sessionController,
           taxController: taxController,
@@ -808,14 +810,73 @@ class TaxScreen extends StatelessWidget {
           sessionController: sessionController,
           taxController: taxController,
         ),
-        const _InfoPanel(
-          icon: Icons.warning_amber_outlined,
-          title: 'Recapture risk',
-          body:
-              'Advance refund completion includes a clear post-review risk notice.',
-          meta: 'Risk notice required before advance payment',
-        ),
+        const _BackendPendingWhiteBlock(),
       ],
+    );
+  }
+}
+
+class _MyPageSummaryPanel extends StatelessWidget {
+  const _MyPageSummaryPanel({
+    required this.sessionController,
+    required this.accountController,
+  });
+
+  final ExchangeSessionController sessionController;
+  final AccountController accountController;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surface,
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.person_outline, color: colorScheme.primary),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      'My page quick access',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Session access and USD cash balance moved here from the header.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 12),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  _SessionAction(sessionController: sessionController),
+                  _WalletBadge(accountController: accountController),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
@@ -4685,6 +4746,27 @@ class _InfoPanel extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _BackendPendingWhiteBlock extends StatelessWidget {
+  const _BackendPendingWhiteBlock();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border.all(color: colorScheme.outlineVariant),
+          borderRadius: BorderRadius.circular(8),
+          color: colorScheme.surface,
+        ),
+        child: const SizedBox(height: 96),
       ),
     );
   }

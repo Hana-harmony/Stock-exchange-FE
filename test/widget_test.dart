@@ -29,9 +29,22 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Markets'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
+    expect(find.bySemanticsLabel('Search'), findsOneWidget);
+    expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
+    expect(find.text('Portfolio'), findsOneWidget);
+    expect(
+      find.text('USD cash, holdings, and account scoped Korea stock quotes.'),
+      findsOneWidget,
+    );
+
+    await _openBottomTab(tester, 'MY');
+    expect(find.text('My page quick access'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, 'Sign in'), findsOneWidget);
+    expect(find.text('USD 0.00'), findsOneWidget);
+
+    await _openBottomTab(tester, 'WatchLists');
     expect(find.text('Korea Market'), findsOneWidget);
-    expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Search all Korean stocks'), findsOneWidget);
     expect(find.text('Popular stocks'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
@@ -162,6 +175,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(marketQuoteController.value.quotes.length, 2);
+    await _openBottomTab(tester, 'WatchLists');
 
     await tester.enterText(
       find.byKey(const ValueKey('market-stock-search-field')),
@@ -196,19 +210,15 @@ void main() {
     await marketQuoteController.subscribeLive();
     await tester.pump();
 
-    await tester.tap(_navigationDestination('Portfolio'));
-    await tester.pumpAndSettle();
     expect(find.text('USD cash'), findsWidgets);
     expect(
         find.text('USD cash, holdings, and account scoped Korea stock quotes.'),
         findsOneWidget);
 
-    await tester.tap(_navigationDestination('Orders'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Accounts');
     expect(find.text('Orders and fills'), findsOneWidget);
 
-    await tester.tap(_navigationDestination('Alerts'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Discover');
     expect(
       find.text('AI translated news and disclosures for your stocks.'),
       findsOneWidget,
@@ -217,8 +227,7 @@ void main() {
     expect(find.text('Sign in to load watchlist and portfolio alerts.'),
         findsOneWidget);
 
-    await tester.tap(_navigationDestination('Tax'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'MY');
     expect(find.text('Tax Refund'), findsOneWidget);
     expect(find.text('Government verification'), findsOneWidget);
   });
@@ -319,6 +328,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'MY');
     await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
     await tester.pumpAndSettle();
     await tester.enterText(find.widgetWithText(TextField, 'Username'), 'hana');
@@ -443,6 +453,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'MY');
 
     await tester.tap(find.widgetWithText(TextButton, 'Sign in'));
     await tester.pumpAndSettle();
@@ -457,8 +468,7 @@ void main() {
     expect(authPaths, ['/api/v1/auth/signup', '/api/v1/auth/login']);
     expect(find.text('hana'), findsOneWidget);
 
-    await tester.tap(_navigationDestination('Portfolio'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Markets');
 
     expect(find.text('USD cash'), findsWidgets);
     expect(find.text('USD 0.00'), findsWidgets);
@@ -523,6 +533,7 @@ void main() {
       _stockExchangeTestApp(marketQuoteController: marketQuoteController),
     );
     await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'WatchLists');
     expect(marketQuoteController.value.quotes.single.stockName, 'SK hynix');
     expect(
         marketQuoteController.value.quotes.single.localCurrencyPrice, '184.16');
@@ -586,6 +597,7 @@ void main() {
       _stockExchangeTestApp(marketQuoteController: marketQuoteController),
     );
     await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'WatchLists');
 
     await tester.tap(find.widgetWithText(ChoiceChip, 'KOSPI'));
     await tester.pumpAndSettle();
@@ -1023,11 +1035,9 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(_navigationDestination('Portfolio'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Markets');
     await tester.pumpAndSettle();
 
-    expect(find.text('hana'), findsOneWidget);
     expect(find.text('USD 125.50'), findsWidgets);
     expect(find.text('NAVER'), findsOneWidget);
     expect(accountRequestCount, greaterThanOrEqualTo(1));
@@ -1163,8 +1173,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(_navigationDestination('Portfolio'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Markets');
     await tester.ensureVisible(find.text('Watchlist prices'));
     await tester.pumpAndSettle();
 
@@ -1266,8 +1275,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(_navigationDestination('Portfolio'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Markets');
     await portfolioQuoteController.subscribeLive(
       accountId: 'ACC-ABC123456789',
       accountScope: MarketQuoteAccountScope.portfolio,
@@ -1634,8 +1642,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(_navigationDestination('Orders'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Accounts');
 
     expect(find.text('Orders and fills'), findsOneWidget);
     expect(find.text('SELL Samsung Electronics'), findsOneWidget);
@@ -1696,8 +1703,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(_navigationDestination('Tax'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'MY');
 
     await tester.tap(find.text('Refresh tax status'));
     await tester.pumpAndSettle();
@@ -1796,8 +1802,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(_navigationDestination('Tax'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'MY');
 
     expect(
       find.text('Tax document upload and refund request'),
@@ -1886,8 +1891,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(_navigationDestination('Alerts'));
-    await tester.pumpAndSettle();
+    await _openBottomTab(tester, 'Discover');
 
     expect(find.text('Integrated alert inbox'), findsOneWidget);
     expect(find.text('Push device registration'), findsOneWidget);
@@ -1922,6 +1926,11 @@ void main() {
 
 Finder _navigationDestination(String label) {
   return find.byKey(ValueKey('bottom-nav-$label'));
+}
+
+Future<void> _openBottomTab(WidgetTester tester, String label) async {
+  await tester.tap(_navigationDestination(label));
+  await tester.pumpAndSettle();
 }
 
 StockExchangeApp _stockExchangeTestApp({

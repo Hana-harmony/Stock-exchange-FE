@@ -77,3 +77,7 @@ flutter test
 - [기능 분류와 레포 책임](docs/FEATURE_CLASSIFICATION.md)
 - [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)
 - [로드맵](docs/ROADMAP.md)
+
+
+## 현재 기능 인벤토리
+- `./current-feature-inventory.md`

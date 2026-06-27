@@ -24,7 +24,7 @@ abstract final class AppShadows {
   static const navigation = [
     BoxShadow(
       color: Color.fromRGBO(0, 0, 0, 0.02),
-      blurRadius: 10,
+      blurRadius: 20,
       offset: Offset(0, -4),
     ),
   ];
