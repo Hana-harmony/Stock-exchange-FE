@@ -37,7 +37,7 @@ void main() {
 
     expect(controller.value.status, MarketDetailStatus.loaded);
     expect(controller.value.detail?.stockName, 'Samsung Electronics');
-    expect(controller.value.detail?.localCurrencyDisplay, 'USD 54.01');
+    expect(controller.value.detail?.localCurrencyDisplay, 'USD 1,024.24');
     expect(controller.value.detail?.riskBadge, 'VI active');
     expect(controller.value.detail?.singlePriceTrading, isTrue);
     expect(
@@ -54,16 +54,16 @@ void main() {
     );
     expect(
       controller.value.chart?.latestPoint?.closeLocalDisplay,
-      'USD 54.01',
+      'USD 1,024.24',
     );
     expect(controller.value.orderBook?.bids.single.quantity, 1200);
     expect(
       controller.value.orderBook?.bestAsk?.displayPrice('KRW', 'USD'),
-      'KRW 82500 / USD 54.08',
+      'KRW 82500 / USD 1,024.31',
     );
     expect(
       controller.value.orderBook?.bestBid?.displayPrice('KRW', 'USD'),
-      'KRW 82400 / USD 54.01',
+      'KRW 82400 / USD 1,024.24',
     );
     expect(paths, [
       '/api/v1/stocks/005930',
@@ -192,7 +192,7 @@ Map<String, Object?> _detailJson() {
     'baseCurrency': 'KRW',
     'displayCurrency': 'USD',
     'currentPriceKrw': '82400',
-    'localCurrencyPrice': '54.01',
+    'localCurrencyPrice': '1024.24',
     'changeRate': '+1.23%',
     'volume': 18300000,
     'marketDataTime': '2026-06-18T06:00:00Z',
@@ -235,7 +235,7 @@ Map<String, Object?> _chartJson() {
         'lowPriceKrw': '80500',
         'closePriceKrw': '82400',
         'localCurrency': 'USD',
-        'closeLocalCurrencyPrice': '54.01',
+        'closeLocalCurrencyPrice': '1024.24',
         'volume': 18300000,
         'adjusted': false,
       }
@@ -257,7 +257,7 @@ Map<String, Object?> _orderBookJson({
     'asks': [
       {
         'priceKrw': '82500',
-        'localCurrencyPrice': '54.08',
+        'localCurrencyPrice': '1024.31',
         'quantity': askQuantity,
         'orderCount': 12,
       }
@@ -265,7 +265,7 @@ Map<String, Object?> _orderBookJson({
     'bids': [
       {
         'priceKrw': '82400',
-        'localCurrencyPrice': '54.01',
+        'localCurrencyPrice': '1024.24',
         'quantity': bidQuantity,
         'orderCount': 19,
       }

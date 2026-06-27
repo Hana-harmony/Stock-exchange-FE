@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/currency_format.dart';
 import '../../core/exchange_session_controller.dart';
 import '../../core/market_detail_controller.dart';
 import '../../core/market_quote_controller.dart';
@@ -76,7 +77,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.190',
+      priceDisplay: '205.19',
       changeDisplay: '+37.25%',
       isPositive: true,
     ),
@@ -84,7 +85,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.190',
+      priceDisplay: '205.19',
       changeDisplay: '-37.25%',
       isPositive: false,
     ),
@@ -92,7 +93,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.190',
+      priceDisplay: '205.19',
       changeDisplay: '-37.25%',
       isPositive: false,
     ),
@@ -100,7 +101,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.190',
+      priceDisplay: '205.19',
       changeDisplay: '+37.25%',
       isPositive: true,
     ),
@@ -108,7 +109,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.190',
+      priceDisplay: '205.19',
       changeDisplay: '+37.25%',
       isPositive: true,
     ),
@@ -256,45 +257,45 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
     _MarketSearchPreview(
       symbol: 'NVDA',
       name: 'NVIDIA',
-      priceDisplay: '864.010',
+      priceDisplay: '864.01',
       changeDisplay: '+37.25%',
-      secondaryPriceDisplay: '857.990',
+      secondaryPriceDisplay: '857.99',
       secondaryChangeDisplay: '-0.70%',
       isPositive: true,
     ),
     _MarketSearchPreview(
       symbol: 'NVDA',
       name: 'NVIDIA',
-      priceDisplay: '263.470',
+      priceDisplay: '263.47',
       changeDisplay: '-16.74%',
-      secondaryPriceDisplay: '272.780',
+      secondaryPriceDisplay: '272.78',
       secondaryChangeDisplay: '+3.53%',
       isPositive: false,
     ),
     _MarketSearchPreview(
       symbol: 'NVDA',
       name: 'NVIDIA',
-      priceDisplay: '864.010',
+      priceDisplay: '864.01',
       changeDisplay: '+37.25%',
-      secondaryPriceDisplay: '857.990',
+      secondaryPriceDisplay: '857.99',
       secondaryChangeDisplay: '-0.70%',
       isPositive: true,
     ),
     _MarketSearchPreview(
       symbol: 'NVDA',
       name: 'NVIDIA',
-      priceDisplay: '864.010',
+      priceDisplay: '864.01',
       changeDisplay: '+37.25%',
-      secondaryPriceDisplay: '857.990',
+      secondaryPriceDisplay: '857.99',
       secondaryChangeDisplay: '-0.70%',
       isPositive: true,
     ),
     _MarketSearchPreview(
       symbol: 'NVDA',
       name: 'NVIDIA',
-      priceDisplay: '864.010',
+      priceDisplay: '864.01',
       changeDisplay: '+37.25%',
-      secondaryPriceDisplay: '857.990',
+      secondaryPriceDisplay: '857.99',
       secondaryChangeDisplay: '-0.70%',
       isPositive: true,
     ),
@@ -1843,14 +1844,18 @@ class _StockDetailSnapshot {
       accountDisplay: portfolio != null && portfolio.accountId.isNotEmpty
           ? 'Account ${portfolio.accountId}'
           : fallback.accountDisplay,
-      averagePrice: holding?.averagePriceUsd ?? fallback.averagePrice,
+      averagePrice: holding != null
+          ? formatUsdAmount(holding.averagePriceUsd)
+          : fallback.averagePrice,
       returnRate: holding?.unrealizedPnlRate ?? fallback.returnRate,
       sharesDisplay: holding != null
           ? '${holding.quantity} Shares'
           : fallback.sharesDisplay,
-      marketValue: holding?.marketValueUsd ?? fallback.marketValue,
+      marketValue: holding != null
+          ? formatUsdAmount(holding.marketValueUsd)
+          : fallback.marketValue,
       marketValueChange: holding != null
-          ? '(${holding.unrealizedPnlUsd})'
+          ? '(${formatUsdAmount(holding.unrealizedPnlUsd)})'
           : fallback.marketValueChange,
       costDisplay: fallback.costDisplay,
     );

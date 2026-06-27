@@ -34,8 +34,9 @@ void main() {
     expect(controller.value.status, MarketQuoteStatus.loaded);
     expect(controller.value.snapshot?.cacheStatus, 'FRESH_CACHE');
     expect(controller.value.quotes.single.stockName, 'Samsung Electronics');
-    expect(controller.value.quotes.single.localCurrencyDisplay, 'USD 54.00');
-    expect(controller.value.quotes.single.fxMeta, contains('Hana-OmniLens-API'));
+    expect(controller.value.quotes.single.localCurrencyDisplay, 'USD 1,024.24');
+    expect(
+        controller.value.quotes.single.fxMeta, contains('Hana-OmniLens-API'));
   });
 
   test('keeps visible quotes when snapshot request fails', () async {
@@ -179,7 +180,8 @@ void main() {
     expect(connections.last.closed, isTrue);
   });
 
-  test('marks live quotes stale while reconnecting after a received tick', () async {
+  test('marks live quotes stale while reconnecting after a received tick',
+      () async {
     late _FakeQuoteSocketConnection connection;
     var snapshotRequestCount = 0;
     final controller = MarketQuoteController(
@@ -244,7 +246,7 @@ Map<String, Object?> _tickJson() {
     'changeRate': '+1.23%',
     'volume': 18300000,
     'localCurrency': 'USD',
-    'localCurrencyPrice': '54.00',
+    'localCurrencyPrice': '1024.24',
     'fxRate': '1525.93',
     'fxRateTime': '2026-06-18T06:00:00Z',
     'fxRateSource': 'Hana-OmniLens-API',
@@ -291,7 +293,7 @@ Map<String, Object?> _snapshotJson({
         'changeRate': '+1.23%',
         'volume': 18300000,
         'localCurrency': 'USD',
-        'localCurrencyPrice': '54.00',
+        'localCurrencyPrice': '1024.24',
         'fxRate': '1525.93',
         'fxRateTime': '2026-06-18T06:00:00Z',
         'fxRateSource': 'Hana-OmniLens-API',

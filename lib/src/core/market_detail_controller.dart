@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'currency_format.dart';
 import 'exchange_api_client.dart';
 
 enum MarketDetailStatus {
@@ -116,7 +117,8 @@ class StockDetail {
 
   String get krwDisplay => '$baseCurrency $currentPriceKrw';
 
-  String get localCurrencyDisplay => '$displayCurrency $localCurrencyPrice';
+  String get localCurrencyDisplay =>
+      formatCurrencyDisplay(displayCurrency, localCurrencyPrice);
 
   String get predictedOwnershipRangeDisplay =>
       '$predictedForeignOwnershipRateMin% - $predictedForeignOwnershipRateMax%';
@@ -304,7 +306,8 @@ class MarketChartPoint {
 
   String get closeKrwDisplay => 'KRW $closePriceKrw';
 
-  String get closeLocalDisplay => '$localCurrency $closeLocalCurrencyPrice';
+  String get closeLocalDisplay =>
+      formatCurrencyDisplay(localCurrency, closeLocalCurrencyPrice);
 
   static MarketChartPoint fromJson(Map<String, dynamic> json) {
     return MarketChartPoint(
@@ -395,7 +398,8 @@ class OrderBookLevel {
   final int orderCount;
 
   String displayPrice(String baseCurrency, String displayCurrency) {
-    return '$baseCurrency $priceKrw / $displayCurrency $localCurrencyPrice';
+    return '$baseCurrency $priceKrw / '
+        '${formatCurrencyDisplay(displayCurrency, localCurrencyPrice)}';
   }
 
   static OrderBookLevel fromJson(Map<String, dynamic> json) {

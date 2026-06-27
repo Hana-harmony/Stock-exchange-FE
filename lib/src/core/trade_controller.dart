@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'currency_format.dart';
 import 'exchange_api_client.dart';
 
 enum TradeStatus {
@@ -93,6 +94,21 @@ class PortfolioSnapshot {
   final String realizedPnlUsd;
   final String unrealizedPnlUsd;
   final String tradingMode;
+
+  String get cashBalanceDisplay =>
+      formatCurrencyDisplay(currency, cashBalanceUsd);
+
+  String get totalMarketValueDisplay =>
+      formatCurrencyDisplay(currency, totalMarketValueUsd);
+
+  String get totalAssetValueDisplay =>
+      formatCurrencyDisplay(currency, totalAssetValueUsd);
+
+  String get realizedPnlDisplay =>
+      formatCurrencyDisplay(currency, realizedPnlUsd);
+
+  String get unrealizedPnlDisplay =>
+      formatCurrencyDisplay(currency, unrealizedPnlUsd);
   final List<MockHolding> holdings;
   final List<TradeExecution> recentTrades;
 
@@ -140,6 +156,17 @@ class MockHolding {
   final String marketValueUsd;
   final String unrealizedPnlUsd;
   final String unrealizedPnlRate;
+
+  String get averagePriceDisplay =>
+      formatCurrencyDisplay('USD', averagePriceUsd);
+
+  String get currentPriceDisplay =>
+      formatCurrencyDisplay('USD', currentPriceUsd);
+
+  String get marketValueDisplay => formatCurrencyDisplay('USD', marketValueUsd);
+
+  String get unrealizedPnlDisplay =>
+      formatCurrencyDisplay('USD', unrealizedPnlUsd);
 
   static MockHolding fromJson(Map<String, dynamic> json) {
     return MockHolding(
@@ -246,10 +273,11 @@ class TradeExecution {
 
   bool get isSell => side.toUpperCase() == 'SELL';
 
-  String get realizedPnlDisplay => 'USD $realizedPnlUsd';
+  String get realizedPnlDisplay => formatCurrencyDisplay('USD', realizedPnlUsd);
 
-  String get summary =>
-      '$side $quantity $stockName at USD $executionPriceUsd / gross USD $grossAmountUsd';
+  String get summary => '$side $quantity $stockName at '
+      '${formatCurrencyDisplay('USD', executionPriceUsd)} / gross '
+      '${formatCurrencyDisplay('USD', grossAmountUsd)}';
 
   static TradeExecution fromJson(Map<String, dynamic> json) {
     return TradeExecution(
@@ -323,11 +351,17 @@ class TradeOrderPlacement {
 
   bool get isFilled => status.toUpperCase() == 'FILLED';
 
+  String get limitPriceDisplay => formatCurrencyDisplay('USD', limitPriceUsd);
+
+  String get observedPriceDisplay =>
+      formatCurrencyDisplay('USD', observedPriceUsd);
+
   String get summary {
     if (isFilled && tradeExecution != null) {
       return tradeExecution!.summary;
     }
-    return '$side $quantity $stockName limit USD $limitPriceUsd / waiting at USD $observedPriceUsd';
+    return '$side $quantity $stockName limit $limitPriceDisplay / '
+        'waiting at $observedPriceDisplay';
   }
 
   static TradeOrderPlacement fromJson(Map<String, dynamic> json) {
