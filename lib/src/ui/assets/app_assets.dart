@@ -6,8 +6,10 @@ abstract final class AppAssets {
   static const headerNotifications = 'assets/icons/header_notifications.png';
   static const headerSearch = 'assets/icons/header_search.png';
   static const backArrow = 'assets/icons/back_arrow.png';
+  static const headerFavoriteIcon = 'assets/icons/header_favorite_icon.png';
   static const trendingIcon = 'assets/icons/Trending Icon.png';
   static const favoriteIcon = 'assets/icons/favorite_icon.png';
+  static const favoriteIconActive = 'assets/icons/favorite_icon_active.png';
   static const binIcon = 'assets/icons/bin_icon.png';
   static const rightArrow = 'assets/icons/right_arrow.png';
   static const arrowUpBig = 'assets/icons/arrow_up_icon_big.png';

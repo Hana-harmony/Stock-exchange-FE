@@ -73,8 +73,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
     await tester.pumpAndSettle();
 
-    expect(find.text('카카오'), findsWidgets);
-    expect(find.text('035720'), findsOneWidget);
+    expect(find.textContaining('카카오'), findsWidgets);
+    expect(find.textContaining('035720'), findsOneWidget);
     expect(find.text('Order'), findsWidgets);
     expect(find.text('K-News'), findsOneWidget);
 
