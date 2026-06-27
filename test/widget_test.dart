@@ -29,7 +29,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Hana X'), findsOneWidget);
+    expect(find.text('Markets'), findsOneWidget);
     expect(find.text('Korea Market'), findsOneWidget);
     expect(find.text('Sign in'), findsOneWidget);
     expect(find.text('Search all Korean stocks'), findsOneWidget);
@@ -1921,9 +1921,7 @@ void main() {
 }
 
 Finder _navigationDestination(String label) {
-  return find.byWidgetPredicate(
-    (widget) => widget is NavigationDestination && widget.label == label,
-  );
+  return find.byKey(ValueKey('bottom-nav-$label'));
 }
 
 StockExchangeApp _stockExchangeTestApp({

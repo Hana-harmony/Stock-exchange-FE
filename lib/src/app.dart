@@ -17,6 +17,12 @@ import 'core/notification_controller.dart';
 import 'core/secure_exchange_session_store.dart';
 import 'core/tax_controller.dart';
 import 'core/trade_controller.dart';
+import 'ui/components/app_bottom_navigation.dart';
+import 'ui/components/app_header.dart';
+import 'ui/components/app_scaffold.dart';
+import 'ui/components/app_search_field.dart';
+import 'ui/theme/app_theme.dart';
+import 'ui/theme/app_tokens.dart';
 
 class StockExchangeApp extends StatelessWidget {
   const StockExchangeApp({
@@ -51,11 +57,7 @@ class StockExchangeApp extends StatelessWidget {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       title: 'Hana Local Exchange',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0F766E)),
-        scaffoldBackgroundColor: const Color(0xFFF7FAFC),
-        useMaterial3: true,
-      ),
+      theme: buildAppTheme(),
       home: ExchangeShell(
         sessionController: sessionController,
         accountController: accountController,
@@ -240,82 +242,81 @@ class _ExchangeShellState extends State<ExchangeShell> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Hana X'),
+    return AppScaffold(
+      appBar: AppHeader(
+        title: 'Markets',
+        showBrandMark: true,
         actions: [
           _SessionAction(sessionController: _sessionController),
-          const SizedBox(width: 8),
           Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(left: 4, right: 16),
             child: _WalletBadge(accountController: _accountController),
           ),
         ],
       ),
-      body: SafeArea(
-        child: IndexedStack(
-          index: _selectedIndex,
-          children: [
-            MarketScreen(
-              sessionController: _sessionController,
-              tradeController: _tradeController,
-              marketDetailController: _marketDetailController,
-              marketIndexController: _marketIndexController,
-              marketQuoteController: _marketQuoteController,
-            ),
-            PortfolioScreen(
-              sessionController: _sessionController,
-              accountController: _accountController,
-              tradeController: _tradeController,
-              watchlistQuoteController: _watchlistQuoteController,
-              portfolioQuoteController: _portfolioQuoteController,
-            ),
-            OrdersScreen(
-              sessionController: _sessionController,
-              tradeController: _tradeController,
-            ),
-            AlertsScreen(
-              sessionController: _sessionController,
-              notificationController: _notificationController,
-            ),
-            TaxScreen(
-              sessionController: _sessionController,
-              taxController: _taxController,
-            ),
-          ],
-        ),
+      bodySafeAreaBottom: false,
+      body: IndexedStack(
+        index: _selectedIndex,
+        children: [
+          MarketScreen(
+            sessionController: _sessionController,
+            tradeController: _tradeController,
+            marketDetailController: _marketDetailController,
+            marketIndexController: _marketIndexController,
+            marketQuoteController: _marketQuoteController,
+          ),
+          PortfolioScreen(
+            sessionController: _sessionController,
+            accountController: _accountController,
+            tradeController: _tradeController,
+            watchlistQuoteController: _watchlistQuoteController,
+            portfolioQuoteController: _portfolioQuoteController,
+          ),
+          OrdersScreen(
+            sessionController: _sessionController,
+            tradeController: _tradeController,
+          ),
+          AlertsScreen(
+            sessionController: _sessionController,
+            notificationController: _notificationController,
+          ),
+          TaxScreen(
+            sessionController: _sessionController,
+            taxController: _taxController,
+          ),
+        ],
       ),
-      bottomNavigationBar: NavigationBar(
+      bottomNavigationBar: AppBottomNavigation(
         selectedIndex: _selectedIndex,
-        onDestinationSelected: (index) {
+        onTap: (index) {
           setState(() {
             _selectedIndex = index;
           });
         },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.show_chart_outlined),
-            selectedIcon: Icon(Icons.show_chart),
+        items: const [
+          AppBottomNavigationItem(
+            icon: Icons.show_chart_outlined,
+            selectedIcon: Icons.show_chart,
             label: 'Market',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
+          AppBottomNavigationItem(
+            icon: Icons.account_balance_wallet_outlined,
+            selectedIcon: Icons.account_balance_wallet,
             label: 'Portfolio',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
+          AppBottomNavigationItem(
+            icon: Icons.receipt_long_outlined,
+            selectedIcon: Icons.receipt_long,
             label: 'Orders',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.notifications_none),
-            selectedIcon: Icon(Icons.notifications),
+          AppBottomNavigationItem(
+            icon: Icons.notifications_none,
+            selectedIcon: Icons.notifications,
             label: 'Alerts',
           ),
-          NavigationDestination(
-            icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
+          AppBottomNavigationItem(
+            icon: Icons.receipt_long_outlined,
+            selectedIcon: Icons.receipt_long,
             label: 'Tax',
           ),
         ],
@@ -538,11 +539,15 @@ class _MarketScreenState extends State<MarketScreen> {
   @override
   Widget build(BuildContext context) {
     final hasSearchQuery = _searchQuery.isNotEmpty;
-    return _ScreenFrame(
+    return AppScreenFrame(
       title: 'Korea Market',
       subtitle: 'Live Korea stock quotes with KRW and USD pricing.',
       children: [
-        _SearchField(onChanged: _searchStocks),
+        AppSearchField(
+          fieldKey: const ValueKey('market-stock-search-field'),
+          hintText: 'Search all Korean stocks',
+          onChanged: _searchStocks,
+        ),
         if (hasSearchQuery)
           _StockSearchResultsPanel(
             query: _searchQuery,
@@ -591,23 +596,22 @@ class StockDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('$title $stockCode'),
+    return AppScaffold(
+      appBar: AppHeader(
+        title: '$title $stockCode',
+        leading: const BackButton(),
       ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(16),
-          children: [
-            _StockDetailPanel(
-              sessionController: sessionController,
-              marketDetailController: marketDetailController,
-              marketQuoteController: marketQuoteController,
-              tradeController: tradeController,
-              initialStockCode: stockCode,
-            ),
-          ],
-        ),
+      body: ListView(
+        padding: AppInsets.screen,
+        children: [
+          _StockDetailPanel(
+            sessionController: sessionController,
+            marketDetailController: marketDetailController,
+            marketQuoteController: marketQuoteController,
+            tradeController: tradeController,
+            initialStockCode: stockCode,
+          ),
+        ],
       ),
     );
   }
@@ -631,7 +635,7 @@ class PortfolioScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ScreenFrame(
+    return AppScreenFrame(
       title: 'Portfolio',
       subtitle: 'USD cash, holdings, and account scoped Korea stock quotes.',
       children: [
@@ -715,7 +719,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _ScreenFrame(
+    return AppScreenFrame(
       title: 'Orders',
       subtitle: 'Buy and sell history from the exchange ledger.',
       children: [
@@ -767,7 +771,7 @@ class _AlertsScreenState extends State<AlertsScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return _ScreenFrame(
+    return AppScreenFrame(
       title: 'Alerts',
       subtitle: 'AI translated news and disclosures for your stocks.',
       children: [
@@ -792,7 +796,7 @@ class TaxScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return _ScreenFrame(
+    return AppScreenFrame(
       title: 'Tax Refund',
       subtitle: 'Document status, refund estimate, and recapture risk.',
       children: [
@@ -1464,42 +1468,6 @@ class _TaxMatchedTradeRow extends StatelessWidget {
   }
 }
 
-class _ScreenFrame extends StatelessWidget {
-  const _ScreenFrame({
-    required this.title,
-    required this.subtitle,
-    required this.children,
-  });
-
-  final String title;
-  final String subtitle;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-        Text(
-          title,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          subtitle,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-        ),
-        const SizedBox(height: 16),
-        ...children,
-      ],
-    );
-  }
-}
-
 class _SessionAction extends StatelessWidget {
   const _SessionAction({required this.sessionController});
 
@@ -1512,6 +1480,13 @@ class _SessionAction extends StatelessWidget {
       builder: (context, sessionState, child) {
         final isSignedIn = sessionState.isSignedIn;
         return TextButton.icon(
+          style: TextButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            minimumSize: Size.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            foregroundColor: AppColors.gray700,
+            visualDensity: VisualDensity.compact,
+          ),
           onPressed: () => _showAuthDialog(context, sessionController),
           icon: Icon(isSignedIn ? Icons.person : Icons.login),
           label: Text(isSignedIn ? sessionState.session!.username : 'Sign in'),
@@ -1900,28 +1875,6 @@ class _SignedInSessionView extends StatelessWidget {
           ),
         ),
       ],
-    );
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({required this.onChanged});
-
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: TextField(
-        key: const ValueKey('market-stock-search-field'),
-        decoration: const InputDecoration(
-          prefixIcon: Icon(Icons.search),
-          hintText: 'Search all Korean stocks',
-          border: OutlineInputBorder(),
-        ),
-        onChanged: onChanged,
-      ),
     );
   }
 }
@@ -5623,17 +5576,26 @@ class _WalletBadge extends StatelessWidget {
       builder: (context, accountState, child) {
         return DecoratedBox(
           decoration: BoxDecoration(
-            border:
-                Border.all(color: Theme.of(context).colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.gray200),
+            borderRadius: BorderRadius.circular(AppRadii.small),
+            color: AppColors.white,
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
             child: Row(
               children: [
-                const Icon(Icons.account_balance_wallet_outlined, size: 16),
+                const Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 16,
+                  color: AppColors.gray700,
+                ),
                 const SizedBox(width: 6),
-                Text(accountState.account?.cashDisplay ?? 'USD 0.00'),
+                Text(
+                  accountState.account?.cashDisplay ?? 'USD 0.00',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: AppColors.gray700,
+                      ),
+                ),
               ],
             ),
           ),
