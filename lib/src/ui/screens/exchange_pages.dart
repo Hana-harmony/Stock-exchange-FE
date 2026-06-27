@@ -777,6 +777,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       length: 4,
       child: AppScaffold(
         bodySafeAreaBottom: false,
+        extendBody: true,
         body: AnimatedBuilder(
           animation: Listenable.merge([
             widget.marketDetailController,
@@ -1615,38 +1616,51 @@ class _StockBottomActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       height: 119,
-      color: AppColors.white,
       child: Column(
         children: [
-          SizedBox(
-            height: 85,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: _TradeActionButton(
-                      label: 'Sell',
-                      backgroundColor: AppColors.red500,
-                      onTap: onSell,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: _TradeActionButton(
-                      label: 'Buy',
-                      backgroundColor: AppColors.green500,
-                      onTap: onBuy,
-                    ),
-                  ),
+          DecoratedBox(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  AppColors.white.withValues(alpha: 0),
+                  AppColors.white,
                 ],
+                stops: const [0, 0.2],
+              ),
+            ),
+            child: SizedBox(
+              height: 85,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _TradeActionButton(
+                        label: 'Sell',
+                        backgroundColor: AppColors.red500,
+                        onTap: onSell,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _TradeActionButton(
+                        label: 'Buy',
+                        backgroundColor: AppColors.green500,
+                        onTap: onBuy,
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-          SizedBox(
+          Container(
             height: 34,
+            color: AppColors.white,
             child: Center(
               child: Image.asset(
                 AppAssets.bottomHomeBar,

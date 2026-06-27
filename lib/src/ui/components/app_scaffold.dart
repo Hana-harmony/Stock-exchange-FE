@@ -9,17 +9,20 @@ class AppScaffold extends StatelessWidget {
     required this.body,
     this.bottomNavigationBar,
     this.bodySafeAreaBottom = true,
+    this.extendBody = false,
   });
 
   final PreferredSizeWidget? appBar;
   final Widget body;
   final Widget? bottomNavigationBar;
   final bool bodySafeAreaBottom;
+  final bool extendBody;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.white,
+      extendBody: extendBody,
       appBar: appBar,
       body: SafeArea(
         top: false,
