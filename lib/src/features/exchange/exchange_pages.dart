@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/currency_format.dart';
 import '../../core/exchange_session_controller.dart';
@@ -23,6 +24,7 @@ part 'shared/exchange_shared_widgets.dart';
 part 'shared/exchange_styles.dart';
 part 'shared/placeholder_screen.dart';
 part 'stock_detail/models/stock_detail_snapshot.dart';
+part 'stock_detail/stock_order_entry_screen.dart';
 part 'stock_detail/models/stock_news_models.dart';
 part 'stock_detail/stock_detail_components.dart';
 part 'stock_detail/stock_detail_screen.dart';

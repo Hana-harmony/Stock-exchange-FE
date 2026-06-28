@@ -102,14 +102,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             widget.tradeController,
           ]),
           builder: (context, _) {
-            final snapshot = _StockDetailSnapshot.fromControllers(
-              stockCode: widget.stockCode,
-              fallbackTitle: widget.title,
-              fallbackMarket: widget.market,
-              fallbackSector: widget.sector,
-              detailState: widget.marketDetailController.value,
-              tradeState: widget.tradeController.value,
-            );
+            final snapshot = _buildSnapshot();
 
             return SafeArea(
               bottom: false,
@@ -191,9 +184,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         ),
         bottomNavigationBar: _StockBottomActionBar(
           onSell: () => _handleTradeAction('Sell'),
-          onBuy: () => _handleTradeAction('Buy'),
+          onBuy: () => _handleTradeAction('Buy', _buildSnapshot()),
         ),
       ),
+    );
+  }
+
+  _StockDetailSnapshot _buildSnapshot() {
+    return _StockDetailSnapshot.fromControllers(
+      stockCode: widget.stockCode,
+      fallbackTitle: widget.title,
+      fallbackMarket: widget.market,
+      fallbackSector: widget.sector,
+      detailState: widget.marketDetailController.value,
+      tradeState: widget.tradeController.value,
     );
   }
 
@@ -225,13 +229,31 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
-  void _handleTradeAction(String side) {
+  void _handleTradeAction(String side, [_StockDetailSnapshot? snapshot]) {
     if (_isLowLimitTriggered) {
       _showPriceLimitRestrictionDialog();
       return;
     }
     if (_showViBanner) {
       _showViRestrictionDialog();
+      return;
+    }
+    if (side == 'Buy' && snapshot != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (context) => _StockOrderEntryScreen(
+            sessionController: widget.sessionController,
+            marketDetailController: widget.marketDetailController,
+            marketQuoteController: widget.marketQuoteController,
+            tradeController: widget.tradeController,
+            notificationController: widget.notificationController,
+            stockCode: widget.stockCode,
+            snapshot: snapshot,
+            initialIsFavorite: _isFavorite,
+            onFavoriteToggle: _toggleFavorite,
+          ),
+        ),
+      );
       return;
     }
     _showTradePlaceholder(side);

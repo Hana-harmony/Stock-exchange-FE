@@ -207,6 +207,99 @@ void main() {
     expect(find.text('Order'), findsOneWidget);
   });
 
+  testWidgets('opens the figma order entry screen when tapping buy',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-detail-buy-button')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('stock-order-entry-screen')),
+      findsOneWidget,
+    );
+    expect(find.text('Limit Order'), findsOneWidget);
+    expect(find.text('Modify/Cancel'), findsOneWidget);
+    expect(find.text('Market'), findsOneWidget);
+    expect(find.text('Mid Price'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('stock-order-submit-button')),
+      findsOneWidget,
+    );
+    expect(find.text('3'), findsOneWidget);
+    expect(find.textContaining('\$'), findsWidgets);
+  });
+
+  testWidgets('updates quantity, price, and order amount in order entry',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-detail-buy-button')));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('stock-order-quantity-input')),
+      '7',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('stock-order-price-input')),
+      '1200',
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('\$8,400'), findsOneWidget);
+
+    await tester
+        .tap(find.byKey(const ValueKey('stock-order-step-minus')).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('\$7,200'), findsOneWidget);
+  });
+
   testWidgets('shows K-News toolbar and switches between list and card layouts',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));

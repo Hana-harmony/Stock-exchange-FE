@@ -333,6 +333,7 @@ class _StockBottomActionBar extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _TradeActionButton(
+                        key: const ValueKey('stock-detail-sell-button'),
                         label: 'Sell',
                         backgroundColor: AppColors.red500,
                         onTap: onSell,
@@ -341,6 +342,7 @@ class _StockBottomActionBar extends StatelessWidget {
                     const SizedBox(width: 12),
                     Expanded(
                       child: _TradeActionButton(
+                        key: const ValueKey('stock-detail-buy-button'),
                         label: 'Buy',
                         backgroundColor: AppColors.green500,
                         onTap: onBuy,
@@ -371,6 +373,7 @@ class _StockBottomActionBar extends StatelessWidget {
 
 class _TradeActionButton extends StatelessWidget {
   const _TradeActionButton({
+    super.key,
     required this.label,
     required this.backgroundColor,
     required this.onTap,

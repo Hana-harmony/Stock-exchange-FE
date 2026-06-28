@@ -21,6 +21,7 @@ class _StockDetailSnapshot {
     required this.limitForeignRatio,
     required this.alertProgress,
     required this.accountDisplay,
+    required this.orderAccountDisplay,
     required this.averagePrice,
     required this.returnRate,
     required this.sharesDisplay,
@@ -48,6 +49,7 @@ class _StockDetailSnapshot {
   final String limitForeignRatio;
   final double alertProgress;
   final String accountDisplay;
+  final String orderAccountDisplay;
   final String averagePrice;
   final String returnRate;
   final String sharesDisplay;
@@ -129,6 +131,9 @@ class _StockDetailSnapshot {
       accountDisplay: portfolio != null && portfolio.accountId.isNotEmpty
           ? 'Account ${portfolio.accountId}'
           : fallback.accountDisplay,
+      orderAccountDisplay: portfolio != null && portfolio.accountId.isNotEmpty
+          ? '${portfolio.accountId} [ISA(Brokerage)]'
+          : fallback.orderAccountDisplay,
       averagePrice: holding != null
           ? formatUsdAmount(holding.averagePriceUsd)
           : fallback.averagePrice,
@@ -163,6 +168,7 @@ class _StockDetailFallback {
     required this.previousDayRatio,
     required this.limitForeignRatio,
     required this.accountDisplay,
+    required this.orderAccountDisplay,
     required this.averagePrice,
     required this.returnRate,
     required this.sharesDisplay,
@@ -185,6 +191,7 @@ class _StockDetailFallback {
   final String previousDayRatio;
   final String limitForeignRatio;
   final String accountDisplay;
+  final String orderAccountDisplay;
   final String averagePrice;
   final String returnRate;
   final String sharesDisplay;
@@ -214,6 +221,7 @@ class _StockDetailFallback {
         previousDayRatio: '38.50',
         limitForeignRatio: '40.00%',
         accountDisplay: 'Account 010-2663-9046-0',
+        orderAccountDisplay: '640-0200-0000-0 [ISA(Brokerage)]',
         averagePrice: '14,085',
         returnRate: '-16.15%',
         sharesDisplay: '80 Shares',
@@ -244,6 +252,7 @@ class _StockDetailFallback {
       previousDayRatio: estimatedMin.toStringAsFixed(2),
       limitForeignRatio: '40.00%',
       accountDisplay: 'Account 010-2663-9046-0',
+      orderAccountDisplay: '640-0200-0000-0 [ISA(Brokerage)]',
       averagePrice: '${price - 550}',
       returnRate: seed.isEven ? '-3.18%' : '-1.42%',
       sharesDisplay: '${(seed % 90) + 10} Shares',

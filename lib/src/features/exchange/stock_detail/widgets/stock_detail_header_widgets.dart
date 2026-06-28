@@ -8,6 +8,8 @@ class _StockDetailHeader extends StatelessWidget {
     required this.onBack,
     required this.onSearch,
     required this.onFavorite,
+    this.showCompactChange = true,
+    this.showBottomBorder = true,
   });
 
   final _StockDetailSnapshot snapshot;
@@ -16,6 +18,8 @@ class _StockDetailHeader extends StatelessWidget {
   final VoidCallback onBack;
   final VoidCallback onSearch;
   final VoidCallback onFavorite;
+  final bool showCompactChange;
+  final bool showBottomBorder;
 
   @override
   Widget build(BuildContext context) {
@@ -27,7 +31,9 @@ class _StockDetailHeader extends StatelessWidget {
         color: AppColors.white,
         border: Border(
           bottom: BorderSide(
-            color: showCompactTitle ? AppColors.gray200 : Colors.transparent,
+            color: showBottomBorder && showCompactTitle
+                ? AppColors.gray200
+                : Colors.transparent,
           ),
         ),
       ),
@@ -48,36 +54,58 @@ class _StockDetailHeader extends StatelessWidget {
                   opacity: showCompactTitle ? 1 : 0,
                   duration: const Duration(milliseconds: 180),
                   curve: Curves.easeOut,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        snapshot.stockName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              fontSize: 17,
-                              height: 1,
-                              fontWeight: FontWeight.w600,
+                  child: showCompactChange
+                      ? Column(
+                          mainAxisSize: MainAxisSize.min,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              snapshot.stockName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontSize: 17,
+                                    height: 1,
+                                    fontWeight: FontWeight.w600,
+                                  ),
                             ),
-                      ),
-                      const SizedBox(height: 1),
-                      Text(
-                        '${snapshot.changeAmount} ${snapshot.changeRate}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontSize: 14,
+                            const SizedBox(height: 1),
+                            Text(
+                              '${snapshot.changeAmount} ${snapshot.changeRate}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontSize: 14,
+                                    height: 1,
+                                    fontWeight: FontWeight.w500,
+                                    color: priceColor,
+                                  ),
+                            ),
+                          ],
+                        )
+                      : Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            snapshot.stockName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleLarge
+                                ?.copyWith(
+                                  fontSize: 17,
                                   height: 1,
-                                  fontWeight: FontWeight.w500,
-                                  color: priceColor,
+                                  fontWeight: FontWeight.w600,
                                 ),
-                      ),
-                    ],
-                  ),
+                          ),
+                        ),
                 ),
               ),
               const SizedBox(width: 8),
@@ -360,13 +388,17 @@ class _StockStatRow extends StatelessWidget {
                 ),
           ),
           const Spacer(),
-          Text(
-            value,
-            textAlign: TextAlign.right,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
-                  color: AppColors.gray1000,
-                ),
+          Expanded(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    fontSize: 12,
+                    color: AppColors.gray1000,
+                  ),
+            ),
           ),
         ],
       ),
