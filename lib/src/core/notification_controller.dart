@@ -2,582 +2,10 @@ import 'package:flutter/foundation.dart';
 
 import 'exchange_api_client.dart';
 
-enum NotificationStatus {
-  idle,
-  loading,
-  loaded,
-  failure,
-}
-
-class NotificationState {
-  const NotificationState({
-    required this.status,
-    this.inbox,
-    this.feed,
-    this.devices,
-    this.selectedFilter = NotificationFilter.all,
-    this.errorMessage,
-  });
-
-  const NotificationState.idle()
-      : status = NotificationStatus.idle,
-        inbox = null,
-        feed = null,
-        devices = null,
-        selectedFilter = NotificationFilter.all,
-        errorMessage = null;
-
-  const NotificationState.loading({
-    this.inbox,
-    this.feed,
-    this.devices,
-    this.selectedFilter = NotificationFilter.all,
-  })  : status = NotificationStatus.loading,
-        errorMessage = null;
-
-  const NotificationState.loaded({
-    required this.inbox,
-    required this.feed,
-    this.devices,
-    this.selectedFilter = NotificationFilter.all,
-  })  : status = NotificationStatus.loaded,
-        errorMessage = null;
-
-  const NotificationState.failure({
-    required this.errorMessage,
-    this.inbox,
-    this.feed,
-    this.devices,
-    this.selectedFilter = NotificationFilter.all,
-  }) : status = NotificationStatus.failure;
-
-  final NotificationStatus status;
-  final NotificationInbox? inbox;
-  final StockIntelligenceFeed? feed;
-  final NotificationDeviceList? devices;
-  final NotificationFilter selectedFilter;
-  final String? errorMessage;
-
-  bool get hasUnreadNotifications => (inbox?.unreadCount ?? 0) > 0;
-
-  List<NotificationItem> get filteredNotifications {
-    final notifications = inbox?.notifications ?? const <NotificationItem>[];
-    return notifications.where(selectedFilter.matches).toList();
-  }
-
-  NotificationState copyWithFilter(NotificationFilter filter) {
-    return NotificationState(
-      status: status,
-      inbox: inbox,
-      feed: feed,
-      devices: devices,
-      selectedFilter: filter,
-      errorMessage: errorMessage,
-    );
-  }
-}
-
-enum NotificationFilter {
-  all('All'),
-  portfolio('My Portfolio'),
-  watchlist('Watchlist');
-
-  const NotificationFilter(this.label);
-
-  final String label;
-
-  bool matches(NotificationItem item) {
-    return switch (this) {
-      NotificationFilter.all => true,
-      NotificationFilter.portfolio => item.matchReasons.contains('HOLDER') ||
-          item.matchReasons.contains('PORTFOLIO'),
-      NotificationFilter.watchlist => item.matchReasons.contains('WATCHLIST'),
-    };
-  }
-}
-
-class NotificationInbox {
-  const NotificationInbox({
-    required this.accountId,
-    required this.unreadCount,
-    required this.totalCount,
-    required this.notifications,
-    this.servedAt,
-  });
-
-  final String accountId;
-  final int unreadCount;
-  final int totalCount;
-  final List<NotificationItem> notifications;
-  final DateTime? servedAt;
-
-  static NotificationInbox fromJson(Map<String, dynamic> json) {
-    final notificationValues = json['notifications'] is List
-        ? json['notifications'] as List<Object?>
-        : const <Object?>[];
-    return NotificationInbox(
-      accountId: _string(json['accountId'], fallback: ''),
-      unreadCount: _int(json['unreadCount']),
-      totalCount: _int(json['totalCount']),
-      notifications: notificationValues
-          .map((value) => NotificationItem.fromJson(_map(value)))
-          .toList(),
-      servedAt: _dateTime(json['servedAt']),
-    );
-  }
-
-  NotificationInbox copyWith({
-    String? accountId,
-    List<NotificationItem>? notifications,
-    DateTime? servedAt,
-  }) {
-    final nextNotifications = notifications ?? this.notifications;
-    return NotificationInbox(
-      accountId: accountId ?? this.accountId,
-      unreadCount: nextNotifications.where((item) => !item.read).length,
-      totalCount: nextNotifications.length,
-      notifications: nextNotifications,
-      servedAt: servedAt ?? this.servedAt,
-    );
-  }
-}
-
-class NotificationItem {
-  const NotificationItem({
-    required this.notificationId,
-    required this.eventId,
-    required this.subjectType,
-    required this.subjectId,
-    required this.sourceType,
-    required this.title,
-    required this.summary,
-    required this.originalUrl,
-    required this.primaryStockCode,
-    required this.matchedStockCodes,
-    required this.matchReasons,
-    required this.glossaryTerms,
-    required this.translationQualityFlags,
-    required this.deliveryStatus,
-    required this.deliveryProvider,
-    required this.deliveryAttemptCount,
-    required this.read,
-    this.deliveredAt,
-    this.lastDeliveryError,
-    this.createdAt,
-    this.readAt,
-  });
-
-  final String notificationId;
-  final String eventId;
-  final String subjectType;
-  final String subjectId;
-  final String sourceType;
-  final String title;
-  final String summary;
-  final String originalUrl;
-  final String primaryStockCode;
-  final List<String> matchedStockCodes;
-  final List<String> matchReasons;
-  final List<AlertGlossaryTerm> glossaryTerms;
-  final List<String> translationQualityFlags;
-  final String deliveryStatus;
-  final String deliveryProvider;
-  final int deliveryAttemptCount;
-  final DateTime? deliveredAt;
-  final String? lastDeliveryError;
-  final bool read;
-  final DateTime? createdAt;
-  final DateTime? readAt;
-
-  String get targetLabel {
-    if (matchReasons.contains('HOLDER') || matchReasons.contains('PORTFOLIO')) {
-      return 'My Portfolio';
-    }
-    if (matchReasons.contains('WATCHLIST')) {
-      return 'Watchlist';
-    }
-    return 'All';
-  }
-
-  String get deliveryStatusLabel =>
-      deliveryStatus.isEmpty ? 'PENDING' : deliveryStatus;
-
-  String get deliveryProviderLabel =>
-      deliveryProvider.isEmpty ? 'LOCAL_NOOP_PUSH' : deliveryProvider;
-
-  String get deliveryAttemptLabel {
-    if (deliveryAttemptCount <= 0) {
-      return 'Attempt 0';
-    }
-    return 'Attempt $deliveryAttemptCount';
-  }
-
-  bool get deliveryNeedsAttention {
-    final status = deliveryStatusLabel.toUpperCase();
-    return status == 'FAILED' || status == 'RETRYING';
-  }
-
-  bool get isLocalOnly => notificationId.startsWith('LOCAL-');
-
-  static NotificationItem fromJson(Map<String, dynamic> json) {
-    return NotificationItem(
-      notificationId: _string(json['notificationId'], fallback: ''),
-      eventId: _string(json['eventId'], fallback: ''),
-      subjectType: _string(json['subjectType'], fallback: ''),
-      subjectId: _string(json['subjectId'], fallback: ''),
-      sourceType: _string(json['sourceType'], fallback: ''),
-      title: _string(json['title'], fallback: 'Untitled alert'),
-      summary: _string(json['summary'], fallback: ''),
-      originalUrl: _string(json['originalUrl'], fallback: ''),
-      primaryStockCode: _string(json['primaryStockCode'], fallback: ''),
-      matchedStockCodes: _stringList(json['matchedStockCodes']),
-      matchReasons: _stringList(json['matchReasons']),
-      glossaryTerms: _glossaryTerms(json['glossaryTerms']),
-      translationQualityFlags: _stringList(json['translationQualityFlags']),
-      deliveryStatus: _string(json['deliveryStatus'], fallback: ''),
-      deliveryProvider: _string(json['deliveryProvider'], fallback: ''),
-      deliveryAttemptCount: _int(json['deliveryAttemptCount']),
-      deliveredAt: _dateTime(json['deliveredAt']),
-      lastDeliveryError: _nullableString(json['lastDeliveryError']),
-      read: json['read'] as bool? ?? false,
-      createdAt: _dateTime(json['createdAt']),
-      readAt: _dateTime(json['readAt']),
-    );
-  }
-
-  NotificationItem copyWith({
-    bool? read,
-    DateTime? createdAt,
-    Object? readAt = _copyWithUndefined,
-  }) {
-    return NotificationItem(
-      notificationId: notificationId,
-      eventId: eventId,
-      subjectType: subjectType,
-      subjectId: subjectId,
-      sourceType: sourceType,
-      title: title,
-      summary: summary,
-      originalUrl: originalUrl,
-      primaryStockCode: primaryStockCode,
-      matchedStockCodes: matchedStockCodes,
-      matchReasons: matchReasons,
-      glossaryTerms: glossaryTerms,
-      translationQualityFlags: translationQualityFlags,
-      deliveryStatus: deliveryStatus,
-      deliveryProvider: deliveryProvider,
-      deliveryAttemptCount: deliveryAttemptCount,
-      read: read ?? this.read,
-      deliveredAt: deliveredAt,
-      lastDeliveryError: lastDeliveryError,
-      createdAt: createdAt ?? this.createdAt,
-      readAt: readAt == _copyWithUndefined ? this.readAt : readAt as DateTime?,
-    );
-  }
-}
-
-class StockIntelligenceFeed {
-  const StockIntelligenceFeed({
-    required this.stockCode,
-    required this.dataSource,
-    required this.itemCount,
-    required this.items,
-    this.servedAt,
-  });
-
-  final String stockCode;
-  final String dataSource;
-  final int itemCount;
-  final List<StockIntelligenceItem> items;
-  final DateTime? servedAt;
-
-  static StockIntelligenceFeed fromJson(Map<String, dynamic> json) {
-    final itemValues = json['items'] is List
-        ? json['items'] as List<Object?>
-        : const <Object?>[];
-    return StockIntelligenceFeed(
-      stockCode: _string(json['stockCode'], fallback: ''),
-      dataSource: _string(json['dataSource'], fallback: ''),
-      itemCount: _int(json['itemCount']),
-      items: itemValues
-          .map((value) => StockIntelligenceItem.fromJson(_map(value)))
-          .toList(),
-      servedAt: _dateTime(json['servedAt']),
-    );
-  }
-}
-
-class StockIntelligenceItem {
-  const StockIntelligenceItem({
-    required this.eventId,
-    required this.sourceType,
-    required this.title,
-    required this.summary,
-    required this.summaryLines,
-    required this.translatedSummary,
-    required this.originalContent,
-    required this.translatedContent,
-    required this.imageUrls,
-    required this.contentAvailability,
-    required this.originalUrl,
-    required this.primaryStockCode,
-    required this.relatedStocks,
-    required this.sentiment,
-    required this.importance,
-    required this.riskLevel,
-    required this.clusterKey,
-    required this.glossaryTerms,
-    required this.translationQualityFlags,
-    required this.watchlistTarget,
-    required this.holderTarget,
-    required this.targetCount,
-    this.publishedAt,
-    this.receivedAt,
-  });
-
-  final String eventId;
-  final String sourceType;
-  final String title;
-  final String summary;
-  final AlertSummaryLines summaryLines;
-  final String translatedSummary;
-  final String originalContent;
-  final String translatedContent;
-  final List<String> imageUrls;
-  final String contentAvailability;
-  final String originalUrl;
-  final String primaryStockCode;
-  final List<String> relatedStocks;
-  final String sentiment;
-  final String importance;
-  final String riskLevel;
-  final String clusterKey;
-  final List<AlertGlossaryTerm> glossaryTerms;
-  final List<String> translationQualityFlags;
-  final bool watchlistTarget;
-  final bool holderTarget;
-  final DateTime? publishedAt;
-  final DateTime? receivedAt;
-  final int targetCount;
-
-  String get targetLabel {
-    if (holderTarget) {
-      return 'My Portfolio';
-    }
-    if (watchlistTarget) {
-      return 'Watchlist';
-    }
-    return 'All';
-  }
-
-  String get displaySummary {
-    if (summaryLines.hasAny) {
-      return summaryLines.lines.join('\n');
-    }
-    return translatedSummary.isNotEmpty ? translatedSummary : summary;
-  }
-
-  String get contentPreview {
-    final content =
-        translatedContent.isNotEmpty ? translatedContent : originalContent;
-    if (content.isEmpty) {
-      return '';
-    }
-    return content.length > 280 ? '${content.substring(0, 280)}...' : content;
-  }
-
-  static StockIntelligenceItem fromJson(Map<String, dynamic> json) {
-    return StockIntelligenceItem(
-      eventId: _string(json['eventId'], fallback: ''),
-      sourceType: _string(json['sourceType'], fallback: ''),
-      title: _string(json['title'], fallback: 'Untitled intelligence'),
-      summary: _string(json['summary'], fallback: ''),
-      summaryLines: AlertSummaryLines.fromJson(_map(json['summaryLines'])),
-      translatedSummary: _string(json['translatedSummary'], fallback: ''),
-      originalContent: _string(json['originalContent'], fallback: ''),
-      translatedContent: _string(json['translatedContent'], fallback: ''),
-      imageUrls: _stringList(json['imageUrls']),
-      contentAvailability:
-          _string(json['contentAvailability'], fallback: 'SUMMARY_ONLY'),
-      originalUrl: _string(json['originalUrl'], fallback: ''),
-      primaryStockCode: _string(json['primaryStockCode'], fallback: ''),
-      relatedStocks: _stringList(json['relatedStocks']),
-      sentiment: _string(json['sentiment'], fallback: 'NEUTRAL'),
-      importance: _string(json['importance'], fallback: 'NORMAL'),
-      riskLevel: _string(json['riskLevel'], fallback: 'LOW'),
-      clusterKey: _string(json['clusterKey'], fallback: ''),
-      glossaryTerms: _glossaryTerms(json['glossaryTerms']),
-      translationQualityFlags: _stringList(json['translationQualityFlags']),
-      watchlistTarget: json['watchlistTarget'] as bool? ?? false,
-      holderTarget: json['holderTarget'] as bool? ?? false,
-      publishedAt: _dateTime(json['publishedAt']),
-      receivedAt: _dateTime(json['receivedAt']),
-      targetCount: _int(json['targetCount']),
-    );
-  }
-}
-
-class AlertSummaryLines {
-  const AlertSummaryLines({
-    required this.what,
-    required this.why,
-    required this.impact,
-  });
-
-  final String what;
-  final String why;
-  final String impact;
-
-  bool get hasAny => what.isNotEmpty || why.isNotEmpty || impact.isNotEmpty;
-
-  List<String> get lines => [
-        if (what.isNotEmpty) 'What: $what',
-        if (why.isNotEmpty) 'Why: $why',
-        if (impact.isNotEmpty) 'Impact: $impact',
-      ];
-
-  static AlertSummaryLines fromJson(Map<String, dynamic> json) {
-    return AlertSummaryLines(
-      what: _string(json['what'], fallback: ''),
-      why: _string(json['why'], fallback: ''),
-      impact: _string(json['impact'], fallback: ''),
-    );
-  }
-}
-
-class AlertGlossaryTerm {
-  const AlertGlossaryTerm({
-    required this.sourceTerm,
-    required this.normalizedTerm,
-    required this.englishTerm,
-    required this.category,
-  });
-
-  final String sourceTerm;
-  final String normalizedTerm;
-  final String englishTerm;
-  final String category;
-
-  String get displayLabel {
-    if (sourceTerm.isEmpty && englishTerm.isEmpty) {
-      return category;
-    }
-    if (sourceTerm.isEmpty) {
-      return englishTerm;
-    }
-    if (englishTerm.isEmpty) {
-      return sourceTerm;
-    }
-    return '$sourceTerm -> $englishTerm';
-  }
-
-  static AlertGlossaryTerm fromJson(Map<String, dynamic> json) {
-    return AlertGlossaryTerm(
-      sourceTerm: _string(json['sourceTerm'], fallback: ''),
-      normalizedTerm: _string(json['normalizedTerm'], fallback: ''),
-      englishTerm: _string(json['englishTerm'], fallback: ''),
-      category: _string(json['category'], fallback: ''),
-    );
-  }
-}
-
-class NotificationDeviceList {
-  const NotificationDeviceList({
-    required this.accountId,
-    required this.activeCount,
-    required this.totalCount,
-    required this.devices,
-    this.servedAt,
-  });
-
-  final String accountId;
-  final int activeCount;
-  final int totalCount;
-  final List<NotificationDevice> devices;
-  final DateTime? servedAt;
-
-  static NotificationDeviceList fromJson(Map<String, dynamic> json) {
-    final deviceValues = json['devices'] is List
-        ? json['devices'] as List<Object?>
-        : const <Object?>[];
-    return NotificationDeviceList(
-      accountId: _string(json['accountId'], fallback: ''),
-      activeCount: _int(json['activeCount']),
-      totalCount: _int(json['totalCount']),
-      devices: deviceValues
-          .map((value) => NotificationDevice.fromJson(_map(value)))
-          .toList(),
-      servedAt: _dateTime(json['servedAt']),
-    );
-  }
-
-  NotificationDeviceList replace(NotificationDevice device) {
-    final replacedDevices = [
-      for (final current in devices)
-        if (current.deviceTokenId == device.deviceTokenId) device else current,
-    ];
-    final exists = devices.any(
-      (current) => current.deviceTokenId == device.deviceTokenId,
-    );
-    final nextDevices = exists ? replacedDevices : [device, ...devices];
-    return NotificationDeviceList(
-      accountId: accountId,
-      activeCount: nextDevices.where((item) => item.active).length,
-      totalCount: nextDevices.length,
-      devices: nextDevices,
-      servedAt: servedAt,
-    );
-  }
-}
-
-class NotificationDevice {
-  const NotificationDevice({
-    required this.deviceTokenId,
-    required this.platform,
-    required this.provider,
-    required this.tokenHash,
-    required this.maskedToken,
-    required this.active,
-    this.appVersion,
-    this.locale,
-    this.registeredAt,
-    this.lastSeenAt,
-    this.disabledAt,
-  });
-
-  final String deviceTokenId;
-  final String platform;
-  final String provider;
-  final String tokenHash;
-  final String maskedToken;
-  final String? appVersion;
-  final String? locale;
-  final bool active;
-  final DateTime? registeredAt;
-  final DateTime? lastSeenAt;
-  final DateTime? disabledAt;
-
-  String get displayLabel {
-    final status = active ? 'Active' : 'Disabled';
-    return '$platform $provider / $status / $maskedToken';
-  }
-
-  static NotificationDevice fromJson(Map<String, dynamic> json) {
-    return NotificationDevice(
-      deviceTokenId: _string(json['deviceTokenId'], fallback: ''),
-      platform: _string(json['platform'], fallback: ''),
-      provider: _string(json['provider'], fallback: ''),
-      tokenHash: _string(json['tokenHash'], fallback: ''),
-      maskedToken: _string(json['maskedToken'], fallback: ''),
-      appVersion: _nullableString(json['appVersion']),
-      locale: _nullableString(json['locale']),
-      active: json['active'] as bool? ?? false,
-      registeredAt: _dateTime(json['registeredAt']),
-      lastSeenAt: _dateTime(json['lastSeenAt']),
-      disabledAt: _dateTime(json['disabledAt']),
-    );
-  }
-}
+part 'notifications/notification_state.dart';
+part 'notifications/notification_models.dart';
+part 'notifications/notification_demo_data.dart';
+part 'notifications/notification_parsing.dart';
 
 class NotificationController extends ValueNotifier<NotificationState> {
   NotificationController({required ExchangeApiClient apiClient})
@@ -607,6 +35,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
     if (sourceInbox.notifications.isEmpty) {
       return;
     }
+
     final notifications =
         List<NotificationItem>.from(sourceInbox.notifications);
     notifications[0] = notifications[0].copyWith(
@@ -622,6 +51,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
     if (currentInbox == null) {
       return;
     }
+
     final readAt = DateTime.now().toUtc();
     final notifications = currentInbox.notifications
         .map(
@@ -637,14 +67,11 @@ class NotificationController extends ValueNotifier<NotificationState> {
     required String? accountId,
     String stockCode = '005930',
   }) async {
-    if (accountId == null || accountId.isEmpty) {
-      value = NotificationState.failure(
-        errorMessage: 'Sign in to load alert inbox.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+    final resolvedAccountId = _validatedAccountId(
+      accountId,
+      errorMessage: 'Sign in to load alert inbox.',
+    );
+    if (resolvedAccountId == null) {
       return;
     }
 
@@ -654,34 +81,22 @@ class NotificationController extends ValueNotifier<NotificationState> {
       devices: value.devices,
       selectedFilter: value.selectedFilter,
     );
+
     try {
       final results = await Future.wait([
-        _apiClient.getNotifications(accountId),
+        _apiClient.getNotifications(resolvedAccountId),
         _apiClient.getStockIntelligenceFeed(stockCode),
-        _apiClient.getNotificationDevices(accountId),
+        _apiClient.getNotificationDevices(resolvedAccountId),
       ]);
-      value = NotificationState.loaded(
+      _setLoaded(
         inbox: NotificationInbox.fromJson(results[0].data ?? {}),
         feed: StockIntelligenceFeed.fromJson(results[1].data ?? {}),
         devices: NotificationDeviceList.fromJson(results[2].data ?? {}),
-        selectedFilter: value.selectedFilter,
       );
     } on ExchangeApiException catch (error) {
-      value = NotificationState.failure(
-        errorMessage: error.message,
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure(error.message);
     } on Object {
-      value = NotificationState.failure(
-        errorMessage: 'Unable to load alert inbox.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure('Unable to load alert inbox.');
     }
   }
 
@@ -689,57 +104,33 @@ class NotificationController extends ValueNotifier<NotificationState> {
     required String? accountId,
     required String notificationId,
   }) async {
-    if (accountId == null || accountId.isEmpty) {
-      value = NotificationState.failure(
-        errorMessage: 'Sign in to update alert inbox.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+    final resolvedAccountId = _validatedAccountId(
+      accountId,
+      errorMessage: 'Sign in to update alert inbox.',
+    );
+    if (resolvedAccountId == null) {
       return;
     }
+
     try {
       final response = await _apiClient.markNotificationRead(
-        accountId: accountId,
+        accountId: resolvedAccountId,
         notificationId: notificationId,
       );
-      final updated = NotificationItem.fromJson(response.data ?? {});
       final currentInbox = value.inbox;
       if (currentInbox == null) {
         return;
       }
+
+      final updated = NotificationItem.fromJson(response.data ?? {});
       final notifications = currentInbox.notifications
           .map((item) => item.notificationId == notificationId ? updated : item)
           .toList();
-      value = NotificationState.loaded(
-        inbox: NotificationInbox(
-          accountId: currentInbox.accountId,
-          unreadCount: notifications.where((item) => !item.read).length,
-          totalCount: currentInbox.totalCount,
-          notifications: notifications,
-          servedAt: currentInbox.servedAt,
-        ),
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _replaceInbox(currentInbox.copyWith(notifications: notifications));
     } on ExchangeApiException catch (error) {
-      value = NotificationState.failure(
-        errorMessage: error.message,
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure(error.message);
     } on Object {
-      value = NotificationState.failure(
-        errorMessage: 'Unable to mark alert as read.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure('Unable to mark alert as read.');
     }
   }
 
@@ -751,19 +142,17 @@ class NotificationController extends ValueNotifier<NotificationState> {
     String appVersion = '0.1.0',
     String locale = 'en_US',
   }) async {
-    if (accountId == null || accountId.isEmpty) {
-      value = NotificationState.failure(
-        errorMessage: 'Sign in to register this device.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+    final resolvedAccountId = _validatedAccountId(
+      accountId,
+      errorMessage: 'Sign in to register this device.',
+    );
+    if (resolvedAccountId == null) {
       return;
     }
+
     try {
       final response = await _apiClient.registerNotificationDevice(
-        accountId: accountId,
+        accountId: resolvedAccountId,
         platform: platform,
         provider: provider,
         deviceToken: deviceToken,
@@ -772,21 +161,9 @@ class NotificationController extends ValueNotifier<NotificationState> {
       );
       _upsertDevice(NotificationDevice.fromJson(response.data ?? {}));
     } on ExchangeApiException catch (error) {
-      value = NotificationState.failure(
-        errorMessage: error.message,
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure(error.message);
     } on Object {
-      value = NotificationState.failure(
-        errorMessage: 'Unable to register this device.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure('Unable to register this device.');
     }
   }
 
@@ -794,39 +171,60 @@ class NotificationController extends ValueNotifier<NotificationState> {
     required String? accountId,
     required String deviceTokenId,
   }) async {
-    if (accountId == null || accountId.isEmpty) {
-      value = NotificationState.failure(
-        errorMessage: 'Sign in to disable this device.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+    final resolvedAccountId = _validatedAccountId(
+      accountId,
+      errorMessage: 'Sign in to disable this device.',
+    );
+    if (resolvedAccountId == null) {
       return;
     }
+
     try {
       final response = await _apiClient.disableNotificationDevice(
-        accountId: accountId,
+        accountId: resolvedAccountId,
         deviceTokenId: deviceTokenId,
       );
       _upsertDevice(NotificationDevice.fromJson(response.data ?? {}));
     } on ExchangeApiException catch (error) {
-      value = NotificationState.failure(
-        errorMessage: error.message,
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure(error.message);
     } on Object {
-      value = NotificationState.failure(
-        errorMessage: 'Unable to disable this device.',
-        inbox: value.inbox,
-        feed: value.feed,
-        devices: value.devices,
-        selectedFilter: value.selectedFilter,
-      );
+      _setFailure('Unable to disable this device.');
     }
+  }
+
+  String? _validatedAccountId(
+    String? accountId, {
+    required String errorMessage,
+  }) {
+    final normalized = accountId?.trim() ?? '';
+    if (normalized.isEmpty) {
+      _setFailure(errorMessage);
+      return null;
+    }
+    return normalized;
+  }
+
+  void _setFailure(String errorMessage) {
+    value = NotificationState.failure(
+      errorMessage: errorMessage,
+      inbox: value.inbox,
+      feed: value.feed,
+      devices: value.devices,
+      selectedFilter: value.selectedFilter,
+    );
+  }
+
+  void _setLoaded({
+    NotificationInbox? inbox,
+    StockIntelligenceFeed? feed,
+    NotificationDeviceList? devices,
+  }) {
+    value = NotificationState.loaded(
+      inbox: inbox,
+      feed: feed,
+      devices: devices,
+      selectedFilter: value.selectedFilter,
+    );
   }
 
   void _upsertDevice(NotificationDevice device) {
@@ -838,11 +236,10 @@ class NotificationController extends ValueNotifier<NotificationState> {
           devices: const [],
           servedAt: DateTime.now().toUtc(),
         );
-    value = NotificationState.loaded(
+    _setLoaded(
       inbox: value.inbox,
       feed: value.feed,
       devices: currentDevices.replace(device),
-      selectedFilter: value.selectedFilter,
     );
   }
 
@@ -855,177 +252,10 @@ class NotificationController extends ValueNotifier<NotificationState> {
   }
 
   void _replaceInbox(NotificationInbox inbox) {
-    value = NotificationState.loaded(
+    _setLoaded(
       inbox: inbox,
       feed: value.feed,
       devices: value.devices,
-      selectedFilter: value.selectedFilter,
     );
   }
-
-  NotificationInbox _buildDemoInbox() {
-    final now = DateTime.now().toUtc();
-    return NotificationInbox(
-      accountId: 'LOCAL-DEMO-ACCOUNT',
-      unreadCount: 0,
-      totalCount: 6,
-      notifications: [
-        _buildDemoItem(
-          notificationId: 'LOCAL-NTF-0001',
-          title:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-          summary:
-              'Dividend payout confirmed. Positive signal for watchlist users tracking Samsung Electronics.',
-          matchReasons: const ['WATCHLIST'],
-          createdAt: now.subtract(const Duration(hours: 1)),
-          read: true,
-        ),
-        _buildDemoItem(
-          notificationId: 'LOCAL-NTF-0002',
-          title:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-          summary:
-              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
-          matchReasons: const ['PORTFOLIO'],
-          createdAt: now.subtract(const Duration(hours: 1, minutes: 8)),
-          read: true,
-        ),
-        _buildDemoItem(
-          notificationId: 'LOCAL-NTF-0003',
-          title:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-          summary:
-              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
-          matchReasons: const ['HOLDER'],
-          createdAt: now.subtract(const Duration(hours: 1, minutes: 14)),
-          read: true,
-        ),
-        _buildDemoItem(
-          notificationId: 'LOCAL-NTF-0004',
-          title:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-          summary:
-              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
-          matchReasons: const ['PORTFOLIO'],
-          createdAt: now.subtract(const Duration(hours: 1, minutes: 20)),
-          read: true,
-        ),
-        _buildDemoItem(
-          notificationId: 'LOCAL-NTF-0005',
-          title:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-          summary:
-              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
-          matchReasons: const ['PORTFOLIO'],
-          createdAt: now.subtract(const Duration(hours: 1, minutes: 27)),
-          read: true,
-        ),
-        _buildDemoItem(
-          notificationId: 'LOCAL-NTF-0006',
-          title:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-          summary:
-              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
-          matchReasons: const ['PORTFOLIO'],
-          createdAt: now.subtract(const Duration(hours: 1, minutes: 34)),
-          read: true,
-        ),
-      ],
-      servedAt: now,
-    );
-  }
-
-  NotificationItem _buildDemoItem({
-    required String notificationId,
-    required String title,
-    required String summary,
-    required List<String> matchReasons,
-    required DateTime createdAt,
-    required bool read,
-  }) {
-    return NotificationItem(
-      notificationId: notificationId,
-      eventId: 'LOCAL-EVT-${notificationId.split('-').last}',
-      subjectType: 'NEWS',
-      subjectId: '005930',
-      sourceType: 'LOCAL_DEMO',
-      title: title,
-      summary: summary,
-      originalUrl: '',
-      primaryStockCode: '005930',
-      matchedStockCodes: const ['005930'],
-      matchReasons: matchReasons,
-      glossaryTerms: const [],
-      translationQualityFlags: const [],
-      deliveryStatus: 'DELIVERED',
-      deliveryProvider: 'LOCAL_NOOP_PUSH',
-      deliveryAttemptCount: 1,
-      read: read,
-      deliveredAt: createdAt,
-      lastDeliveryError: null,
-      createdAt: createdAt,
-      readAt: read ? createdAt.add(const Duration(minutes: 1)) : null,
-    );
-  }
-}
-
-const Object _copyWithUndefined = Object();
-
-Map<String, dynamic> _map(Object? value) {
-  if (value is Map<String, dynamic>) {
-    return value;
-  }
-  if (value is Map) {
-    return value.map((key, value) => MapEntry(key.toString(), value));
-  }
-  return {};
-}
-
-String _string(Object? value, {required String fallback}) {
-  if (value == null) {
-    return fallback;
-  }
-  return value.toString();
-}
-
-String? _nullableString(Object? value) {
-  if (value == null) {
-    return null;
-  }
-  final text = value.toString();
-  return text.isEmpty ? null : text;
-}
-
-int _int(Object? value) {
-  if (value is int) {
-    return value;
-  }
-  if (value is num) {
-    return value.toInt();
-  }
-  return int.tryParse(value?.toString() ?? '') ?? 0;
-}
-
-List<String> _stringList(Object? value) {
-  if (value is! List) {
-    return const [];
-  }
-  return value.map((item) => item.toString()).toList();
-}
-
-List<AlertGlossaryTerm> _glossaryTerms(Object? value) {
-  if (value is! List) {
-    return const [];
-  }
-  return value
-      .map((item) => AlertGlossaryTerm.fromJson(_map(item)))
-      .where((term) => term.displayLabel.isNotEmpty)
-      .toList();
-}
-
-DateTime? _dateTime(Object? value) {
-  if (value is! String || value.isEmpty) {
-    return null;
-  }
-  return DateTime.tryParse(value);
 }
