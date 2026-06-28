@@ -141,6 +141,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   ];
 
   int _selectedIndex = 1;
+  bool _hasUnreadNotifications = false;
   http.Client? _ownedHttpClient;
   late final ExchangeEnvironment _environment;
   late final ExchangeApiClient _apiClient;
@@ -315,6 +316,11 @@ class _ExchangeShellState extends State<ExchangeShell> {
   }
 
   void _showNotificationPlaceholder() {
+    if (_hasUnreadNotifications) {
+      setState(() {
+        _hasUnreadNotifications = false;
+      });
+    }
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Notifications view is not included in this page scope.'),
@@ -326,6 +332,17 @@ class _ExchangeShellState extends State<ExchangeShell> {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('AI assistant entry is not included in this page scope.'),
+      ),
+    );
+  }
+
+  void _showMyNotificationPlaceholder() {
+    setState(() {
+      _hasUnreadNotifications = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('알림보내기 동작은 현재 페이지 범위에 포함되지 않습니다.'),
       ),
     );
   }
@@ -358,6 +375,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
       onAiTap: _showAiPlaceholder,
       onSearchTap: _openSearch,
       onNotificationTap: _showNotificationPlaceholder,
+      hasUnreadNotifications: _hasUnreadNotifications,
     );
   }
 
@@ -392,10 +410,12 @@ class _ExchangeShellState extends State<ExchangeShell> {
             description:
                 'Discover remains a placeholder until its dedicated page specification is provided.',
           ),
-          const ShellPlaceholderScreen(
+          ShellPlaceholderScreen(
             title: 'MY',
             description:
                 'MY remains a placeholder until the account and settings pages are specified.',
+            actionLabel: '알림보내기',
+            onActionTap: _showMyNotificationPlaceholder,
           ),
         ],
       ),

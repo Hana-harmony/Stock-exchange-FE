@@ -3791,10 +3791,14 @@ class ShellPlaceholderScreen extends StatelessWidget {
     super.key,
     required this.title,
     required this.description,
+    this.actionLabel,
+    this.onActionTap,
   });
 
   final String title;
   final String description;
+  final String? actionLabel;
+  final VoidCallback? onActionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -3810,6 +3814,25 @@ class ShellPlaceholderScreen extends StatelessWidget {
           title: '$title tab',
           body: description,
         ),
+        if (actionLabel != null && onActionTap != null) ...[
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              key: ValueKey<String>('shell-placeholder-action-$title'),
+              onPressed: onActionTap,
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.orange500,
+                foregroundColor: AppColors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Text(actionLabel!),
+            ),
+          ),
+        ],
       ],
     );
   }

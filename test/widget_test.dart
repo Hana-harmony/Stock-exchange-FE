@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:stock_exchange_fe/src/app.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/ui/assets/app_assets.dart';
 import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
 
 void main() {
@@ -42,6 +43,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('WatchLists tab'), findsOneWidget);
     expect(find.widgetWithText(AppBar, 'WatchLists'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-MY')));
+    await tester.pumpAndSettle();
+    expect(find.text('MY tab'), findsOneWidget);
+    expect(find.text('알림보내기'), findsOneWidget);
+
+    AssetImage notificationAsset() {
+      final container =
+          find.byKey(const ValueKey('header-notifications-image'));
+      final image = tester.widget<Image>(
+        find
+            .descendant(
+              of: container,
+              matching: find.byType(Image),
+            )
+            .first,
+      );
+      return image.image as AssetImage;
+    }
+
+    expect(notificationAsset().assetName, AppAssets.headerNotifications);
+
+    await tester.tap(find.text('알림보내기'));
+    await tester.pumpAndSettle();
+    expect(notificationAsset().assetName, AppAssets.headerNotificationsNew);
+
+    await tester.tap(find.bySemanticsLabel('Notifications'));
+    await tester.pumpAndSettle();
+    expect(notificationAsset().assetName, AppAssets.headerNotifications);
   });
 
   testWidgets('searches stocks and opens the placeholder detail tabs',

@@ -13,6 +13,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.onAiTap,
     this.onSearchTap,
     this.onNotificationTap,
+    this.hasUnreadNotifications = false,
   });
 
   final String title;
@@ -23,6 +24,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final VoidCallback? onAiTap;
   final VoidCallback? onSearchTap;
   final VoidCallback? onNotificationTap;
+  final bool hasUnreadNotifications;
 
   @override
   Size get preferredSize => const Size.fromHeight(44);
@@ -37,6 +39,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                   onAiTap: onAiTap,
                   onSearchTap: onSearchTap,
                   onNotificationTap: onNotificationTap,
+                  hasUnreadNotifications: hasUnreadNotifications,
                 ),
               ]
             : const <Widget>[];
@@ -109,11 +112,13 @@ class _HeaderActions extends StatelessWidget {
     required this.onAiTap,
     required this.onSearchTap,
     required this.onNotificationTap,
+    required this.hasUnreadNotifications,
   });
 
   final VoidCallback? onAiTap;
   final VoidCallback? onSearchTap;
   final VoidCallback? onNotificationTap;
+  final bool hasUnreadNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -123,6 +128,7 @@ class _HeaderActions extends StatelessWidget {
         onAiTap: onAiTap,
         onSearchTap: onSearchTap,
         onNotificationTap: onNotificationTap,
+        hasUnreadNotifications: hasUnreadNotifications,
       ),
     );
   }
@@ -133,11 +139,13 @@ class _HeaderActionsBody extends StatelessWidget {
     required this.onAiTap,
     required this.onSearchTap,
     required this.onNotificationTap,
+    required this.hasUnreadNotifications,
   });
 
   final VoidCallback? onAiTap;
   final VoidCallback? onSearchTap;
   final VoidCallback? onNotificationTap;
+  final bool hasUnreadNotifications;
 
   @override
   Widget build(BuildContext context) {
@@ -158,9 +166,14 @@ class _HeaderActionsBody extends StatelessWidget {
         ),
         const SizedBox(width: 4),
         _HeaderActionButton(
-          assetPath: AppAssets.headerNotifications,
+          assetPath: hasUnreadNotifications
+              ? AppAssets.headerNotificationsNew
+              : AppAssets.headerNotifications,
           semanticLabel: 'Notifications',
           onTap: onNotificationTap,
+          padding: EdgeInsets.zero,
+          imageKey: const ValueKey('header-notifications-image'),
+          animateAssetChange: true,
         ),
       ],
     );
@@ -173,15 +186,25 @@ class _HeaderActionButton extends StatelessWidget {
     required this.semanticLabel,
     this.onTap,
     this.padding = const EdgeInsets.all(6),
+    this.imageKey,
+    this.animateAssetChange = false,
   });
 
   final String assetPath;
   final String semanticLabel;
   final VoidCallback? onTap;
   final EdgeInsets padding;
+  final Key? imageKey;
+  final bool animateAssetChange;
 
   @override
   Widget build(BuildContext context) {
+    final imageChild = Image.asset(
+      assetPath,
+      key: animateAssetChange ? ValueKey<String>(assetPath) : imageKey,
+      fit: BoxFit.contain,
+    );
+
     return Semantics(
       button: true,
       label: semanticLabel,
@@ -193,10 +216,27 @@ class _HeaderActionButton extends StatelessWidget {
           width: 36,
           child: Padding(
             padding: padding,
-            child: Image.asset(
-              assetPath,
-              fit: BoxFit.contain,
-            ),
+            child: animateAssetChange
+                ? AnimatedSwitcher(
+                    key: imageKey,
+                    duration: const Duration(milliseconds: 180),
+                    switchInCurve: Curves.easeOutCubic,
+                    switchOutCurve: Curves.easeInCubic,
+                    transitionBuilder: (child, animation) {
+                      return FadeTransition(
+                        opacity: animation,
+                        child: ScaleTransition(
+                          scale: Tween<double>(
+                            begin: 0.9,
+                            end: 1,
+                          ).animate(animation),
+                          child: child,
+                        ),
+                      );
+                    },
+                    child: imageChild,
+                  )
+                : imageChild,
           ),
         ),
       ),
