@@ -772,6 +772,24 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   late final ScrollController _detailScrollController;
   bool _tabsPinned = false;
   bool _showViBanner = false;
+  bool _isLowLimitTriggered = false;
+
+  int get _activeAlertBannerCount {
+    var count = 0;
+    if (_showViBanner) {
+      count += 1;
+    }
+    if (_isLowLimitTriggered) {
+      count += 1;
+    }
+    return count;
+  }
+
+  double get _alertBannerBlockHeight => _activeAlertBannerCount == 0
+      ? 0
+      : (_AlertStatusBanner.height * _activeAlertBannerCount) +
+          (12 * _activeAlertBannerCount) +
+          8;
 
   @override
   void initState() {
@@ -797,8 +815,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   void _handleScroll() {
     final nextPinned = _detailScrollController.offset >=
-        _StockOverviewSection.height +
-            (_showViBanner ? _ViTriggeredBanner.totalBlockHeight : 0);
+        _StockOverviewSection.height + _alertBannerBlockHeight;
     if (nextPinned == _tabsPinned) {
       return;
     }
@@ -846,7 +863,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       controller: _detailScrollController,
                       headerSliverBuilder: (context, innerBoxIsScrolled) {
                         return [
-                          if (_showViBanner)
+                          if (_activeAlertBannerCount > 0)
                             SliverToBoxAdapter(
                               child: Padding(
                                 padding: const EdgeInsets.fromLTRB(
@@ -855,8 +872,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                   16,
                                   12,
                                 ),
-                                child: _ViTriggeredBanner(
-                                  onInfoTap: _showViInfoPanel,
+                                child: Column(
+                                  children: [
+                                    if (_showViBanner)
+                                      _ViTriggeredBanner(
+                                        onInfoTap: _showViInfoPanel,
+                                      ),
+                                    if (_showViBanner && _isLowLimitTriggered)
+                                      const SizedBox(height: 12),
+                                    if (_isLowLimitTriggered)
+                                      _LowLimitReachedBanner(
+                                        onInfoTap: _showLowLimitInfoPanel,
+                                      ),
+                                  ],
                                 ),
                               ),
                             ),
@@ -875,7 +903,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           const _StockChartTab(),
                           _StockFundamentalsTab(
                             isViTriggered: _showViBanner,
+                            isLowLimitTriggered: _isLowLimitTriggered,
                             onToggleVi: _toggleViBanner,
+                            onToggleLowLimit: _toggleLowLimitTriggered,
                           ),
                           _StockNewsTab(
                             notificationController:
@@ -931,6 +961,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   void _handleTradeAction(String side) {
+    if (_isLowLimitTriggered) {
+      _showPriceLimitRestrictionDialog();
+      return;
+    }
     if (_showViBanner) {
       _showViRestrictionDialog();
       return;
@@ -962,6 +996,30 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
+  void _showLowLimitInfoPanel() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return const _LowLimitInfoPanel();
+      },
+    );
+  }
+
+  void _toggleLowLimitTriggered() {
+    final nextValue = !_isLowLimitTriggered;
+    setState(() {
+      _isLowLimitTriggered = nextValue;
+    });
+    if (nextValue && _detailScrollController.hasClients) {
+      _detailScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   Future<void> _showViRestrictionDialog() {
     return showGeneralDialog<void>(
       context: context,
@@ -971,6 +1029,25 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (context, animation, secondaryAnimation) {
         return const _ViRestrictionDialog();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
+      },
+    );
+  }
+
+  Future<void> _showPriceLimitRestrictionDialog() {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Price limit restriction',
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const _PriceLimitRestrictionDialog();
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(
@@ -1358,20 +1435,27 @@ class _StockStatRow extends StatelessWidget {
   }
 }
 
-class _ViTriggeredBanner extends StatelessWidget {
-  const _ViTriggeredBanner({
+class _AlertStatusBanner extends StatelessWidget {
+  const _AlertStatusBanner({
+    super.key,
+    required this.iconAssetPath,
+    required this.title,
+    required this.description,
+    required this.infoKey,
     required this.onInfoTap,
   });
 
   static const double height = 60;
-  static const double totalBlockHeight = 80;
 
+  final String iconAssetPath;
+  final String title;
+  final String description;
+  final Key infoKey;
   final VoidCallback onInfoTap;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      key: const ValueKey('vi-triggered-banner'),
       constraints: const BoxConstraints(minHeight: height),
       decoration: BoxDecoration(
         color: const Color(0xFF353A41),
@@ -1387,29 +1471,31 @@ class _ViTriggeredBanner extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
-                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Image.asset(
-                      AppAssets.warningViIcon,
+                      iconAssetPath,
                       width: 16,
                       height: 16,
                       fit: BoxFit.contain,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      'VI triggered!',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 14,
-                            height: 1.4,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.red500,
-                          ),
+                    Flexible(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 14,
+                              height: 1.4,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.red500,
+                            ),
+                      ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 0),
                 Text(
-                  'Trading may be temporarily halted.',
+                  description,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                         fontSize: 14,
                         height: 1.4,
@@ -1421,7 +1507,7 @@ class _ViTriggeredBanner extends StatelessWidget {
             ),
           ),
           InkWell(
-            key: const ValueKey('vi-triggered-banner-info'),
+            key: infoKey,
             onTap: onInfoTap,
             borderRadius: BorderRadius.circular(18),
             child: Padding(
@@ -1436,6 +1522,46 @@ class _ViTriggeredBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _ViTriggeredBanner extends StatelessWidget {
+  const _ViTriggeredBanner({
+    required this.onInfoTap,
+  });
+
+  final VoidCallback onInfoTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _AlertStatusBanner(
+      key: const ValueKey('vi-triggered-banner'),
+      iconAssetPath: AppAssets.warningViIcon,
+      title: 'VI triggered!',
+      description: 'Trading may be temporarily halted.',
+      infoKey: const ValueKey('vi-triggered-banner-info'),
+      onInfoTap: onInfoTap,
+    );
+  }
+}
+
+class _LowLimitReachedBanner extends StatelessWidget {
+  const _LowLimitReachedBanner({
+    required this.onInfoTap,
+  });
+
+  final VoidCallback onInfoTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _AlertStatusBanner(
+      key: const ValueKey('low-limit-reached-banner'),
+      iconAssetPath: AppAssets.chartDownMini,
+      title: 'Lower limit reached!',
+      description: 'Trading is limited at the daily price cap.',
+      infoKey: const ValueKey('low-limit-reached-banner-info'),
+      onInfoTap: onInfoTap,
     );
   }
 }
@@ -1536,12 +1662,123 @@ class _ViInfoPanel extends StatelessWidget {
   }
 }
 
-class _ViRestrictionDialog extends StatelessWidget {
-  const _ViRestrictionDialog();
+class _LowLimitInfoPanel extends StatelessWidget {
+  const _LowLimitInfoPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.gray200,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Image.asset(
+                      AppAssets.chartDownMini,
+                      width: 20,
+                      height: 20,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        'Lower limit reached!',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  color: AppColors.red500,
+                                  fontSize: 18,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Trading is limited at the daily price cap.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontSize: 16,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.gray900,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'The stock has reached its exchange-defined lower daily limit. Orders can still be placed, but executions are restricted around the capped price.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
+                        height: 1.45,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.gray700,
+                      ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.orange500,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('확인'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AlertRestrictionDialog extends StatelessWidget {
+  const _AlertRestrictionDialog({
+    required this.dialogKey,
+    required this.confirmKey,
+    required this.title,
+    required this.description,
+  });
 
   static const double _dialogWidth = 360;
   static const double _dialogHeight = 200;
   static const double _buttonHeight = 46;
+
+  final Key dialogKey;
+  final Key confirmKey;
+  final String title;
+  final String description;
 
   @override
   Widget build(BuildContext context) {
@@ -1551,7 +1788,7 @@ class _ViRestrictionDialog extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 21),
           child: Container(
-            key: const ValueKey('vi-restriction-dialog'),
+            key: dialogKey,
             width: _dialogWidth,
             height: _dialogHeight,
             decoration: BoxDecoration(
@@ -1572,7 +1809,7 @@ class _ViRestrictionDialog extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Volatility Interruption Triggered!',
+                    title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
@@ -1584,9 +1821,7 @@ class _ViRestrictionDialog extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    'A VI has been triggered for this stock.\n'
-                    'Real-time executions are temporarily restricted, and\n'
-                    'orders will be processed through call auction trading.',
+                    description,
                     maxLines: 3,
                     style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                           fontSize: 14,
@@ -1601,7 +1836,7 @@ class _ViRestrictionDialog extends StatelessWidget {
                     width: double.infinity,
                     height: _buttonHeight,
                     child: FilledButton(
-                      key: const ValueKey('vi-restriction-confirm'),
+                      key: confirmKey,
                       onPressed: () => Navigator.of(context).pop(),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFFFF1550),
@@ -1629,6 +1864,38 @@ class _ViRestrictionDialog extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _ViRestrictionDialog extends StatelessWidget {
+  const _ViRestrictionDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _AlertRestrictionDialog(
+      dialogKey: ValueKey('vi-restriction-dialog'),
+      confirmKey: ValueKey('vi-restriction-confirm'),
+      title: 'Volatility Interruption Triggered!',
+      description: 'A VI has been triggered for this stock.\n'
+          'Real-time executions are temporarily restricted, and\n'
+          'orders will be processed through call auction trading.',
+    );
+  }
+}
+
+class _PriceLimitRestrictionDialog extends StatelessWidget {
+  const _PriceLimitRestrictionDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _AlertRestrictionDialog(
+      dialogKey: ValueKey('price-limit-restriction-dialog'),
+      confirmKey: ValueKey('price-limit-restriction-confirm'),
+      title: 'Price Limit Reached!',
+      description: 'This stock has reached the daily price limit.\n'
+          'Orders may be delayed due to pending orders at the\n'
+          'limit price.',
     );
   }
 }
@@ -1861,11 +2128,15 @@ class _StockChartIllustration extends StatelessWidget {
 class _StockFundamentalsTab extends StatelessWidget {
   const _StockFundamentalsTab({
     required this.isViTriggered,
+    required this.isLowLimitTriggered,
     required this.onToggleVi,
+    required this.onToggleLowLimit,
   });
 
   final bool isViTriggered;
+  final bool isLowLimitTriggered;
   final VoidCallback onToggleVi;
+  final VoidCallback onToggleLowLimit;
 
   @override
   Widget build(BuildContext context) {
@@ -1888,6 +2159,26 @@ class _StockFundamentalsTab extends StatelessWidget {
               ),
             ),
             child: Text(isViTriggered ? 'VI발동 끄기' : 'VI발동 시키기'),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            key: const ValueKey('stock-fundamentals-trigger-low-limit'),
+            onPressed: onToggleLowLimit,
+            style: FilledButton.styleFrom(
+              backgroundColor:
+                  isLowLimitTriggered ? AppColors.gray700 : AppColors.orange500,
+              foregroundColor: AppColors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(
+              isLowLimitTriggered ? 'Low limit 발동 끄기' : 'Low limit 발동 시키기',
+            ),
           ),
         ),
       ],

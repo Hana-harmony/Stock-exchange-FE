@@ -209,7 +209,10 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
         findsOneWidget);
+    expect(find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
+        findsOneWidget);
     expect(find.text('VI발동 시키기'), findsOneWidget);
+    expect(find.text('Low limit 발동 시키기'), findsOneWidget);
 
     await tester.tap(
       find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
@@ -235,6 +238,42 @@ void main() {
 
     expect(find.byKey(const ValueKey('vi-triggered-banner')), findsNothing);
     expect(find.text('VI발동 시키기'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('low-limit-reached-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('Lower limit reached!'), findsOneWidget);
+    expect(
+      find.text('Trading is limited at the daily price cap.'),
+      findsOneWidget,
+    );
+    expect(find.text('Low limit 발동 끄기'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('low-limit-reached-banner-info')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('확인'), findsOneWidget);
+    await tester.tap(find.text('확인'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('low-limit-reached-banner')),
+      findsNothing,
+    );
+    expect(find.text('Low limit 발동 시키기'), findsOneWidget);
   });
 
   testWidgets('blocks sell with VI warning modal when VI is triggered',
@@ -284,6 +323,66 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('vi-restriction-dialog')), findsNothing);
+  });
+
+  testWidgets(
+      'blocks buy with price limit warning modal when low limit is triggered',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester
+        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Buy'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('price-limit-restriction-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Price Limit Reached!'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('price-limit-restriction-confirm')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('price-limit-restriction-confirm')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('price-limit-restriction-dialog')),
+      findsNothing,
+    );
   });
 
   testWidgets('shows samsung dummy results with orange query highlight',
