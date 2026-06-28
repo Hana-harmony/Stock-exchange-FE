@@ -315,17 +315,20 @@ class _NotificationArticleAnalysisCard extends StatelessWidget {
   });
 
   final _NotificationArticleDetailData detail;
+  static const _analysisCardGradient = LinearGradient(
+    begin: Alignment(-0.62, -1),
+    end: Alignment(0.62, 1),
+    colors: [
+      AppColors.orange100,
+      AppColors.red100,
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            AppColors.orange100,
-            AppColors.red100,
-          ],
-        ),
+        gradient: _analysisCardGradient,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
@@ -350,8 +353,9 @@ class _NotificationArticleAnalysisCard extends StatelessWidget {
                       'AI Analysis',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: 16,
-                            height: 22 / 16,
+                            height: 1.4,
                             fontWeight: FontWeight.w600,
+                            letterSpacing: 0,
                             color: AppColors.orange500,
                           ),
                     ),
@@ -396,7 +400,8 @@ class _NotificationArticleAnalysisRow extends StatelessWidget {
   });
 
   final _StockNewsSummaryRowData row;
-  static const _analysisLineHeight = 17 / 12;
+  static const _analysisLineHeight = 1.4;
+  static const _analysisLetterSpacing = -0.24;
   static const _analysisStrutStyle = StrutStyle(
     fontSize: 12,
     height: _analysisLineHeight,
@@ -430,6 +435,7 @@ class _NotificationArticleAnalysisRow extends StatelessWidget {
                       fontSize: 12,
                       height: _analysisLineHeight,
                       fontWeight: FontWeight.w500,
+                      letterSpacing: _analysisLetterSpacing,
                       color: AppColors.orange500,
                     ),
               ),
@@ -449,6 +455,7 @@ class _NotificationArticleAnalysisRow extends StatelessWidget {
                       fontSize: 12,
                       height: _analysisLineHeight,
                       fontWeight: FontWeight.w400,
+                      letterSpacing: _analysisLetterSpacing,
                       color: AppColors.gray700,
                     ),
               ),
@@ -680,7 +687,7 @@ const _figmaMockDetailTitle =
 
 List<_StockNewsSummaryRowData> _figmaMockAnalysisRows() {
   const figmaText =
-      'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025\nAMSUNG SAMSUNG ELEC: Dividend Payout';
+      'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG SAMSUNG ELEC: Dividend Payout';
   return const [
     _StockNewsSummaryRowData(
       label: 'What',
