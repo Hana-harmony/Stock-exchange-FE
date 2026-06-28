@@ -78,9 +78,10 @@ void main() {
     expect(find.text('Order'), findsWidgets);
     expect(find.text('K-News'), findsOneWidget);
 
-    await tester.tap(find.text('Chart'));
+    await tester.tap(find.byKey(const ValueKey('stock-detail-tab-chart')));
     await tester.pumpAndSettle();
-    expect(find.text('Chart view'), findsOneWidget);
+    expect(find.byKey(const PageStorageKey<String>('stock-chart-tab')),
+        findsOneWidget);
   });
 
   testWidgets('pins detail tabs and reveals compact header on scroll',

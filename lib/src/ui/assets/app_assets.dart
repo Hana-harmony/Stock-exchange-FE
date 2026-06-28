@@ -50,6 +50,8 @@ abstract final class AppAssets {
   static const stockCardRed = 'assets/illustrations/stock_card_red.png';
   static const marketDataContainer =
       'assets/illustrations/Market Data Container.png';
+  static const chartDetail1 = 'assets/illustrations/chart-detail-1.png';
+  static const chartDetail2 = 'assets/illustrations/chart-detail-2.png';
   static const emptyState = 'assets/illustrations/empty_state.png';
   static const errorState = 'assets/illustrations/error_state.png';
 }

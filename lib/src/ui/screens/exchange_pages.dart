@@ -845,7 +845,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       body: TabBarView(
                         children: [
                           _StockOrderTab(snapshot: snapshot),
-                          const _EmptyTabView(label: 'Chart'),
+                          const _StockChartTab(),
                           const _EmptyTabView(label: 'Fundamentals'),
                           const _EmptyTabView(label: 'K-News'),
                         ],
@@ -1300,6 +1300,7 @@ class _StockDetailTabs extends StatelessWidget {
                       child: Row(
                         children: [
                           _StockDetailTabButton(
+                            key: const ValueKey('stock-detail-tab-order'),
                             label: 'Order',
                             width: 48,
                             isSelected: controller.index == 0,
@@ -1307,6 +1308,7 @@ class _StockDetailTabs extends StatelessWidget {
                           ),
                           const SizedBox(width: 18),
                           _StockDetailTabButton(
+                            key: const ValueKey('stock-detail-tab-chart'),
                             label: 'Chart',
                             width: 47,
                             isSelected: controller.index == 1,
@@ -1314,6 +1316,9 @@ class _StockDetailTabs extends StatelessWidget {
                           ),
                           const SizedBox(width: 18),
                           _StockDetailTabButton(
+                            key: const ValueKey(
+                              'stock-detail-tab-fundamentals',
+                            ),
                             label: 'Fundamentals',
                             width: 116,
                             isSelected: controller.index == 2,
@@ -1321,6 +1326,7 @@ class _StockDetailTabs extends StatelessWidget {
                           ),
                           const SizedBox(width: 18),
                           _StockDetailTabButton(
+                            key: const ValueKey('stock-detail-tab-k-news'),
                             label: 'K-News',
                             width: 65,
                             isSelected: controller.index == 3,
@@ -1367,6 +1373,7 @@ class _StockDetailTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
 
 class _StockDetailTabButton extends StatelessWidget {
   const _StockDetailTabButton({
+    super.key,
     required this.label,
     required this.width,
     required this.isSelected,
@@ -1443,6 +1450,46 @@ class _StockOrderTab extends StatelessWidget {
         const SizedBox(height: 24),
         _InvestmentInfoSection(snapshot: snapshot),
       ],
+    );
+  }
+}
+
+class _StockChartTab extends StatelessWidget {
+  const _StockChartTab();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: const PageStorageKey<String>('stock-chart-tab'),
+      padding: const EdgeInsets.fromLTRB(0, 0, 0, 140),
+      children: const [
+        Column(
+          key: ValueKey('stock-chart-content'),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _StockChartIllustration(assetPath: AppAssets.chartDetail1),
+            _StockChartIllustration(assetPath: AppAssets.chartDetail2),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _StockChartIllustration extends StatelessWidget {
+  const _StockChartIllustration({
+    required this.assetPath,
+  });
+
+  final String assetPath;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image.asset(
+      assetPath,
+      width: double.infinity,
+      fit: BoxFit.fitWidth,
+      alignment: Alignment.topCenter,
     );
   }
 }
