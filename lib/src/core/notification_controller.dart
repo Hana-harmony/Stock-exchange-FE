@@ -58,6 +58,8 @@ class NotificationState {
   final NotificationFilter selectedFilter;
   final String? errorMessage;
 
+  bool get hasUnreadNotifications => (inbox?.unreadCount ?? 0) > 0;
+
   List<NotificationItem> get filteredNotifications {
     final notifications = inbox?.notifications ?? const <NotificationItem>[];
     return notifications.where(selectedFilter.matches).toList();
@@ -121,6 +123,21 @@ class NotificationInbox {
           .map((value) => NotificationItem.fromJson(_map(value)))
           .toList(),
       servedAt: _dateTime(json['servedAt']),
+    );
+  }
+
+  NotificationInbox copyWith({
+    String? accountId,
+    List<NotificationItem>? notifications,
+    DateTime? servedAt,
+  }) {
+    final nextNotifications = notifications ?? this.notifications;
+    return NotificationInbox(
+      accountId: accountId ?? this.accountId,
+      unreadCount: nextNotifications.where((item) => !item.read).length,
+      totalCount: nextNotifications.length,
+      notifications: nextNotifications,
+      servedAt: servedAt ?? this.servedAt,
     );
   }
 }
@@ -200,6 +217,8 @@ class NotificationItem {
     return status == 'FAILED' || status == 'RETRYING';
   }
 
+  bool get isLocalOnly => notificationId.startsWith('LOCAL-');
+
   static NotificationItem fromJson(Map<String, dynamic> json) {
     return NotificationItem(
       notificationId: _string(json['notificationId'], fallback: ''),
@@ -223,6 +242,36 @@ class NotificationItem {
       read: json['read'] as bool? ?? false,
       createdAt: _dateTime(json['createdAt']),
       readAt: _dateTime(json['readAt']),
+    );
+  }
+
+  NotificationItem copyWith({
+    bool? read,
+    DateTime? createdAt,
+    Object? readAt = _copyWithUndefined,
+  }) {
+    return NotificationItem(
+      notificationId: notificationId,
+      eventId: eventId,
+      subjectType: subjectType,
+      subjectId: subjectId,
+      sourceType: sourceType,
+      title: title,
+      summary: summary,
+      originalUrl: originalUrl,
+      primaryStockCode: primaryStockCode,
+      matchedStockCodes: matchedStockCodes,
+      matchReasons: matchReasons,
+      glossaryTerms: glossaryTerms,
+      translationQualityFlags: translationQualityFlags,
+      deliveryStatus: deliveryStatus,
+      deliveryProvider: deliveryProvider,
+      deliveryAttemptCount: deliveryAttemptCount,
+      read: read ?? this.read,
+      deliveredAt: deliveredAt,
+      lastDeliveryError: lastDeliveryError,
+      createdAt: createdAt ?? this.createdAt,
+      readAt: readAt == _copyWithUndefined ? this.readAt : readAt as DateTime?,
     );
   }
 }
@@ -545,6 +594,45 @@ class NotificationController extends ValueNotifier<NotificationState> {
     value = const NotificationState.idle();
   }
 
+  void ensureDemoInbox() {
+    final currentInbox = value.inbox;
+    if (currentInbox != null && currentInbox.notifications.isNotEmpty) {
+      return;
+    }
+    _replaceInbox(_buildDemoInbox());
+  }
+
+  void markTopNotificationUnread() {
+    final sourceInbox = _resolvedInboxForLocalMutation();
+    if (sourceInbox.notifications.isEmpty) {
+      return;
+    }
+    final notifications =
+        List<NotificationItem>.from(sourceInbox.notifications);
+    notifications[0] = notifications[0].copyWith(
+      read: false,
+      createdAt: DateTime.now().toUtc(),
+      readAt: null,
+    );
+    _replaceInbox(sourceInbox.copyWith(notifications: notifications));
+  }
+
+  void markReadLocally(String notificationId) {
+    final currentInbox = value.inbox;
+    if (currentInbox == null) {
+      return;
+    }
+    final readAt = DateTime.now().toUtc();
+    final notifications = currentInbox.notifications
+        .map(
+          (item) => item.notificationId == notificationId
+              ? item.copyWith(read: true, readAt: readAt)
+              : item,
+        )
+        .toList();
+    _replaceInbox(currentInbox.copyWith(notifications: notifications));
+  }
+
   Future<void> loadAlerts({
     required String? accountId,
     String stockCode = '005930',
@@ -757,7 +845,131 @@ class NotificationController extends ValueNotifier<NotificationState> {
       selectedFilter: value.selectedFilter,
     );
   }
+
+  NotificationInbox _resolvedInboxForLocalMutation() {
+    final currentInbox = value.inbox;
+    if (currentInbox != null && currentInbox.notifications.isNotEmpty) {
+      return currentInbox;
+    }
+    return _buildDemoInbox();
+  }
+
+  void _replaceInbox(NotificationInbox inbox) {
+    value = NotificationState.loaded(
+      inbox: inbox,
+      feed: value.feed,
+      devices: value.devices,
+      selectedFilter: value.selectedFilter,
+    );
+  }
+
+  NotificationInbox _buildDemoInbox() {
+    final now = DateTime.now().toUtc();
+    return NotificationInbox(
+      accountId: 'LOCAL-DEMO-ACCOUNT',
+      unreadCount: 0,
+      totalCount: 6,
+      notifications: [
+        _buildDemoItem(
+          notificationId: 'LOCAL-NTF-0001',
+          title:
+              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+          summary:
+              'Dividend payout confirmed. Positive signal for watchlist users tracking Samsung Electronics.',
+          matchReasons: const ['WATCHLIST'],
+          createdAt: now.subtract(const Duration(hours: 1)),
+          read: true,
+        ),
+        _buildDemoItem(
+          notificationId: 'LOCAL-NTF-0002',
+          title:
+              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+          summary:
+              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
+          matchReasons: const ['PORTFOLIO'],
+          createdAt: now.subtract(const Duration(hours: 1, minutes: 8)),
+          read: true,
+        ),
+        _buildDemoItem(
+          notificationId: 'LOCAL-NTF-0003',
+          title:
+              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+          summary:
+              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
+          matchReasons: const ['HOLDER'],
+          createdAt: now.subtract(const Duration(hours: 1, minutes: 14)),
+          read: true,
+        ),
+        _buildDemoItem(
+          notificationId: 'LOCAL-NTF-0004',
+          title:
+              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+          summary:
+              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
+          matchReasons: const ['PORTFOLIO'],
+          createdAt: now.subtract(const Duration(hours: 1, minutes: 20)),
+          read: true,
+        ),
+        _buildDemoItem(
+          notificationId: 'LOCAL-NTF-0005',
+          title:
+              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+          summary:
+              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
+          matchReasons: const ['PORTFOLIO'],
+          createdAt: now.subtract(const Duration(hours: 1, minutes: 27)),
+          read: true,
+        ),
+        _buildDemoItem(
+          notificationId: 'LOCAL-NTF-0006',
+          title:
+              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+          summary:
+              'Dividend payout confirmed. Portfolio holders can review the payout timing.',
+          matchReasons: const ['PORTFOLIO'],
+          createdAt: now.subtract(const Duration(hours: 1, minutes: 34)),
+          read: true,
+        ),
+      ],
+      servedAt: now,
+    );
+  }
+
+  NotificationItem _buildDemoItem({
+    required String notificationId,
+    required String title,
+    required String summary,
+    required List<String> matchReasons,
+    required DateTime createdAt,
+    required bool read,
+  }) {
+    return NotificationItem(
+      notificationId: notificationId,
+      eventId: 'LOCAL-EVT-${notificationId.split('-').last}',
+      subjectType: 'NEWS',
+      subjectId: '005930',
+      sourceType: 'LOCAL_DEMO',
+      title: title,
+      summary: summary,
+      originalUrl: '',
+      primaryStockCode: '005930',
+      matchedStockCodes: const ['005930'],
+      matchReasons: matchReasons,
+      glossaryTerms: const [],
+      translationQualityFlags: const [],
+      deliveryStatus: 'DELIVERED',
+      deliveryProvider: 'LOCAL_NOOP_PUSH',
+      deliveryAttemptCount: 1,
+      read: read,
+      deliveredAt: createdAt,
+      lastDeliveryError: null,
+      createdAt: createdAt,
+      readAt: read ? createdAt.add(const Duration(minutes: 1)) : null,
+    );
+  }
 }
+
+const Object _copyWithUndefined = Object();
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) {

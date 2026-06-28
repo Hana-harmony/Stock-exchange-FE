@@ -141,7 +141,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   ];
 
   int _selectedIndex = 1;
-  bool _hasUnreadNotifications = false;
+  bool _isShowingNotificationsPage = false;
   http.Client? _ownedHttpClient;
   late final ExchangeEnvironment _environment;
   late final ExchangeApiClient _apiClient;
@@ -179,7 +179,20 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _notificationController =
         widget.notificationController ?? _createNotificationController();
     _taxController = widget.taxController ?? _createTaxController();
+    _notificationController.addListener(_handleNotificationStateChanged);
     _sessionController.restore();
+  }
+
+  void _handleNotificationStateChanged() {
+    if (!mounted) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {});
+    });
   }
 
   ExchangeApiClient _createApiClient() {
@@ -265,6 +278,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
     if (widget.portfolioQuoteController == null) {
       _portfolioQuoteController.dispose();
     }
+    _notificationController.removeListener(_handleNotificationStateChanged);
     if (widget.notificationController == null) {
       _notificationController.dispose();
     }
@@ -316,16 +330,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
   }
 
   void _showNotificationPlaceholder() {
-    if (_hasUnreadNotifications) {
-      setState(() {
-        _hasUnreadNotifications = false;
-      });
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Notifications view is not included in this page scope.'),
-      ),
-    );
+    setState(() {
+      _isShowingNotificationsPage = true;
+    });
   }
 
   void _showAiPlaceholder() {
@@ -337,14 +344,11 @@ class _ExchangeShellState extends State<ExchangeShell> {
   }
 
   void _showMyNotificationPlaceholder() {
+    _notificationController.markTopNotificationUnread();
     setState(() {
-      _hasUnreadNotifications = true;
+      _selectedIndex = 1;
+      _isShowingNotificationsPage = false;
     });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('알림보내기 동작은 현재 페이지 범위에 포함되지 않습니다.'),
-      ),
-    );
   }
 
   Future<void> _openSearch() {
@@ -375,55 +379,67 @@ class _ExchangeShellState extends State<ExchangeShell> {
       onAiTap: _showAiPlaceholder,
       onSearchTap: _openSearch,
       onNotificationTap: _showNotificationPlaceholder,
-      hasUnreadNotifications: _hasUnreadNotifications,
+      hasUnreadNotifications:
+          _notificationController.value.hasUnreadNotifications,
     );
   }
 
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      appBar: _buildHeader(),
+      appBar: _isShowingNotificationsPage ? null : _buildHeader(),
       bodySafeAreaBottom: false,
-      body: IndexedStack(
-        index: _selectedIndex,
-        children: [
-          const ShellPlaceholderScreen(
-            title: 'WatchLists',
-            description:
-                'This tab is intentionally left as a placeholder while the Markets flow is implemented.',
-          ),
-          MarketScreen(
-            sessionController: _sessionController,
-            tradeController: _tradeController,
-            marketDetailController: _marketDetailController,
-            marketIndexController: _marketIndexController,
-            marketQuoteController: _marketQuoteController,
-            notificationController: _notificationController,
-          ),
-          const ShellPlaceholderScreen(
-            title: 'Accounts',
-            description:
-                'The account summary flow is outside the current page specification.',
-          ),
-          const ShellPlaceholderScreen(
-            title: 'Discover',
-            description:
-                'Discover remains a placeholder until its dedicated page specification is provided.',
-          ),
-          ShellPlaceholderScreen(
-            title: 'MY',
-            description:
-                'MY remains a placeholder until the account and settings pages are specified.',
-            actionLabel: '알림보내기',
-            onActionTap: _showMyNotificationPlaceholder,
-          ),
-        ],
-      ),
+      body: _isShowingNotificationsPage
+          ? NotificationInboxScreen(
+              notificationController: _notificationController,
+              accountId: _sessionController.session?.accountId,
+              onClose: () {
+                setState(() {
+                  _isShowingNotificationsPage = false;
+                });
+              },
+            )
+          : IndexedStack(
+              index: _selectedIndex,
+              children: [
+                const ShellPlaceholderScreen(
+                  title: 'WatchLists',
+                  description:
+                      'This tab is intentionally left as a placeholder while the Markets flow is implemented.',
+                ),
+                MarketScreen(
+                  sessionController: _sessionController,
+                  tradeController: _tradeController,
+                  marketDetailController: _marketDetailController,
+                  marketIndexController: _marketIndexController,
+                  marketQuoteController: _marketQuoteController,
+                  notificationController: _notificationController,
+                ),
+                const ShellPlaceholderScreen(
+                  title: 'Accounts',
+                  description:
+                      'The account summary flow is outside the current page specification.',
+                ),
+                const ShellPlaceholderScreen(
+                  title: 'Discover',
+                  description:
+                      'Discover remains a placeholder until its dedicated page specification is provided.',
+                ),
+                ShellPlaceholderScreen(
+                  title: 'MY',
+                  description:
+                      'MY remains a placeholder until the account and settings pages are specified.',
+                  actionLabel: '알림보내기',
+                  onActionTap: _showMyNotificationPlaceholder,
+                ),
+              ],
+            ),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
+            _isShowingNotificationsPage = false;
           });
         },
         items: _shellNavigationItems,

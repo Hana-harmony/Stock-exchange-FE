@@ -67,10 +67,39 @@ void main() {
 
     await tester.tap(find.text('알림보내기'));
     await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
     expect(notificationAsset().assetName, AppAssets.headerNotificationsNew);
 
     await tester.tap(find.bySemanticsLabel('Notifications'));
     await tester.pumpAndSettle();
+
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('notification-filter-all')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('notification-filter-portfolio')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('notification-filter-watchlist')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
+      findsOneWidget,
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('notification-header-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
     expect(notificationAsset().assetName, AppAssets.headerNotifications);
   });
 
