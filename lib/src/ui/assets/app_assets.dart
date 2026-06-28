@@ -23,6 +23,8 @@ abstract final class AppAssets {
   static const listIconActive = 'assets/icons/icon_list_active.png';
   static const gridIcon = 'assets/icons/icon_grid.png';
   static const gridIconActive = 'assets/icons/icon_grid_active.png';
+  static const warningViIcon = 'assets/icons/icon_warning_vi.png';
+  static const infoIcon = 'assets/icons/info_icon.png';
   static const countryBadgeKr = 'assets/icons/country_badge_kr.png';
   static const countryBadgeHk = 'assets/icons/country_badge_hk.png';
   static const koreaFlagIcon = 'assets/icons/korea_flag_icon.png';

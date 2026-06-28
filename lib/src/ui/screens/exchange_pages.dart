@@ -771,6 +771,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   late bool _isFavorite;
   late final ScrollController _detailScrollController;
   bool _tabsPinned = false;
+  bool _showViBanner = false;
 
   @override
   void initState() {
@@ -795,8 +796,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   void _handleScroll() {
-    final nextPinned =
-        _detailScrollController.offset >= _StockOverviewSection.height;
+    final nextPinned = _detailScrollController.offset >=
+        _StockOverviewSection.height +
+            (_showViBanner ? _ViTriggeredBanner.totalBlockHeight : 0);
     if (nextPinned == _tabsPinned) {
       return;
     }
@@ -844,6 +846,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       controller: _detailScrollController,
                       headerSliverBuilder: (context, innerBoxIsScrolled) {
                         return [
+                          if (_showViBanner)
+                            SliverToBoxAdapter(
+                              child: Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  8,
+                                  16,
+                                  12,
+                                ),
+                                child: _ViTriggeredBanner(
+                                  onInfoTap: _showViInfoPanel,
+                                ),
+                              ),
+                            ),
                           SliverToBoxAdapter(
                             child: _StockOverviewSection(snapshot: snapshot),
                           ),
@@ -857,7 +873,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         children: [
                           _StockOrderTab(snapshot: snapshot),
                           const _StockChartTab(),
-                          const _EmptyTabView(label: 'Fundamentals'),
+                          _StockFundamentalsTab(
+                            isViTriggered: _showViBanner,
+                            onToggleVi: _toggleViBanner,
+                          ),
                           _StockNewsTab(
                             notificationController:
                                 widget.notificationController,
@@ -908,6 +927,30 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       SnackBar(
         content: Text('$side order flow is not included in this page scope.'),
       ),
+    );
+  }
+
+  void _toggleViBanner() {
+    final nextValue = !_showViBanner;
+    setState(() {
+      _showViBanner = nextValue;
+    });
+    if (nextValue && _detailScrollController.hasClients) {
+      _detailScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 240),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _showViInfoPanel() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return const _ViInfoPanel();
+      },
     );
   }
 }
@@ -1288,6 +1331,184 @@ class _StockStatRow extends StatelessWidget {
   }
 }
 
+class _ViTriggeredBanner extends StatelessWidget {
+  const _ViTriggeredBanner({
+    required this.onInfoTap,
+  });
+
+  static const double height = 60;
+  static const double totalBlockHeight = 80;
+
+  final VoidCallback onInfoTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('vi-triggered-banner'),
+      constraints: const BoxConstraints(minHeight: height),
+      decoration: BoxDecoration(
+        color: const Color(0xFF353A41),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      AppAssets.warningViIcon,
+                      width: 16,
+                      height: 16,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'VI triggered!',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 14,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.red500,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 0),
+                Text(
+                  'Trading may be temporarily halted.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
+                        height: 1.4,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.gray200,
+                      ),
+                ),
+              ],
+            ),
+          ),
+          InkWell(
+            key: const ValueKey('vi-triggered-banner-info'),
+            onTap: onInfoTap,
+            borderRadius: BorderRadius.circular(18),
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Image.asset(
+                AppAssets.infoIcon,
+                width: 24,
+                height: 24,
+                fit: BoxFit.contain,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ViInfoPanel extends StatelessWidget {
+  const _ViInfoPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.gray200,
+                      borderRadius: BorderRadius.circular(999),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Row(
+                  children: [
+                    Image.asset(
+                      AppAssets.warningViIcon,
+                      width: 20,
+                      height: 20,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      'VI triggered!',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.red500,
+                            fontSize: 18,
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Trading may be temporarily halted.',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontSize: 16,
+                        height: 1.4,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.gray900,
+                      ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'VI is a temporary volatility interruption used to pause trading when price movement becomes too sharp.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
+                        height: 1.45,
+                        fontWeight: FontWeight.w400,
+                        color: AppColors.gray700,
+                      ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.orange500,
+                      foregroundColor: AppColors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text('확인'),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _StockDetailTabs extends StatelessWidget {
   const _StockDetailTabs();
 
@@ -1509,6 +1730,43 @@ class _StockChartIllustration extends StatelessWidget {
       width: double.infinity,
       fit: BoxFit.fitWidth,
       alignment: Alignment.topCenter,
+    );
+  }
+}
+
+class _StockFundamentalsTab extends StatelessWidget {
+  const _StockFundamentalsTab({
+    required this.isViTriggered,
+    required this.onToggleVi,
+  });
+
+  final bool isViTriggered;
+  final VoidCallback onToggleVi;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: const PageStorageKey<String>('stock-fundamentals-tab'),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: FilledButton(
+            key: const ValueKey('stock-fundamentals-trigger-vi'),
+            onPressed: onToggleVi,
+            style: FilledButton.styleFrom(
+              backgroundColor:
+                  isViTriggered ? AppColors.gray700 : AppColors.orange500,
+              foregroundColor: AppColors.white,
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+            ),
+            child: Text(isViTriggered ? 'VI발동 끄기' : 'VI발동 시키기'),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -2515,12 +2773,15 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
 
   final _StockDetailSnapshot snapshot;
 
+  static const _outerBackgroundColor = Color(0xFFF5F6F6);
+  static const _accentColor = Color(0xFFFF1550);
+
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(12),
+        color: _outerBackgroundColor,
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 16, 12, 20),
@@ -2533,8 +2794,10 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                   child: Text(
                     'Foreign Ownership Limit Alert',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: 17,
+                          fontSize: 16,
+                          height: 1.4,
                           fontWeight: FontWeight.w600,
+                          color: AppColors.gray1000,
                         ),
                   ),
                 ),
@@ -2549,50 +2812,55 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
             Text(
               'Based on a time-series regression analysis\nwith a 95% confidence interval',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
                     color: AppColors.gray600,
                     height: 1.4,
                   ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 14),
             DecoratedBox(
               decoration: BoxDecoration(
                 color: AppColors.white,
-                borderRadius: BorderRadius.circular(12),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
+                padding: const EdgeInsets.all(16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Estimated',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: AppColors.red500,
+                            fontSize: 14,
+                            height: 1.4,
+                            color: _accentColor,
                             fontWeight: FontWeight.w600,
                           ),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: 2),
                     Text(
                       snapshot.estimatedRange,
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: AppColors.red500,
-                                fontSize: 24,
+                                color: _accentColor,
+                                fontSize: 22,
+                                height: 1.4,
                                 fontWeight: FontWeight.w600,
                               ),
                     ),
-                    const SizedBox(height: 18),
+                    const SizedBox(height: 10),
                     ClipRRect(
                       borderRadius: BorderRadius.circular(999),
                       child: LinearProgressIndicator(
                         value: snapshot.alertProgress,
-                        minHeight: 12,
+                        minHeight: 10,
                         backgroundColor: AppColors.gray300,
-                        valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppColors.red500),
+                        valueColor:
+                            const AlwaysStoppedAnimation<Color>(_accentColor),
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 6),
                     Row(
                       children: [
                         Expanded(
@@ -2618,8 +2886,10 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                       '(${snapshot.limitForeignRatio}). Trading may be restricted once '
                       'the limit is reached.',
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: AppColors.gray700,
-                            height: 1.45,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.gray800,
+                            height: 1.4,
                           ),
                     ),
                   ],
@@ -2653,15 +2923,20 @@ class _AlertMetric extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
                 color: AppColors.gray600,
+                height: 1.4,
               ),
         ),
         const SizedBox(height: 2),
         Text(
           value,
           style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontSize: 18,
+                fontSize: 14,
+                height: 1.4,
                 fontWeight: FontWeight.w500,
+                color: AppColors.gray900,
               ),
         ),
       ],
@@ -3842,36 +4117,6 @@ class _ErrorStateCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class _EmptyTabView extends StatelessWidget {
-  const _EmptyTabView({
-    required this.label,
-  });
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      key: PageStorageKey<String>('stock-empty-tab-$label'),
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 140),
-      children: [
-        _MutedInfoCard(
-          title: '$label view',
-          body:
-              'This tab is intentionally left empty for now, matching the current page spec.',
-        ),
-        const SizedBox(height: 1),
-        ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: MediaQuery.sizeOf(context).height * 0.45,
-          ),
-          child: const SizedBox.shrink(),
-        ),
-      ],
     );
   }
 }
