@@ -237,6 +237,55 @@ void main() {
     expect(find.text('VI발동 시키기'), findsOneWidget);
   });
 
+  testWidgets('blocks sell with VI warning modal when VI is triggered',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester
+        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sell'));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('vi-restriction-dialog')), findsOneWidget);
+    expect(find.text('Volatility Interruption Triggered!'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('vi-restriction-confirm')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('vi-restriction-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('vi-restriction-dialog')), findsNothing);
+  });
+
   testWidgets('shows samsung dummy results with orange query highlight',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));

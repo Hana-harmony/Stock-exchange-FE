@@ -895,8 +895,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           },
         ),
         bottomNavigationBar: _StockBottomActionBar(
-          onSell: () => _showTradePlaceholder('Sell'),
-          onBuy: () => _showTradePlaceholder('Buy'),
+          onSell: () => _handleTradeAction('Sell'),
+          onBuy: () => _handleTradeAction('Buy'),
         ),
       ),
     );
@@ -930,6 +930,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
+  void _handleTradeAction(String side) {
+    if (_showViBanner) {
+      _showViRestrictionDialog();
+      return;
+    }
+    _showTradePlaceholder(side);
+  }
+
   void _toggleViBanner() {
     final nextValue = !_showViBanner;
     setState(() {
@@ -950,6 +958,25 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return const _ViInfoPanel();
+      },
+    );
+  }
+
+  Future<void> _showViRestrictionDialog() {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'VI restriction',
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const _ViRestrictionDialog();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
       },
     );
   }
@@ -1501,6 +1528,103 @@ class _ViInfoPanel extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ViRestrictionDialog extends StatelessWidget {
+  const _ViRestrictionDialog();
+
+  static const double _dialogWidth = 360;
+  static const double _dialogHeight = 200;
+  static const double _buttonHeight = 46;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 21),
+          child: Container(
+            key: const ValueKey('vi-restriction-dialog'),
+            width: _dialogWidth,
+            height: _dialogHeight,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+            child: SizedBox(
+              height: _dialogHeight - 48,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Volatility Interruption Triggered!',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: 18,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.gray1000,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'A VI has been triggered for this stock.\n'
+                    'Real-time executions are temporarily restricted, and\n'
+                    'orders will be processed through call auction trading.',
+                    maxLines: 3,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 14,
+                          height: 1.4,
+                          letterSpacing: -0.28,
+                          fontWeight: FontWeight.w500,
+                          color: AppColors.gray600,
+                        ),
+                  ),
+                  const Spacer(),
+                  SizedBox(
+                    width: double.infinity,
+                    height: _buttonHeight,
+                    child: FilledButton(
+                      key: const ValueKey('vi-restriction-confirm'),
+                      onPressed: () => Navigator.of(context).pop(),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFFFF1550),
+                        foregroundColor: AppColors.white,
+                        padding: EdgeInsets.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: Text(
+                        'Confirm',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              color: AppColors.white,
+                              fontSize: 18,
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
