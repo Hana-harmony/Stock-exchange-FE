@@ -300,6 +300,78 @@ void main() {
     expect(find.text('\$7,200'), findsOneWidget);
   });
 
+  testWidgets('shows account pin bottom sheet from order entry buy button',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-detail-buy-button')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-submit-button')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('stock-order-pin-sheet')), findsOneWidget);
+    expect(find.text('Account PIN'), findsWidgets);
+    expect(
+        find.byKey(const ValueKey('stock-order-pin-cancel')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('stock-order-pin-confirm')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-key-1')));
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-key-2')));
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-key-3')));
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-key-4')));
+    await tester.pumpAndSettle();
+
+    final partialPinDisplay = tester.widget<Text>(
+      find.byKey(const ValueKey('stock-order-pin-display')),
+    );
+    expect(partialPinDisplay.data, '●\u00A0●\u00A0●\u00A0●');
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('stock-order-pin-sheet')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-key-5')));
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-key-6')));
+    await tester.pumpAndSettle();
+
+    final fullPinDisplay = tester.widget<Text>(
+      find.byKey(const ValueKey('stock-order-pin-display')),
+    );
+    expect(fullPinDisplay.data, '●\u00A0●\u00A0●\u00A0●\u00A0●\u00A0●');
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-confirm')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('stock-order-pin-sheet')), findsNothing);
+  });
+
   testWidgets('shows K-News toolbar and switches between list and card layouts',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));

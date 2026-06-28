@@ -111,6 +111,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
                       onIncreaseQuantity: _increaseQuantity,
                       onDecreasePrice: _decreasePrice,
                       onIncreasePrice: _increasePrice,
+                      onSubmit: _showAccountPinBottomSheet,
                     ),
                   ),
                 ],
@@ -239,6 +240,36 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     setState(() {
       _price = sanitized;
     });
+  }
+
+  Future<void> _showAccountPinBottomSheet() {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Account PIN',
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const _AccountPinBottomSheetDialog();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        final slideAnimation = Tween<Offset>(
+          begin: const Offset(0, 1),
+          end: Offset.zero,
+        ).animate(
+          CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOutCubic,
+            reverseCurve: Curves.easeInCubic,
+          ),
+        );
+
+        return SlideTransition(
+          position: slideAnimation,
+          child: child,
+        );
+      },
+    );
   }
 }
 
@@ -725,6 +756,7 @@ class _StockOrderFormPanel extends StatelessWidget {
     required this.onIncreaseQuantity,
     required this.onDecreasePrice,
     required this.onIncreasePrice,
+    required this.onSubmit,
   });
 
   final TextEditingController quantityController;
@@ -734,6 +766,7 @@ class _StockOrderFormPanel extends StatelessWidget {
   final VoidCallback onIncreaseQuantity;
   final VoidCallback onDecreasePrice;
   final VoidCallback onIncreasePrice;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -764,7 +797,10 @@ class _StockOrderFormPanel extends StatelessWidget {
             onIncrease: onIncreasePrice,
           ),
           const Spacer(),
-          _OrderSubmitSection(orderAmount: orderAmount),
+          _OrderSubmitSection(
+            orderAmount: orderAmount,
+            onSubmit: onSubmit,
+          ),
         ],
       ),
     );
@@ -1097,9 +1133,11 @@ class _OrderStepControls extends StatelessWidget {
 class _OrderSubmitSection extends StatelessWidget {
   const _OrderSubmitSection({
     required this.orderAmount,
+    required this.onSubmit,
   });
 
   final int orderAmount;
+  final VoidCallback onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -1140,7 +1178,7 @@ class _OrderSubmitSection extends StatelessWidget {
           height: 45,
           child: FilledButton(
             key: const ValueKey('stock-order-submit-button'),
-            onPressed: () {},
+            onPressed: onSubmit,
             style: FilledButton.styleFrom(
               backgroundColor: AppColors.green500,
               foregroundColor: AppColors.white,
@@ -1161,6 +1199,311 @@ class _OrderSubmitSection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AccountPinBottomSheetDialog extends StatefulWidget {
+  const _AccountPinBottomSheetDialog();
+
+  @override
+  State<_AccountPinBottomSheetDialog> createState() =>
+      _AccountPinBottomSheetDialogState();
+}
+
+class _AccountPinBottomSheetDialogState
+    extends State<_AccountPinBottomSheetDialog> {
+  static const _maxPinLength = 6;
+  String _pin = '';
+
+  bool get _isConfirmEnabled => _pin.length == _maxPinLength;
+
+  void _appendDigit(String digit) {
+    if (_pin.length >= _maxPinLength) {
+      return;
+    }
+    setState(() {
+      _pin = '$_pin$digit';
+    });
+  }
+
+  void _dismiss() {
+    Navigator.of(context).pop();
+  }
+
+  void _confirm() {
+    if (!_isConfirmEnabled) {
+      return;
+    }
+    Navigator.of(context).pop();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: Align(
+        alignment: Alignment.bottomCenter,
+        child: Container(
+          key: const ValueKey('stock-order-pin-sheet'),
+          width: double.infinity,
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(
+              top: Radius.circular(20),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.05),
+                blurRadius: 20,
+                offset: Offset(4, 0),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 48,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.gray300,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+              _AccountPinInputSection(pin: _pin),
+              _AccountPinKeypad(onDigitPressed: _appendDigit),
+              _AccountPinActionBar(
+                onCancel: _dismiss,
+                onConfirm: _confirm,
+                isConfirmEnabled: _isConfirmEnabled,
+              ),
+              const _StockHomeBar(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountPinInputSection extends StatelessWidget {
+  const _AccountPinInputSection({
+    required this.pin,
+  });
+
+  final String pin;
+
+  @override
+  Widget build(BuildContext context) {
+    final displayText = pin.isEmpty
+        ? 'Account PIN'
+        : List.filled(pin.length, '●').join('\u00A0');
+    final displayColor = pin.isEmpty ? AppColors.gray600 : AppColors.gray1000;
+
+    return SizedBox(
+      height: 133,
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Account PIN',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                    color: AppColors.gray1000,
+                  ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              height: 48,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              decoration: BoxDecoration(
+                color: AppColors.white,
+                border: Border.all(color: AppColors.gray300),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              alignment: Alignment.centerLeft,
+              child: Text(
+                displayText,
+                key: const ValueKey('stock-order-pin-display'),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      height: 1.4,
+                      color: displayColor,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountPinKeypad extends StatelessWidget {
+  const _AccountPinKeypad({
+    required this.onDigitPressed,
+  });
+
+  static const _rows = [
+    ['1', null, '2', '3'],
+    ['4', '5', '6', null],
+    ['7', '8', '9', '0'],
+  ];
+
+  final ValueChanged<String> onDigitPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 180,
+      child: Column(
+        children: _rows
+            .map(
+              (row) => Expanded(
+                child: Row(
+                  children: row
+                      .map(
+                        (digit) => Expanded(
+                          child: _AccountPinKeypadCell(
+                            digit: digit,
+                            onPressed: digit == null
+                                ? null
+                                : () => onDigitPressed(digit),
+                          ),
+                        ),
+                      )
+                      .toList(growable: false),
+                ),
+              ),
+            )
+            .toList(growable: false),
+      ),
+    );
+  }
+}
+
+class _AccountPinKeypadCell extends StatelessWidget {
+  const _AccountPinKeypadCell({
+    required this.digit,
+    required this.onPressed,
+  });
+
+  final String? digit;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    if (digit == null || onPressed == null) {
+      return const SizedBox.expand();
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: ValueKey('stock-order-pin-key-$digit'),
+        onTap: onPressed,
+        splashFactory: NoSplash.splashFactory,
+        highlightColor: AppColors.gray100.withValues(alpha: 0.6),
+        child: Center(
+          child: Text(
+            digit!,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                  color: AppColors.gray1000,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _AccountPinActionBar extends StatelessWidget {
+  const _AccountPinActionBar({
+    required this.onCancel,
+    required this.onConfirm,
+    required this.isConfirmEnabled,
+  });
+
+  final VoidCallback onCancel;
+  final VoidCallback onConfirm;
+  final bool isConfirmEnabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 77,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Expanded(
+              child: SizedBox(
+                height: 45,
+                child: OutlinedButton(
+                  key: const ValueKey('stock-order-pin-cancel'),
+                  onPressed: onCancel,
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: AppColors.white,
+                    foregroundColor: AppColors.gray700,
+                    side: const BorderSide(color: AppColors.gray300),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: Text(
+                    'Cancel',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                          color: AppColors.gray700,
+                        ),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: SizedBox(
+                height: 45,
+                child: FilledButton(
+                  key: const ValueKey('stock-order-pin-confirm'),
+                  onPressed: onConfirm,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: isConfirmEnabled
+                        ? AppColors.orange500
+                        : AppColors.orange300,
+                    foregroundColor: AppColors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    elevation: 0,
+                  ),
+                  child: Text(
+                    'Confirm',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                          color: AppColors.white,
+                        ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
