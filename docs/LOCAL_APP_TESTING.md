@@ -6,8 +6,17 @@
 
 ```bash
 flutter pub get
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
+```
+
+한 번만 아래 명령으로 Git hook을 설치하면 커밋 시 변경된 Dart 파일 formatter가 자동 적용되고, 푸시 시 analyze/test가 실행된다.
+
+```bash
+python3 -m pip install --user pre-commit
+python3 -m pre_commit install --hook-type pre-commit --hook-type pre-push
+python3 -m pre_commit run --all-files
 ```
 
 ## iOS Simulator
@@ -60,4 +69,4 @@ flutter run -d android --dart-define=EXCHANGE_API_BASE_URL=http://10.0.2.2:3000
 
 - iOS 앱 빌드와 Simulator 실행은 Docker에서 처리하지 않는다.
 - Android emulator/device 실행도 Docker 표준 경로로 두지 않는다.
-- CI에서 필요하면 Flutter SDK 기반 `flutter analyze`와 `flutter test`만 수행한다.
+- CI에서는 Flutter SDK 기반 `dart format --output=none --set-exit-if-changed lib test`, `flutter analyze`, `flutter test`를 수행한다.

@@ -95,7 +95,8 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     required String password,
   }) async {
     if (_hasInvalidCredentials(username: username, password: password)) {
-      value = ExchangeSessionState.failure('Username and password are required.');
+      value =
+          ExchangeSessionState.failure('Username and password are required.');
       return;
     }
 
@@ -122,7 +123,8 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     required String password,
   }) async {
     if (_hasInvalidCredentials(username: username, password: password)) {
-      value = ExchangeSessionState.failure('Username and password are required.');
+      value =
+          ExchangeSessionState.failure('Username and password are required.');
       return;
     }
 
