@@ -130,6 +130,51 @@ void main() {
     expect(find.text('Order'), findsOneWidget);
   });
 
+  testWidgets('shows K-News toolbar and switches between list and card layouts',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-detail-tab-k-news')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const PageStorageKey<String>('stock-k-news-tab')),
+        findsOneWidget);
+    expect(find.text('Newest'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('stock-news-layout-list')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('stock-news-layout-grid')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('stock-news-layout-grid')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const PageStorageKey<String>('stock-k-news-tab')),
+        findsOneWidget);
+    expect(find.text('Card'), findsOneWidget);
+  });
+
   testWidgets('shows samsung dummy results with orange query highlight',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));

@@ -330,6 +330,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           tradeController: _tradeController,
           marketDetailController: _marketDetailController,
           marketQuoteController: _marketQuoteController,
+          notificationController: _notificationController,
           recentSearches: _recentSearches,
           favoriteStockCodes: _favoriteStockCodes,
           onSearchCommitted: _rememberSearchQuery,
@@ -374,6 +375,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
             marketDetailController: _marketDetailController,
             marketIndexController: _marketIndexController,
             marketQuoteController: _marketQuoteController,
+            notificationController: _notificationController,
           ),
           const ShellPlaceholderScreen(
             title: 'Accounts',

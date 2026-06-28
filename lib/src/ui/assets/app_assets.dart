@@ -8,6 +8,7 @@ abstract final class AppAssets {
   static const backArrow = 'assets/icons/back_arrow.png';
   static const headerFavoriteIcon = 'assets/icons/header_favorite_icon.png';
   static const trendingIcon = 'assets/icons/Trending Icon.png';
+  static const dropdownIcon = 'assets/icons/Dropdown Icon.png';
   static const favoriteIcon = 'assets/icons/favorite_icon.png';
   static const favoriteIconActive = 'assets/icons/favorite_icon_active.png';
   static const binIcon = 'assets/icons/bin_icon.png';
@@ -18,6 +19,10 @@ abstract final class AppAssets {
   static const arrowDownSmall = 'assets/icons/arrow_down_icon_small.png';
   static const chartUpMini = 'assets/icons/icon_nevigate_green.png';
   static const chartDownMini = 'assets/icons/icon_nevigated_red.png';
+  static const listIcon = 'assets/icons/icon_list.png';
+  static const listIconActive = 'assets/icons/icon_list_active.png';
+  static const gridIcon = 'assets/icons/icon_grid.png';
+  static const gridIconActive = 'assets/icons/icon_grid_active.png';
   static const countryBadgeKr = 'assets/icons/country_badge_kr.png';
   static const countryBadgeHk = 'assets/icons/country_badge_hk.png';
   static const koreaFlagIcon = 'assets/icons/korea_flag_icon.png';
@@ -52,6 +57,7 @@ abstract final class AppAssets {
       'assets/illustrations/Market Data Container.png';
   static const chartDetail1 = 'assets/illustrations/chart-detail-1.png';
   static const chartDetail2 = 'assets/illustrations/chart-detail-2.png';
+  static const noImageDefault = 'assets/illustrations/no_image_deafult.png';
   static const emptyState = 'assets/illustrations/empty_state.png';
   static const errorState = 'assets/illustrations/error_state.png';
 }
