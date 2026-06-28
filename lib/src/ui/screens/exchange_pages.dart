@@ -758,11 +758,22 @@ class StockDetailScreen extends StatefulWidget {
 
 class _StockDetailScreenState extends State<StockDetailScreen> {
   late bool _isFavorite;
+  late final ScrollController _detailScrollController;
+  bool _tabsPinned = false;
 
   @override
   void initState() {
     super.initState();
     _isFavorite = widget.isFavorite;
+    _detailScrollController = ScrollController()..addListener(_handleScroll);
+  }
+
+  @override
+  void dispose() {
+    _detailScrollController
+      ..removeListener(_handleScroll)
+      ..dispose();
+    super.dispose();
   }
 
   void _toggleFavorite() {
@@ -770,6 +781,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       _isFavorite = !_isFavorite;
     });
     widget.onFavoriteToggle?.call();
+  }
+
+  void _handleScroll() {
+    final nextPinned =
+        _detailScrollController.offset >= _StockOverviewSection.height;
+    if (nextPinned == _tabsPinned) {
+      return;
+    }
+    setState(() {
+      _tabsPinned = nextPinned;
+    });
   }
 
   @override
@@ -799,21 +821,35 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
               child: Column(
                 children: [
                   _StockDetailHeader(
+                    snapshot: snapshot,
+                    showCompactTitle: _tabsPinned,
                     isFavorite: _isFavorite,
                     onBack: () => Navigator.of(context).pop(),
                     onSearch: _openSearch,
                     onFavorite: _toggleFavorite,
                   ),
-                  _StockOverviewSection(snapshot: snapshot),
-                  const _StockDetailTabs(),
                   Expanded(
-                    child: TabBarView(
-                      children: [
-                        _StockOrderTab(snapshot: snapshot),
-                        const _EmptyTabView(label: 'Chart'),
-                        const _EmptyTabView(label: 'Fundamentals'),
-                        const _EmptyTabView(label: 'K-News'),
-                      ],
+                    child: NestedScrollView(
+                      controller: _detailScrollController,
+                      headerSliverBuilder: (context, innerBoxIsScrolled) {
+                        return [
+                          SliverToBoxAdapter(
+                            child: _StockOverviewSection(snapshot: snapshot),
+                          ),
+                          SliverPersistentHeader(
+                            pinned: true,
+                            delegate: _StockDetailTabsHeaderDelegate(),
+                          ),
+                        ];
+                      },
+                      body: TabBarView(
+                        children: [
+                          _StockOrderTab(snapshot: snapshot),
+                          const _EmptyTabView(label: 'Chart'),
+                          const _EmptyTabView(label: 'Fundamentals'),
+                          const _EmptyTabView(label: 'K-News'),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -859,12 +895,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
 class _StockDetailHeader extends StatelessWidget {
   const _StockDetailHeader({
+    required this.snapshot,
+    required this.showCompactTitle,
     required this.isFavorite,
     required this.onBack,
     required this.onSearch,
     required this.onFavorite,
   });
 
+  final _StockDetailSnapshot snapshot;
+  final bool showCompactTitle;
   final bool isFavorite;
   final VoidCallback onBack;
   final VoidCallback onSearch;
@@ -872,28 +912,80 @@ class _StockDetailHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
-        child: Row(
-          children: [
-            _HeaderIconButton(
-              assetPath: AppAssets.backArrow,
-              onTap: onBack,
-            ),
-            const Spacer(),
-            _HeaderIconButton(
-              assetPath: AppAssets.headerSearch,
-              onTap: onSearch,
-            ),
-            const SizedBox(width: 4),
-            _FavoriteButton(
-              isFavorite: isFavorite,
-              inactiveAssetPath: AppAssets.headerFavoriteIcon,
-              onTap: onFavorite,
-            ),
-          ],
+    final priceColor =
+        snapshot.isPositive ? AppColors.green500 : AppColors.red500;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border(
+          bottom: BorderSide(
+            color: showCompactTitle ? AppColors.gray200 : Colors.transparent,
+          ),
+        ),
+      ),
+      child: SizedBox(
+        height: 44,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+          child: Row(
+            children: [
+              _HeaderIconButton(
+                assetPath: AppAssets.backArrow,
+                onTap: onBack,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: AnimatedOpacity(
+                  key: const ValueKey('stock-detail-collapsed-header'),
+                  opacity: showCompactTitle ? 1 : 0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        snapshot.stockName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: 17,
+                              height: 1,
+                              fontWeight: FontWeight.w600,
+                            ),
+                      ),
+                      const SizedBox(height: 1),
+                      Text(
+                        '${snapshot.changeAmount} ${snapshot.changeRate}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 14,
+                                  height: 1,
+                                  fontWeight: FontWeight.w500,
+                                  color: priceColor,
+                                ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              _HeaderIconButton(
+                assetPath: AppAssets.headerSearch,
+                onTap: onSearch,
+              ),
+              const SizedBox(width: 4),
+              _FavoriteButton(
+                isFavorite: isFavorite,
+                inactiveAssetPath: AppAssets.headerFavoriteIcon,
+                onTap: onFavorite,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -930,6 +1022,8 @@ class _StockOverviewSection extends StatelessWidget {
     required this.snapshot,
   });
 
+  static const double height = 198;
+
   final _StockDetailSnapshot snapshot;
 
   @override
@@ -938,7 +1032,7 @@ class _StockOverviewSection extends StatelessWidget {
         snapshot.isPositive ? AppColors.green500 : AppColors.red500;
 
     return SizedBox(
-      height: 198,
+      height: height,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
         child: Column(
@@ -1178,6 +1272,8 @@ class _StockStatRow extends StatelessWidget {
 class _StockDetailTabs extends StatelessWidget {
   const _StockDetailTabs();
 
+  static const double height = 51;
+
   @override
   Widget build(BuildContext context) {
     final controller = DefaultTabController.of(context);
@@ -1241,6 +1337,31 @@ class _StockDetailTabs extends StatelessWidget {
         ],
       ),
     );
+  }
+}
+
+class _StockDetailTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
+  @override
+  double get minExtent => _StockDetailTabs.height;
+
+  @override
+  double get maxExtent => _StockDetailTabs.height;
+
+  @override
+  Widget build(
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return const DecoratedBox(
+      decoration: BoxDecoration(color: AppColors.white),
+      child: _StockDetailTabs(),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _StockDetailTabsHeaderDelegate oldDelegate) {
+    return false;
   }
 }
 
@@ -1308,6 +1429,7 @@ class _StockOrderTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
+      key: const PageStorageKey<String>('stock-order-tab'),
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 140),
       children: [
         _ForeignOwnershipAlertCard(snapshot: snapshot),
@@ -2728,15 +2850,23 @@ class _EmptyTabView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: _MutedInfoCard(
+    return ListView(
+      key: PageStorageKey<String>('stock-empty-tab-$label'),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 140),
+      children: [
+        _MutedInfoCard(
           title: '$label view',
           body:
               'This tab is intentionally left empty for now, matching the current page spec.',
         ),
-      ),
+        const SizedBox(height: 1),
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: MediaQuery.sizeOf(context).height * 0.45,
+          ),
+          child: const SizedBox.shrink(),
+        ),
+      ],
     );
   }
 }

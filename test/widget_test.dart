@@ -83,6 +83,52 @@ void main() {
     expect(find.text('Chart view'), findsOneWidget);
   });
 
+  testWidgets('pins detail tabs and reveals compact header on scroll',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    final collapsedHeader = find.byKey(
+      const ValueKey('stock-detail-collapsed-header'),
+    );
+    expect(collapsedHeader, findsOneWidget);
+
+    final beforeScroll = tester.widget<AnimatedOpacity>(collapsedHeader);
+    expect(beforeScroll.opacity, 0);
+
+    await tester.drag(
+      find.byKey(const PageStorageKey<String>('stock-order-tab')),
+      const Offset(0, -360),
+    );
+    await tester.pumpAndSettle();
+
+    final afterScroll = tester.widget<AnimatedOpacity>(collapsedHeader);
+    expect(afterScroll.opacity, greaterThan(beforeScroll.opacity));
+    expect(afterScroll.opacity, greaterThan(0.8));
+    expect(find.text('Order'), findsOneWidget);
+  });
+
   testWidgets('shows samsung dummy results with orange query highlight',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
