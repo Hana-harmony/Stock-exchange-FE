@@ -322,6 +322,14 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
+  void _showAiPlaceholder() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('AI assistant entry is not included in this page scope.'),
+      ),
+    );
+  }
+
   Future<void> _openSearch() {
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -343,17 +351,14 @@ class _ExchangeShellState extends State<ExchangeShell> {
   }
 
   PreferredSizeWidget _buildHeader() {
-    if (_selectedIndex == 1) {
-      return AppHeader(
-        title: 'Markets',
-        showBrandMark: true,
-        showDefaultActions: true,
-        onSearchTap: _openSearch,
-        onNotificationTap: _showNotificationPlaceholder,
-      );
-    }
-
-    return AppHeader(title: _selectedNavigationTitle);
+    return AppHeader(
+      title: _selectedNavigationTitle,
+      showBrandMark: true,
+      showDefaultActions: true,
+      onAiTap: _showAiPlaceholder,
+      onSearchTap: _openSearch,
+      onNotificationTap: _showNotificationPlaceholder,
+    );
   }
 
   @override

@@ -24,6 +24,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
+    expect(find.bySemanticsLabel('AI Assistant'), findsOneWidget);
     expect(find.bySemanticsLabel('Search'), findsOneWidget);
     expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
     expect(find.text('Trending Stocks'), findsOneWidget);
@@ -32,10 +33,15 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
     await tester.pumpAndSettle();
     expect(find.text('Accounts tab'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Accounts'), findsOneWidget);
+    expect(find.bySemanticsLabel('AI Assistant'), findsOneWidget);
+    expect(find.bySemanticsLabel('Search'), findsOneWidget);
+    expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-WatchLists')));
     await tester.pumpAndSettle();
     expect(find.text('WatchLists tab'), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'WatchLists'), findsOneWidget);
   });
 
   testWidgets('searches stocks and opens the placeholder detail tabs',

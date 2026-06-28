@@ -3,6 +3,7 @@ abstract final class AppAssets {
   static const placeholder = 'assets/images/placeholder.png';
 
   static const logoSymbol = 'assets/icons/logo_symbol.png';
+  static const headerAiIcon = 'assets/icons/header_icon_ai.png';
   static const headerNotifications = 'assets/icons/header_notifications.png';
   static const headerSearch = 'assets/icons/header_search.png';
   static const backArrow = 'assets/icons/back_arrow.png';

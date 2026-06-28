@@ -10,6 +10,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
     this.actions = const <Widget>[],
     this.showBrandMark = false,
     this.showDefaultActions = false,
+    this.onAiTap,
     this.onSearchTap,
     this.onNotificationTap,
   });
@@ -19,6 +20,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   final List<Widget> actions;
   final bool showBrandMark;
   final bool showDefaultActions;
+  final VoidCallback? onAiTap;
   final VoidCallback? onSearchTap;
   final VoidCallback? onNotificationTap;
 
@@ -32,6 +34,7 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         : showDefaultActions
             ? <Widget>[
                 _HeaderActions(
+                  onAiTap: onAiTap,
                   onSearchTap: onSearchTap,
                   onNotificationTap: onNotificationTap,
                 ),
@@ -103,10 +106,12 @@ class _HeaderTitle extends StatelessWidget {
 
 class _HeaderActions extends StatelessWidget {
   const _HeaderActions({
+    required this.onAiTap,
     required this.onSearchTap,
     required this.onNotificationTap,
   });
 
+  final VoidCallback? onAiTap;
   final VoidCallback? onSearchTap;
   final VoidCallback? onNotificationTap;
 
@@ -115,6 +120,7 @@ class _HeaderActions extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: _HeaderActionsBody(
+        onAiTap: onAiTap,
         onSearchTap: onSearchTap,
         onNotificationTap: onNotificationTap,
       ),
@@ -124,10 +130,12 @@ class _HeaderActions extends StatelessWidget {
 
 class _HeaderActionsBody extends StatelessWidget {
   const _HeaderActionsBody({
+    required this.onAiTap,
     required this.onSearchTap,
     required this.onNotificationTap,
   });
 
+  final VoidCallback? onAiTap;
   final VoidCallback? onSearchTap;
   final VoidCallback? onNotificationTap;
 
@@ -136,6 +144,13 @@ class _HeaderActionsBody extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
+        _HeaderActionButton(
+          assetPath: AppAssets.headerAiIcon,
+          semanticLabel: 'AI Assistant',
+          onTap: onAiTap,
+          padding: const EdgeInsets.all(2),
+        ),
+        const SizedBox(width: 8),
         _HeaderActionButton(
           assetPath: AppAssets.headerSearch,
           semanticLabel: 'Search',
@@ -157,11 +172,13 @@ class _HeaderActionButton extends StatelessWidget {
     required this.assetPath,
     required this.semanticLabel,
     this.onTap,
+    this.padding = const EdgeInsets.all(6),
   });
 
   final String assetPath;
   final String semanticLabel;
   final VoidCallback? onTap;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
@@ -175,7 +192,7 @@ class _HeaderActionButton extends StatelessWidget {
           height: 36,
           width: 36,
           child: Padding(
-            padding: const EdgeInsets.all(6),
+            padding: padding,
             child: Image.asset(
               assetPath,
               fit: BoxFit.contain,
