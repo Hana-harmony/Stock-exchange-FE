@@ -8,7 +8,11 @@ abstract final class AppAssets {
   static const headerNotificationsNew =
       'assets/icons/header_notifications_new.png';
   static const headerSearch = 'assets/icons/header_search.png';
+  static const headerMoreIcon = 'assets/icons/header_more_icon.png';
   static const backArrow = 'assets/icons/back_arrow.png';
+  static const settingsIcon = 'assets/icons/settings_icon.png';
+  static const splashIcon = 'assets/icons/splash_icon.png';
+  static const externalLinkIcon = 'assets/icons/icon_external_link.png';
   static const headerFavoriteIcon = 'assets/icons/header_favorite_icon.png';
   static const trendingIcon = 'assets/icons/Trending Icon.png';
   static const dropdownIcon = 'assets/icons/Dropdown Icon.png';

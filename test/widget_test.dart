@@ -96,6 +96,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('AI Analysis'), findsOneWidget);
+    expect(find.text('View Original'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('notification-article-back')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Notifications'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
+      findsOneWidget,
+    );
+
     await tester.tap(find.byKey(const ValueKey('notification-header-back')));
     await tester.pumpAndSettle();
 

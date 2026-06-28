@@ -562,16 +562,18 @@ class _StockNewsTargetBadge extends StatelessWidget {
 class _StockNewsSentimentBadge extends StatelessWidget {
   const _StockNewsSentimentBadge({
     required this.sentiment,
+    this.fontSize = 10,
   });
 
   final _StockNewsSentiment sentiment;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
     final isPositive = sentiment == _StockNewsSentiment.positive;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: isPositive ? const Color(0xFFE8F7ED) : const Color(0xFFFFF0F0),
+        color: isPositive ? AppColors.green100 : AppColors.red100,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Padding(
@@ -589,12 +591,10 @@ class _StockNewsSentimentBadge extends StatelessWidget {
             Text(
               isPositive ? 'Positive' : 'Negative',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontSize: 10,
+                    fontSize: fontSize,
                     height: 1.4,
                     fontWeight: FontWeight.w500,
-                    color: isPositive
-                        ? const Color(0xFF00AB6B)
-                        : const Color(0xFFFF1550),
+                    color: isPositive ? AppColors.green500 : AppColors.red500,
                   ),
             ),
           ],
@@ -607,18 +607,20 @@ class _StockNewsSentimentBadge extends StatelessWidget {
 class _StockNewsPriorityBadge extends StatelessWidget {
   const _StockNewsPriorityBadge({
     required this.priority,
+    this.fontSize = 10,
   });
 
   final _StockNewsPriority priority;
+  final double fontSize;
 
   @override
   Widget build(BuildContext context) {
     final config = switch (priority) {
       _StockNewsPriority.high => _StockNewsPriorityBadgeConfig(
           label: 'High Priority',
-          backgroundColor: const Color(0xFFFFF0F0),
-          foregroundColor: const Color(0xFFFF1550),
-          dotColor: const Color(0xFFFF1550),
+          backgroundColor: AppColors.red100,
+          foregroundColor: AppColors.red500,
+          dotColor: AppColors.red500,
         ),
       _StockNewsPriority.medium => _StockNewsPriorityBadgeConfig(
           label: 'Medium Priority',
@@ -656,7 +658,7 @@ class _StockNewsPriorityBadge extends StatelessWidget {
             Text(
               config.label,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    fontSize: 10,
+                    fontSize: fontSize,
                     height: 1.4,
                     fontWeight: FontWeight.w500,
                     color: config.foregroundColor,

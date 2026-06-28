@@ -21,34 +21,6 @@ import 'ui/theme/app_theme.dart';
 export 'ui/screens/exchange_pages.dart'
     show MarketScreen, StockDetailScreen, marketQuoteLiveStatusLabel;
 
-const _shellNavigationItems = <AppBottomNavigationItem>[
-  AppBottomNavigationItem(
-    label: 'WatchLists',
-    defaultIconAsset: 'assets/icons/bottom_nav/watchlists_default.png',
-    selectedIconAsset: 'assets/icons/bottom_nav/watchlists_selected.png',
-  ),
-  AppBottomNavigationItem(
-    label: 'Markets',
-    defaultIconAsset: 'assets/icons/bottom_nav/markets_default.png',
-    selectedIconAsset: 'assets/icons/bottom_nav/markets_selected.png',
-  ),
-  AppBottomNavigationItem(
-    label: 'Accounts',
-    defaultIconAsset: 'assets/icons/bottom_nav/accounts_default.png',
-    selectedIconAsset: 'assets/icons/bottom_nav/accounts_selected.png',
-  ),
-  AppBottomNavigationItem(
-    label: 'Discover',
-    defaultIconAsset: 'assets/icons/bottom_nav/discover_default.png',
-    selectedIconAsset: 'assets/icons/bottom_nav/discover_selected.png',
-  ),
-  AppBottomNavigationItem(
-    label: 'MY',
-    defaultIconAsset: 'assets/icons/bottom_nav/my_default.png',
-    selectedIconAsset: 'assets/icons/bottom_nav/my_selected.png',
-  ),
-];
-
 class StockExchangeApp extends StatelessWidget {
   const StockExchangeApp({
     super.key,
@@ -141,7 +113,6 @@ class _ExchangeShellState extends State<ExchangeShell> {
   ];
 
   int _selectedIndex = 1;
-  bool _isShowingNotificationsPage = false;
   http.Client? _ownedHttpClient;
   late final ExchangeEnvironment _environment;
   late final ExchangeApiClient _apiClient;
@@ -290,7 +261,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   }
 
   String get _selectedNavigationTitle =>
-      _shellNavigationItems[_selectedIndex].label;
+      appShellNavigationItems[_selectedIndex].label;
 
   void _rememberSearchQuery(String query) {
     final normalized = query.trim();
@@ -329,10 +300,52 @@ class _ExchangeShellState extends State<ExchangeShell> {
     });
   }
 
-  void _showNotificationPlaceholder() {
-    setState(() {
-      _isShowingNotificationsPage = true;
-    });
+  Future<void> _showNotificationPlaceholder() {
+    return Navigator.of(context).push(
+      PageRouteBuilder<void>(
+        transitionDuration: const Duration(milliseconds: 280),
+        reverseTransitionDuration: const Duration(milliseconds: 240),
+        pageBuilder: (context, animation, secondaryAnimation) {
+          return Material(
+            color: Colors.transparent,
+            child: NotificationInboxScreen(
+              notificationController: _notificationController,
+              accountId: _sessionController.session?.accountId,
+              selectedNavigationIndex: _selectedIndex,
+              onClose: () => Navigator.of(context).pop(),
+              onNavigationSelected: (index) {
+                Navigator.of(context).pop();
+                setState(() {
+                  _selectedIndex = index;
+                });
+              },
+            ),
+          );
+        },
+        transitionsBuilder: (context, animation, secondaryAnimation, child) {
+          return FadeTransition(
+            opacity: CurvedAnimation(
+              parent: animation,
+              curve: Curves.easeOutCubic,
+              reverseCurve: Curves.easeInCubic,
+            ),
+            child: SlideTransition(
+              position: Tween<Offset>(
+                begin: const Offset(0.05, 0),
+                end: Offset.zero,
+              ).animate(
+                CurvedAnimation(
+                  parent: animation,
+                  curve: Curves.easeOutCubic,
+                  reverseCurve: Curves.easeInCubic,
+                ),
+              ),
+              child: child,
+            ),
+          );
+        },
+      ),
+    );
   }
 
   void _showAiPlaceholder() {
@@ -347,7 +360,6 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _notificationController.markTopNotificationUnread();
     setState(() {
       _selectedIndex = 1;
-      _isShowingNotificationsPage = false;
     });
   }
 
@@ -384,65 +396,58 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
+  Widget _buildIndexedBody() {
+    return IndexedStack(
+      index: _selectedIndex,
+      children: [
+        const ShellPlaceholderScreen(
+          title: 'WatchLists',
+          description:
+              'This tab is intentionally left as a placeholder while the Markets flow is implemented.',
+        ),
+        MarketScreen(
+          sessionController: _sessionController,
+          tradeController: _tradeController,
+          marketDetailController: _marketDetailController,
+          marketIndexController: _marketIndexController,
+          marketQuoteController: _marketQuoteController,
+          notificationController: _notificationController,
+        ),
+        const ShellPlaceholderScreen(
+          title: 'Accounts',
+          description:
+              'The account summary flow is outside the current page specification.',
+        ),
+        const ShellPlaceholderScreen(
+          title: 'Discover',
+          description:
+              'Discover remains a placeholder until its dedicated page specification is provided.',
+        ),
+        ShellPlaceholderScreen(
+          title: 'MY',
+          description:
+              'MY remains a placeholder until the account and settings pages are specified.',
+          actionLabel: '알림보내기',
+          onActionTap: _showMyNotificationPlaceholder,
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppScaffold(
-      appBar: _isShowingNotificationsPage ? null : _buildHeader(),
+      appBar: _buildHeader(),
       bodySafeAreaBottom: false,
-      body: _isShowingNotificationsPage
-          ? NotificationInboxScreen(
-              notificationController: _notificationController,
-              accountId: _sessionController.session?.accountId,
-              onClose: () {
-                setState(() {
-                  _isShowingNotificationsPage = false;
-                });
-              },
-            )
-          : IndexedStack(
-              index: _selectedIndex,
-              children: [
-                const ShellPlaceholderScreen(
-                  title: 'WatchLists',
-                  description:
-                      'This tab is intentionally left as a placeholder while the Markets flow is implemented.',
-                ),
-                MarketScreen(
-                  sessionController: _sessionController,
-                  tradeController: _tradeController,
-                  marketDetailController: _marketDetailController,
-                  marketIndexController: _marketIndexController,
-                  marketQuoteController: _marketQuoteController,
-                  notificationController: _notificationController,
-                ),
-                const ShellPlaceholderScreen(
-                  title: 'Accounts',
-                  description:
-                      'The account summary flow is outside the current page specification.',
-                ),
-                const ShellPlaceholderScreen(
-                  title: 'Discover',
-                  description:
-                      'Discover remains a placeholder until its dedicated page specification is provided.',
-                ),
-                ShellPlaceholderScreen(
-                  title: 'MY',
-                  description:
-                      'MY remains a placeholder until the account and settings pages are specified.',
-                  actionLabel: '알림보내기',
-                  onActionTap: _showMyNotificationPlaceholder,
-                ),
-              ],
-            ),
+      body: _buildIndexedBody(),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: _selectedIndex,
         onTap: (index) {
           setState(() {
             _selectedIndex = index;
-            _isShowingNotificationsPage = false;
           });
         },
-        items: _shellNavigationItems,
+        items: appShellNavigationItems,
       ),
     );
   }

@@ -3,6 +3,34 @@ import 'package:flutter/material.dart';
 import '../assets/app_assets.dart';
 import '../theme/app_tokens.dart';
 
+const appShellNavigationItems = <AppBottomNavigationItem>[
+  AppBottomNavigationItem(
+    label: 'WatchLists',
+    defaultIconAsset: AppAssets.bottomWatchlistsDefault,
+    selectedIconAsset: AppAssets.bottomWatchlistsSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'Markets',
+    defaultIconAsset: AppAssets.bottomMarketsDefault,
+    selectedIconAsset: AppAssets.bottomMarketsSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'Accounts',
+    defaultIconAsset: AppAssets.bottomAccountsDefault,
+    selectedIconAsset: AppAssets.bottomAccountsSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'Discover',
+    defaultIconAsset: AppAssets.bottomDiscoverDefault,
+    selectedIconAsset: AppAssets.bottomDiscoverSelected,
+  ),
+  AppBottomNavigationItem(
+    label: 'MY',
+    defaultIconAsset: AppAssets.bottomMyDefault,
+    selectedIconAsset: AppAssets.bottomMySelected,
+  ),
+];
+
 class AppBottomNavigationItem {
   const AppBottomNavigationItem({
     required this.label,

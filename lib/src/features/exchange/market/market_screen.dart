@@ -23,12 +23,13 @@ class MarketScreen extends StatefulWidget {
 }
 
 class _MarketScreenState extends State<MarketScreen> {
-  static const _marketCategories = <String>[
-    'Stocks',
-    'Cryto',
-    'Options',
-    'ETFs',
-    'Overview',
+  static const _marketCategories = <({String label, double width})>[
+    (label: 'Stocks', width: 58),
+    (label: 'Cryto', width: 46),
+    (label: 'Options', width: 65),
+    (label: 'ETFs', width: 41),
+    (label: 'Overview', width: 78),
+    (label: 'More', width: 43),
   ];
 
   int _selectedCategoryIndex = 0;
@@ -44,7 +45,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.19',
+      priceDisplay: '205.190',
       changeDisplay: '+37.25%',
       isPositive: true,
     ),
@@ -52,7 +53,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.19',
+      priceDisplay: '205.190',
       changeDisplay: '-37.25%',
       isPositive: false,
     ),
@@ -60,7 +61,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.19',
+      priceDisplay: '205.190',
       changeDisplay: '-37.25%',
       isPositive: false,
     ),
@@ -68,7 +69,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.19',
+      priceDisplay: '205.190',
       changeDisplay: '+37.25%',
       isPositive: true,
     ),
@@ -76,7 +77,7 @@ class _MarketScreenState extends State<MarketScreen> {
       symbol: 'NVDA',
       name: 'NVIDIA',
       market: 'NASDAQ',
-      priceDisplay: '205.19',
+      priceDisplay: '205.190',
       changeDisplay: '+37.25%',
       isPositive: true,
     ),
@@ -88,29 +89,34 @@ class _MarketScreenState extends State<MarketScreen> {
       padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
       children: [
         SizedBox(
-          height: 42,
-          child: ListView.separated(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
-            scrollDirection: Axis.horizontal,
-            itemBuilder: (context, index) {
-              final isSelected = index == _selectedCategoryIndex;
-              return _MarketCategoryTab(
-                label: _marketCategories[index],
-                isSelected: isSelected,
-                onTap: () {
-                  setState(() {
-                    _selectedCategoryIndex = index;
-                  });
-                },
-              );
-            },
-            separatorBuilder: (context, index) => const SizedBox(width: 24),
-            itemCount: _marketCategories.length,
+          height: 41,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 12, top: 10),
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              scrollDirection: Axis.horizontal,
+              itemBuilder: (context, index) {
+                final isSelected = index == _selectedCategoryIndex;
+                final category = _marketCategories[index];
+                return _MarketCategoryTab(
+                  label: category.label,
+                  width: category.width,
+                  isSelected: isSelected,
+                  onTap: () {
+                    setState(() {
+                      _selectedCategoryIndex = index;
+                    });
+                  },
+                );
+              },
+              separatorBuilder: (context, index) => const SizedBox(width: 18),
+              itemCount: _marketCategories.length,
+            ),
           ),
         ),
         const SizedBox(height: 18),
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
           child: Column(
             children: [
               SizedBox(
@@ -155,25 +161,35 @@ class _MarketScreenState extends State<MarketScreen> {
                 ),
               ),
               const SizedBox(height: 24),
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      'Trending Stocks',
-                      style:
-                          Theme.of(context).textTheme.headlineLarge?.copyWith(
-                                fontSize: 28,
-                                height: 1.1,
-                              ),
+              SizedBox(
+                height: 36,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        'Trending Stocks',
+                        style:
+                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                  fontSize: 24,
+                                  height: 31 / 24,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.gray1000,
+                                ),
+                      ),
                     ),
-                  ),
-                  Image.asset(
-                    AppAssets.rightArrow,
-                    width: 18,
-                    height: 18,
-                    fit: BoxFit.contain,
-                  ),
-                ],
+                    SizedBox.square(
+                      dimension: 36,
+                      child: Center(
+                        child: Image.asset(
+                          AppAssets.rightArrow,
+                          width: 24,
+                          height: 24,
+                          fit: BoxFit.contain,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               for (var index = 0; index < _trendingStocks.length; index++)
@@ -204,83 +220,144 @@ class _TrendingStockTile extends StatelessWidget {
         stock.isPositive ? AppColors.green500 : AppColors.red500;
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        children: [
-          SizedBox(
-            width: 22,
-            child: Text(
-              '$rank',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w400,
-                  ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppColors.surface,
-              border: Border.all(color: AppColors.gray200),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  stock.symbol,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 20,
-                        fontWeight: FontWeight.w600,
+      padding: const EdgeInsets.only(bottom: 12),
+      child: SizedBox(
+        height: 65,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 277,
+                height: 45,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 45,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
+                          height: 25,
+                          child: Text(
+                            '$rank',
+                            style: Theme.of(
+                              context,
+                            ).textTheme.titleMedium?.copyWith(
+                                  fontSize: 18,
+                                  height: 25 / 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.gray1000,
+                                ),
+                          ),
+                        ),
                       ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  stock.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.gray600,
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 34,
+                      height: 45,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: Container(
+                          width: 34,
+                          height: 34,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: AppColors.surface,
+                            border: Border.all(color: AppColors.gray200),
+                          ),
+                        ),
                       ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: 215,
+                      height: 45,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            height: 25,
+                            child: Text(
+                              stock.symbol,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.titleMedium?.copyWith(
+                                    fontSize: 18,
+                                    height: 25 / 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.gray1000,
+                                  ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 20,
+                            child: Text(
+                              stock.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(
+                                context,
+                              ).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 14,
+                                    height: 20 / 14,
+                                    fontWeight: FontWeight.w400,
+                                    color: AppColors.gray600,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 20),
+              SizedBox(
+                width: 73,
+                height: 45,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    SizedBox(
+                      height: 25,
+                      child: Text(
+                        stock.changeDisplay,
+                        maxLines: 1,
+                        textAlign: TextAlign.end,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 18,
+                                  height: 25 / 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: changeColor,
+                                ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 20,
+                      child: Text(
+                        stock.priceDisplay,
+                        textAlign: TextAlign.end,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 14,
+                              height: 20 / 14,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.gray1000,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 10),
-          SizedBox(
-            width: 108,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  stock.changeDisplay,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: changeColor,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  stock.priceDisplay,
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                      ),
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -289,38 +366,30 @@ class _TrendingStockTile extends StatelessWidget {
 class _MarketCategoryTab extends StatelessWidget {
   const _MarketCategoryTab({
     required this.label,
+    required this.width,
     required this.isSelected,
     required this.onTap,
   });
 
   final String label;
+  final double width;
   final bool isSelected;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final textStyle = Theme.of(context).textTheme.headlineSmall?.copyWith(
-          fontSize: 16,
-          height: 1.1,
-          fontWeight: FontWeight.w500,
-          color: isSelected ? AppColors.gray1000 : AppColors.gray600,
-        );
-
-    return InkWell(
+    return AppUnderlineTab(
+      label: label,
+      width: width,
+      isSelected: isSelected,
       onTap: onTap,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        padding: const EdgeInsets.only(bottom: 10),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: isSelected ? AppColors.orange500 : Colors.transparent,
-              width: 3,
-            ),
-          ),
-        ),
-        child: Text(label, style: textStyle),
-      ),
+      fontSize: 17,
+      fontWeightSelected: FontWeight.w700,
+      fontWeightUnselected: FontWeight.w400,
+      activeColor: AppColors.gray1000,
+      inactiveColor: AppColors.gray600,
+      underlineWidth: width,
+      underlineHeight: 3,
     );
   }
 }

@@ -5,12 +5,16 @@ class NotificationInboxScreen extends StatefulWidget {
     super.key,
     required this.notificationController,
     required this.accountId,
+    required this.selectedNavigationIndex,
     required this.onClose,
+    required this.onNavigationSelected,
   });
 
   final NotificationController notificationController;
   final String? accountId;
+  final int selectedNavigationIndex;
   final VoidCallback onClose;
+  final ValueChanged<int> onNavigationSelected;
 
   @override
   State<NotificationInboxScreen> createState() =>
@@ -47,102 +51,157 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
   }
 
   Future<void> _handleNotificationTap(NotificationItem item) async {
-    if (item.read) {
+    if (!item.read) {
+      final accountId = widget.accountId;
+      final hasAccount = accountId != null && accountId.isNotEmpty;
+      if (item.isLocalOnly || !hasAccount) {
+        widget.notificationController.markReadLocally(item.notificationId);
+      } else {
+        await widget.notificationController.markRead(
+          accountId: accountId,
+          notificationId: item.notificationId,
+        );
+      }
+    }
+
+    if (!mounted) {
       return;
     }
 
-    final accountId = widget.accountId;
-    final hasAccount = accountId != null && accountId.isNotEmpty;
-    if (item.isLocalOnly || !hasAccount) {
-      widget.notificationController.markReadLocally(item.notificationId);
-      return;
-    }
+    final currentState = widget.notificationController.value;
+    final currentItem = _findNotificationItem(
+          currentState.inbox?.notifications,
+          item.notificationId,
+        ) ??
+        item;
 
-    await widget.notificationController.markRead(
-      accountId: accountId,
-      notificationId: item.notificationId,
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => NotificationArticleDetailScreen(
+          item: currentItem,
+          intelligenceItem: _findNotificationIntelligenceItem(
+            currentState.feed?.items,
+            currentItem,
+          ),
+        ),
+      ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      bottom: false,
-      child: DecoratedBox(
-        decoration: const BoxDecoration(color: AppColors.white),
-        child: Column(
-          children: [
-            _NotificationInboxHeader(onClose: widget.onClose),
-            AnimatedBuilder(
+    final topInset = MediaQuery.paddingOf(context).top;
+
+    return ColoredBox(
+      color: AppColors.white,
+      child: Column(
+        children: [
+          SizedBox(height: topInset),
+          _NotificationInboxHeader(onClose: widget.onClose),
+          AnimatedBuilder(
+            animation: widget.notificationController,
+            builder: (context, _) {
+              final state = widget.notificationController.value;
+              return _NotificationInboxTabBar(
+                selectedFilter: state.selectedFilter,
+                onSelected: widget.notificationController.setFilter,
+              );
+            },
+          ),
+          Expanded(
+            child: AnimatedBuilder(
               animation: widget.notificationController,
               builder: (context, _) {
                 final state = widget.notificationController.value;
-                return _NotificationInboxTabBar(
-                  selectedFilter: state.selectedFilter,
-                  onSelected: widget.notificationController.setFilter,
+                final notifications = state.filteredNotifications;
+
+                if (state.status == NotificationStatus.loading &&
+                    notifications.isEmpty) {
+                  return const Center(
+                    child: CircularProgressIndicator(
+                      color: AppColors.orange500,
+                    ),
+                  );
+                }
+
+                if (state.status == NotificationStatus.failure &&
+                    notifications.isEmpty) {
+                  return Padding(
+                    padding: AppInsets.compactScreen,
+                    child: _MutedInfoCard(
+                      title: 'Unable to load notifications',
+                      body: state.errorMessage ??
+                          'The notification inbox is unavailable right now.',
+                    ),
+                  );
+                }
+
+                if (notifications.isEmpty) {
+                  return const Padding(
+                    padding: AppInsets.compactScreen,
+                    child: _MutedInfoCard(
+                      title: 'No notifications',
+                      body:
+                          'There are no notifications for the selected tab yet.',
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  key: const ValueKey('notification-inbox-list'),
+                  padding: EdgeInsets.zero,
+                  itemCount: notifications.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 0),
+                  itemBuilder: (context, index) {
+                    final item = notifications[index];
+                    return _NotificationInboxCard(
+                      item: item,
+                      onTap: () => _handleNotificationTap(item),
+                    );
+                  },
                 );
               },
             ),
-            Expanded(
-              child: AnimatedBuilder(
-                animation: widget.notificationController,
-                builder: (context, _) {
-                  final state = widget.notificationController.value;
-                  final notifications = state.filteredNotifications;
-
-                  if (state.status == NotificationStatus.loading &&
-                      notifications.isEmpty) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColors.orange500,
-                      ),
-                    );
-                  }
-
-                  if (state.status == NotificationStatus.failure &&
-                      notifications.isEmpty) {
-                    return Padding(
-                      padding: AppInsets.compactScreen,
-                      child: _MutedInfoCard(
-                        title: 'Unable to load notifications',
-                        body: state.errorMessage ??
-                            'The notification inbox is unavailable right now.',
-                      ),
-                    );
-                  }
-
-                  if (notifications.isEmpty) {
-                    return const Padding(
-                      padding: AppInsets.compactScreen,
-                      child: _MutedInfoCard(
-                        title: 'No notifications',
-                        body:
-                            'There are no notifications for the selected tab yet.',
-                      ),
-                    );
-                  }
-
-                  return ListView.separated(
-                    key: const ValueKey('notification-inbox-list'),
-                    padding: EdgeInsets.zero,
-                    itemCount: notifications.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 0),
-                    itemBuilder: (context, index) {
-                      final item = notifications[index];
-                      return _NotificationInboxCard(
-                        item: item,
-                        onTap: () => _handleNotificationTap(item),
-                      );
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
+          ),
+          AppBottomNavigation(
+            selectedIndex: widget.selectedNavigationIndex,
+            items: appShellNavigationItems,
+            onTap: widget.onNavigationSelected,
+          ),
+        ],
       ),
     );
   }
+}
+
+NotificationItem? _findNotificationItem(
+  List<NotificationItem>? notifications,
+  String notificationId,
+) {
+  if (notifications == null) {
+    return null;
+  }
+  for (final item in notifications) {
+    if (item.notificationId == notificationId) {
+      return item;
+    }
+  }
+  return null;
+}
+
+StockIntelligenceItem? _findNotificationIntelligenceItem(
+  List<StockIntelligenceItem>? items,
+  NotificationItem notification,
+) {
+  if (items == null) {
+    return null;
+  }
+  for (final item in items) {
+    if (item.eventId == notification.eventId) {
+      return item;
+    }
+  }
+  return null;
 }
 
 class _NotificationInboxHeader extends StatelessWidget {
@@ -174,10 +233,10 @@ class _NotificationInboxHeader extends StatelessWidget {
             child: Text(
               'Notifications',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                    fontSize: 20,
-                    height: 1.55,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.gray900,
+                    fontSize: 22,
+                    height: 31 / 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray1000,
                   ),
             ),
           ),
@@ -195,10 +254,11 @@ class _NotificationInboxHeader extends StatelessWidget {
           _NotificationHeaderIconButton(
             semanticLabel: 'Notification Settings',
             onTap: () {},
-            child: const Icon(
-              Icons.settings_outlined,
-              size: 26,
-              color: AppColors.gray700,
+            child: Image.asset(
+              AppAssets.settingsIcon,
+              width: 36,
+              height: 36,
+              fit: BoxFit.contain,
             ),
           ),
         ],
@@ -309,13 +369,13 @@ class _NotificationFilterTab extends StatelessWidget {
       width: width,
       isSelected: isSelected,
       onTap: onTap,
-      fontSize: 16,
-      fontWeightSelected: FontWeight.w700,
+      fontSize: 18,
+      fontWeightSelected: FontWeight.w600,
       fontWeightUnselected: FontWeight.w500,
-      activeColor: AppColors.gray900,
+      activeColor: AppColors.gray1000,
       inactiveColor: AppColors.gray600,
       underlineWidth: width,
-      underlineHeight: 3,
+      underlineHeight: 2,
     );
   }
 }
@@ -329,7 +389,7 @@ class _NotificationInboxCard extends StatelessWidget {
   final NotificationItem item;
   final VoidCallback onTap;
 
-  static const _unreadBackgroundColor = Color(0xFFFFF1E5);
+  static const _unreadBackgroundColor = AppColors.orange100;
 
   @override
   Widget build(BuildContext context) {
@@ -400,15 +460,15 @@ class _NotificationInboxCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  String _notificationCompanyLabel(NotificationItem item) {
-    final title = item.title.toUpperCase();
-    if (title.contains('SAMSUNG')) {
-      return 'Samsung';
-    }
-    if (item.primaryStockCode == '005930') {
-      return 'Samsung';
-    }
-    return item.primaryStockCode.isEmpty ? 'Market' : item.primaryStockCode;
+String _notificationCompanyLabel(NotificationItem item) {
+  final title = item.title.toUpperCase();
+  if (title.contains('SAMSUNG')) {
+    return 'Samsung';
   }
+  if (item.primaryStockCode == '005930') {
+    return 'Samsung';
+  }
+  return item.primaryStockCode.isEmpty ? 'Market' : item.primaryStockCode;
 }
