@@ -33,6 +33,13 @@ abstract final class AppAssets {
   static const warningViIcon = 'assets/icons/icon_warning_vi.png';
   static const infoIcon = 'assets/icons/info_icon.png';
   static const questionIcon = 'assets/icons/icon_question.png';
+  static const stockQuestionMemoryIcon =
+      'assets/icons/stock_question_memory_icon.png';
+  static const stockQuestionFoundryIcon =
+      'assets/icons/stock_question_foundry_icon.png';
+  static const stockQuestionEcosystemIcon =
+      'assets/icons/stock_question_ecosystem_icon.png';
+  static const stockQuestionAiIcon = 'assets/icons/stock_question_ai_icon.png';
   static const countryBadgeKr = 'assets/icons/country_badge_kr.png';
   static const countryBadgeHk = 'assets/icons/country_badge_hk.png';
   static const koreaFlagIcon = 'assets/icons/korea_flag_icon.png';
@@ -68,6 +75,14 @@ abstract final class AppAssets {
   static const chartDetail1 = 'assets/illustrations/chart-detail-1.png';
   static const chartDetail2 = 'assets/illustrations/chart-detail-2.png';
   static const noImageDefault = 'assets/illustrations/no_image_deafult.png';
+  static const stockQuestionSamsung =
+      'assets/illustrations/stock_question_samsung.png';
+  static const stockQuestionComparisonApple =
+      'assets/illustrations/stock_question_comparison_apple.png';
+  static const stockQuestionComparisonIntel =
+      'assets/illustrations/stock_question_comparison_intel.png';
+  static const stockQuestionComparisonTsmc =
+      'assets/illustrations/stock_question_comparison_tsmc.png';
   static const emptyState = 'assets/illustrations/empty_state.png';
   static const errorState = 'assets/illustrations/error_state.png';
 }

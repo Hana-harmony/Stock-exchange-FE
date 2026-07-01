@@ -170,11 +170,13 @@ class _HeaderIconButton extends StatelessWidget {
 class _StockOverviewSection extends StatelessWidget {
   const _StockOverviewSection({
     required this.snapshot,
+    required this.onQuestionTap,
   });
 
   static const double height = 198;
 
   final _StockDetailSnapshot snapshot;
+  final VoidCallback onQuestionTap;
 
   @override
   Widget build(BuildContext context) {
@@ -248,13 +250,20 @@ class _StockOverviewSection extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: 6),
-                              Image.asset(
-                                AppAssets.questionIcon,
+                              GestureDetector(
                                 key: const ValueKey(
-                                    'stock-detail-name-help-icon'),
-                                width: 24,
-                                height: 24,
-                                fit: BoxFit.contain,
+                                  'stock-detail-name-help-icon-button',
+                                ),
+                                onTap: onQuestionTap,
+                                child: Image.asset(
+                                  AppAssets.questionIcon,
+                                  key: const ValueKey(
+                                    'stock-detail-name-help-icon',
+                                  ),
+                                  width: 24,
+                                  height: 24,
+                                  fit: BoxFit.contain,
+                                ),
                               ),
                             ],
                           ),

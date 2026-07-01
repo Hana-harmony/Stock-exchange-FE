@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -11,6 +12,12 @@ import 'package:stock_exchange_fe/src/ui/assets/app_assets.dart';
 import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUpAll(() async {
+    await _loadPretendardFont();
+  });
+
   testWidgets('renders markets landing page and navigates bottom tabs',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -289,6 +296,92 @@ void main() {
     );
     expect(find.text('3'), findsOneWidget);
     expect(find.textContaining('\$'), findsWidgets);
+  });
+
+  testWidgets('opens stock question sheet and snaps through figma stages',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-detail-name-help-icon-button')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('stock-question-sheet-preview')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.byKey(
+                const ValueKey('stock-question-sheet-swipe-hint-opacity')),
+          )
+          .opacity,
+      greaterThan(0.9),
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey('stock-question-sheet-gesture')),
+      const Offset(0, -200),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('stock-question-sheet-expanded')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.byKey(
+                const ValueKey('stock-question-sheet-swipe-hint-opacity')),
+          )
+          .opacity,
+      lessThan(0.5),
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey('stock-question-sheet-gesture')),
+      const Offset(0, -220),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('stock-question-sheet-full')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .widget<Opacity>(
+            find.byKey(
+                const ValueKey('stock-question-sheet-swipe-hint-opacity')),
+          )
+          .opacity,
+      lessThan(0.1),
+    );
   });
 
   testWidgets('updates quantity, price, and order amount in order entry',
@@ -1037,6 +1130,15 @@ void main() {
       'Connecting',
     );
   });
+}
+
+Future<void> _loadPretendardFont() async {
+  final regular = FontLoader('Pretendard')
+    ..addFont(rootBundle.load('assets/fonts/Pretendard-Regular.otf'))
+    ..addFont(rootBundle.load('assets/fonts/Pretendard-Medium.otf'))
+    ..addFont(rootBundle.load('assets/fonts/Pretendard-SemiBold.otf'))
+    ..addFont(rootBundle.load('assets/fonts/Pretendard-Bold.otf'));
+  await regular.load();
 }
 
 StockExchangeApp _stockExchangeTestApp({
