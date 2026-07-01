@@ -1786,24 +1786,27 @@ class _OrderCompletedActionButton extends StatelessWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Image.asset(
-                  AppAssets.externalLinkIcon,
-                  width: 24,
-                  height: 24,
-                  fit: BoxFit.contain,
+                const ImageIcon(
+                  AssetImage(AppAssets.externalLinkIcon),
+                  size: 24,
+                  color: AppColors.gray700,
                 ),
                 const SizedBox(width: 8),
-                Text(
-                  'View Accounts',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        height: 1.4,
-                        letterSpacing: 0,
-                        color: AppColors.gray700,
-                      ),
+                Flexible(
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'View Accounts',
+                      maxLines: 1,
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w600,
+                            height: 1.4,
+                            letterSpacing: 0,
+                            color: AppColors.gray700,
+                          ),
+                    ),
+                  ),
                 ),
               ],
             ),

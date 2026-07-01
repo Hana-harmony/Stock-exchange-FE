@@ -245,8 +245,8 @@ class _AccountsHeaderIconButton extends StatelessWidget {
           child: Center(
             child: Image.asset(
               assetPath,
-              width: 24,
-              height: 24,
+              width: 36,
+              height: 36,
               fit: BoxFit.contain,
             ),
           ),
@@ -483,19 +483,22 @@ class _AccountsAssetFilterTabs extends StatelessWidget {
                         : Border.all(color: AppColors.gray300),
                   ),
                   child: Center(
-                    child: Text(
-                      _tabs[index],
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 16,
-                            height: 1.4,
-                            fontWeight:
-                                isSelected ? FontWeight.w600 : FontWeight.w500,
-                            color: isSelected
-                                ? AppColors.white
-                                : AppColors.gray600,
-                          ),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        _tabs[index],
+                        maxLines: 1,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 16,
+                              height: 1.4,
+                              fontWeight: isSelected
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
+                              color: isSelected
+                                  ? AppColors.white
+                                  : AppColors.gray600,
+                            ),
+                      ),
                     ),
                   ),
                 ),
@@ -721,17 +724,19 @@ class _AccountsMarketScopeOption extends StatelessWidget {
           decoration: decoration,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
           child: Center(
-            child: Text(
-              label,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 14,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
-                    letterSpacing: -0.28,
-                    color: isSelected ? AppColors.gray700 : AppColors.gray600,
-                  ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                label,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 14,
+                      height: 1.4,
+                      fontWeight: FontWeight.w500,
+                      letterSpacing: -0.28,
+                      color: isSelected ? AppColors.gray700 : AppColors.gray600,
+                    ),
+              ),
             ),
           ),
         ),
@@ -757,32 +762,38 @@ class _AccountsTableHeaderTitle extends StatelessWidget {
       crossAxisAlignment:
           alignEnd ? CrossAxisAlignment.end : CrossAxisAlignment.start,
       children: [
-        Text(
-          topLabel,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontSize: 12,
-                height: 1.4,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -0.24,
-                color: AppColors.gray600,
-              ),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+          child: Text(
+            topLabel,
+            maxLines: 1,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontSize: 12,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.24,
+                  color: AppColors.gray600,
+                ),
+          ),
         ),
         const SizedBox(height: 2),
-        Text(
-          bottomLabel,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-          style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                fontSize: 12,
-                height: 1.4,
-                fontWeight: FontWeight.w500,
-                letterSpacing: -0.24,
-                color: AppColors.gray600,
-              ),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: alignEnd ? Alignment.centerRight : Alignment.centerLeft,
+          child: Text(
+            bottomLabel,
+            maxLines: 1,
+            textAlign: alignEnd ? TextAlign.right : TextAlign.left,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  fontSize: 12,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: -0.24,
+                  color: AppColors.gray600,
+                ),
+          ),
         ),
       ],
     );
@@ -937,7 +948,8 @@ class _AccountsScreenSnapshot {
     required MockUsdAccount? account,
     required PortfolioSnapshot? portfolio,
   }) {
-    final baseHoldings = portfolio != null && portfolio.holdings.isNotEmpty
+    final hasPortfolio = portfolio != null;
+    final baseHoldings = hasPortfolio && portfolio.holdings.isNotEmpty
         ? portfolio.holdings
             .map(_AccountsHoldingSnapshot.fromHolding)
             .toList(growable: false)
@@ -962,15 +974,18 @@ class _AccountsScreenSnapshot {
       portfolio?.unrealizedPnlUsd,
       fallback: -10000,
     );
-    final totalPnlRate = portfolio?.holdings.isNotEmpty == true
+    final totalPnlRate = hasPortfolio && portfolio.holdings.isNotEmpty
         ? _portfolioReturnRate(portfolio!)
         : '-14.48%';
 
     return _AccountsScreenSnapshot(
       accountLabel: accountLabel,
-      totalAssetsDisplay: '\$${_formatThreeDecimalAmount(totalAssetsValue)}',
-      totalPnlDisplay:
-          '${_formatSignedThreeDecimalAmount(totalPnlValue)}($totalPnlRate)',
+      totalAssetsDisplay: hasPortfolio
+          ? '\$${_formatThreeDecimalAmount(totalAssetsValue)}'
+          : '\$5,0000.000',
+      totalPnlDisplay: hasPortfolio
+          ? '${_formatSignedThreeDecimalAmount(totalPnlValue)}($totalPnlRate)'
+          : '-10,000,000(-14.48%)',
       totalPnlValue: totalPnlValue,
       totalPositions: portfolio?.holdings.length ?? 60,
       visibleHoldings: visibleHoldings,

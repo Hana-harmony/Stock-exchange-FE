@@ -36,8 +36,37 @@ void main() {
     expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
     expect(find.byKey(const ValueKey('accounts-page-title')), findsOneWidget);
     expect(find.text('Total Assets'), findsOneWidget);
+    expect(find.text(r'$5,0000.000'), findsOneWidget);
+    expect(find.text('-10,000,000(-14.48%)'), findsOneWidget);
     expect(find.text('Portfolio'), findsOneWidget);
     expect(find.text('640-0200-0000-0 [ISA(Brokerage)]'), findsOneWidget);
+
+    final moreIcon = tester.widget<Image>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('accounts-header-more')),
+            matching: find.byType(Image),
+          )
+          .first,
+    );
+    expect((moreIcon.image as AssetImage).assetName, AppAssets.headerMoreIcon);
+    expect(moreIcon.width, 36);
+    expect(moreIcon.height, 36);
+
+    final settingsIcon = tester.widget<Image>(
+      find
+          .descendant(
+            of: find.byKey(const ValueKey('accounts-header-settings')),
+            matching: find.byType(Image),
+          )
+          .first,
+    );
+    expect(
+      (settingsIcon.image as AssetImage).assetName,
+      AppAssets.settingsIcon,
+    );
+    expect(settingsIcon.width, 36);
+    expect(settingsIcon.height, 36);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-WatchLists')));
     await tester.pumpAndSettle();
@@ -419,6 +448,22 @@ void main() {
     );
     expect(find.text('View Accounts'), findsOneWidget);
 
+    final viewAccountsButton = find.byKey(
+      const ValueKey('stock-order-complete-view-accounts'),
+    );
+    final viewAccountsIcon = tester.widget<ImageIcon>(
+      find
+          .descendant(
+            of: viewAccountsButton,
+            matching: find.byType(ImageIcon),
+          )
+          .first,
+    );
+    expect((viewAccountsIcon.image as AssetImage).assetName,
+        AppAssets.externalLinkIcon);
+    expect(viewAccountsIcon.color, AppColors.gray700);
+    expect(viewAccountsIcon.size, 24);
+
     await tester.tap(
       find.byKey(const ValueKey('stock-order-complete-view-accounts')),
     );
@@ -560,6 +605,12 @@ void main() {
       tester.getRect(find.byKey(const ValueKey('stock-order-complete-dialog'))),
       const Rect.fromLTWH(21, 347, 360, 180),
     );
+    _expectRect(
+      tester.getRect(
+        find.byKey(const ValueKey('stock-order-complete-view-accounts')),
+      ),
+      const Rect.fromLTWH(39, 458, 324, 45),
+    );
   });
 
   testWidgets('matches figma layout metrics for accounts screen',
@@ -635,6 +686,19 @@ void main() {
     _expectRect(
       tester.getRect(find.byKey(const ValueKey('accounts-holding-row-0'))),
       const Rect.fromLTWH(0, 506, 402, 62),
+    );
+
+    final totalPositions = tester.widget<RichText>(
+      find.byKey(const ValueKey('accounts-total-positions')),
+    );
+    expect(totalPositions.text.toPlainText(), 'Total 60 Positions');
+    expect(find.text(r'$5,0000.000'), findsOneWidget);
+    expect(find.text('-10,000,000(-14.48%)'), findsOneWidget);
+    expect(
+      tester
+          .widget<Text>(find.text('Foreign Currency (Cash Balance)'))
+          .overflow,
+      isNull,
     );
   });
 
