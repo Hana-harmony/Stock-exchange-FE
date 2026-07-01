@@ -262,6 +262,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
     await tester.pumpAndSettle();
 
+    final stockNameHelpIcon = tester.widget<Image>(
+      find.byKey(const ValueKey('stock-detail-name-help-icon')),
+    );
+    expect(
+      (stockNameHelpIcon.image as AssetImage).assetName,
+      AppAssets.questionIcon,
+    );
+    expect(stockNameHelpIcon.width, 24);
+    expect(stockNameHelpIcon.height, 24);
+
     await tester.tap(find.byKey(const ValueKey('stock-detail-buy-button')));
     await tester.pumpAndSettle();
 

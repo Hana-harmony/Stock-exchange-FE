@@ -217,11 +217,26 @@ class _StockOverviewSection extends StatelessWidget {
                       children: [
                         SizedBox(
                           height: 25,
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: snapshot.stockCode,
+                          child: Row(
+                            children: [
+                              Text(
+                                snapshot.stockCode,
+                                maxLines: 1,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontSize: 18,
+                                      height: 1,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                              ),
+                              const SizedBox(width: 6),
+                              Flexible(
+                                child: Text(
+                                  snapshot.stockName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
                                   style: Theme.of(context)
                                       .textTheme
                                       .titleLarge
@@ -231,22 +246,17 @@ class _StockOverviewSection extends StatelessWidget {
                                         fontWeight: FontWeight.w600,
                                       ),
                                 ),
-                                const WidgetSpan(child: SizedBox(width: 6)),
-                                TextSpan(
-                                  text: snapshot.stockName,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        fontSize: 18,
-                                        height: 1,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(width: 6),
+                              Image.asset(
+                                AppAssets.questionIcon,
+                                key: const ValueKey(
+                                    'stock-detail-name-help-icon'),
+                                width: 24,
+                                height: 24,
+                                fit: BoxFit.contain,
+                              ),
+                            ],
                           ),
                         ),
                         SizedBox(
