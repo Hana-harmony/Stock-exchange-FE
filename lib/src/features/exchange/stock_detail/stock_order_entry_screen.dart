@@ -11,6 +11,7 @@ class _StockOrderEntryScreen extends StatefulWidget {
     required this.snapshot,
     required this.initialIsFavorite,
     this.onFavoriteToggle,
+    this.onViewAccounts,
   });
 
   final ExchangeSessionController sessionController;
@@ -22,6 +23,7 @@ class _StockOrderEntryScreen extends StatefulWidget {
   final _StockDetailSnapshot snapshot;
   final bool initialIsFavorite;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onViewAccounts;
 
   @override
   State<_StockOrderEntryScreen> createState() => _StockOrderEntryScreenState();
@@ -80,6 +82,9 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
                     showCompactTitle: true,
                     showCompactChange: false,
                     showBottomBorder: false,
+                    compactTitleFontSize: 22,
+                    compactTitleLineHeight: 1.4,
+                    leadingTitleSpacing: 4,
                     isFavorite: _isFavorite,
                     onBack: () => Navigator.of(context).pop(),
                     onSearch: _openSearch,
@@ -147,6 +152,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
           onRemoveRecentSearch: (_) {},
           onClearRecentSearches: () {},
           onToggleFavoriteStock: (_) {},
+          onNavigateToAccounts: widget.onViewAccounts ?? () {},
         ),
       ),
     );
@@ -242,8 +248,8 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     });
   }
 
-  Future<void> _showAccountPinBottomSheet() {
-    return showGeneralDialog<void>(
+  Future<void> _showAccountPinBottomSheet() async {
+    final isPinConfirmed = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: false,
       barrierLabel: 'Account PIN',
@@ -270,6 +276,70 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
         );
       },
     );
+
+    if (isPinConfirmed != true || !mounted) {
+      return;
+    }
+
+    final isOrderConfirmed = await _showOrderConfirmationDialog(
+      confirmation: _OrderConfirmationDetails(
+        stockName: widget.snapshot.stockName,
+        orderPrice: _formatDialogOrderAmount(_price),
+        quantity: _formatOrderQuantity(_quantity),
+        totalAmount: _formatDialogOrderAmount(_quantity * _price),
+      ),
+    );
+
+    if (isOrderConfirmed != true || !mounted) {
+      return;
+    }
+
+    await _showOrderCompletedDialog();
+  }
+
+  Future<bool?> _showOrderConfirmationDialog({
+    required _OrderConfirmationDetails confirmation,
+  }) {
+    return showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Confirm buy order',
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _OrderConfirmationDialog(confirmation: confirmation);
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
+      },
+    );
+  }
+
+  Future<void> _showOrderCompletedDialog() {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Order completed',
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _OrderCompletedDialog(
+          onViewAccounts: () {
+            Navigator.of(context).pop();
+            widget.onViewAccounts?.call();
+          },
+        );
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: animation,
+          child: child,
+        );
+      },
+    );
   }
 }
 
@@ -285,143 +355,149 @@ class _StockOrderTopSection extends StatelessWidget {
     final priceColor =
         snapshot.isPositive ? AppColors.green500 : AppColors.red500;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-      child: Column(
-        children: [
-          SizedBox(
-            height: 74,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: 49,
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Flexible(
-                              child: Text(
-                                snapshot.currentPrice,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+    return SizedBox(
+      key: const ValueKey('stock-order-top-section'),
+      height: 158,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          children: [
+            SizedBox(
+              height: 74,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          height: 49,
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  snapshot.currentPrice,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .headlineLarge
+                                      ?.copyWith(
+                                        fontSize: 38,
+                                        fontWeight: FontWeight.w600,
+                                        height: 1.4,
+                                        color: priceColor,
+                                      ),
+                                ),
+                              ),
+                              const SizedBox(width: 2),
+                              Padding(
+                                padding: const EdgeInsets.only(top: 7),
+                                child: Image.asset(
+                                  snapshot.isPositive
+                                      ? AppAssets.arrowUpBig
+                                      : AppAssets.arrowDownBig,
+                                  width: 32,
+                                  height: 32,
+                                  fit: BoxFit.contain,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Text.rich(
+                          TextSpan(
+                            children: [
+                              TextSpan(
+                                text: snapshot.changeAmount,
                                 style: Theme.of(context)
                                     .textTheme
-                                    .headlineLarge
+                                    .titleLarge
                                     ?.copyWith(
-                                      fontSize: 38,
-                                      fontWeight: FontWeight.w600,
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w400,
                                       height: 1.4,
                                       color: priceColor,
                                     ),
                               ),
-                            ),
-                            const SizedBox(width: 2),
-                            Padding(
-                              padding: const EdgeInsets.only(top: 7),
-                              child: Image.asset(
-                                snapshot.isPositive
-                                    ? AppAssets.arrowUpBig
-                                    : AppAssets.arrowDownBig,
-                                width: 32,
-                                height: 32,
-                                fit: BoxFit.contain,
+                              TextSpan(
+                                text: ' ${snapshot.changeRate}',
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.w400,
+                                      height: 1.4,
+                                      color: priceColor,
+                                    ),
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Text.rich(
-                        TextSpan(
-                          children: [
-                            TextSpan(
-                              text: snapshot.changeAmount,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.4,
-                                    color: priceColor,
-                                  ),
-                            ),
-                            TextSpan(
-                              text: ' ${snapshot.changeRate}',
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleLarge
-                                  ?.copyWith(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w400,
-                                    height: 1.4,
-                                    color: priceColor,
-                                  ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 20),
-                Padding(
-                  padding: const EdgeInsets.only(top: 3),
-                  child: SizedBox(
-                    width: 118,
-                    child: Column(
-                      children: [
-                        _StockStatRow(label: 'High', value: snapshot.highPrice),
-                        _StockStatRow(label: 'Low', value: snapshot.lowPrice),
-                        _StockStatRow(label: 'Vol', value: snapshot.volume),
-                        _StockStatRow(
-                          label: 'Prev',
-                          value: snapshot.previousClose,
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: AppColors.gray50,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: SizedBox(
-              height: 44,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        snapshot.orderAccountDisplay,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w500,
-                                  height: 1.4,
-                                  color: AppColors.gray1000,
-                                ),
+                  const SizedBox(width: 20),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 3),
+                    child: SizedBox(
+                      width: 118,
+                      child: Column(
+                        children: [
+                          _StockStatRow(
+                              label: 'High', value: snapshot.highPrice),
+                          _StockStatRow(label: 'Low', value: snapshot.lowPrice),
+                          _StockStatRow(label: 'Vol', value: snapshot.volume),
+                          _StockStatRow(
+                            label: 'Prev',
+                            value: snapshot.previousClose,
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    const _OrderChevronDownIcon(),
-                  ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            DecoratedBox(
+              key: const ValueKey('stock-order-account-info'),
+              decoration: BoxDecoration(
+                color: AppColors.gray50,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: SizedBox(
+                height: 44,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Text(
+                          snapshot.orderAccountDisplay,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.4,
+                                    color: AppColors.gray1000,
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const _OrderChevronDownIcon(),
+                    ],
+                  ),
                 ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -433,6 +509,7 @@ class _StockOrderEntryTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
+      key: const ValueKey('stock-order-entry-tabs'),
       height: 41,
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
@@ -493,6 +570,7 @@ class _StockOrderTopTab extends StatelessWidget {
       isSelected: isSelected,
       onTap: () {},
       fontSize: 18,
+      lineHeight: 1.4,
       fontWeightSelected: FontWeight.w600,
       fontWeightUnselected: FontWeight.w500,
       activeColor: AppColors.gray1000,
@@ -541,12 +619,6 @@ class _StockOrderQuoteList extends StatelessWidget {
       quantity: '13,678',
       isPositive: false,
       isGrayBackground: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
     ),
     _OrderQuoteData(
       price: '223,000',
@@ -605,6 +677,7 @@ class _StockOrderQuoteList extends StatelessWidget {
     final quotes = _buildQuotes();
 
     return DecoratedBox(
+      key: const ValueKey('stock-order-quote-list-shell'),
       decoration: const BoxDecoration(
         border: Border(
           right: BorderSide(color: AppColors.gray100),
@@ -723,7 +796,7 @@ class _StockOrderQuoteRow extends StatelessWidget {
                 ),
                 const Spacer(),
                 SizedBox(
-                  width: 56,
+                  width: 60,
                   child: Text(
                     data.quantity,
                     maxLines: 1,
@@ -771,6 +844,7 @@ class _StockOrderFormPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
+      key: const ValueKey('stock-order-form-panel'),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -813,6 +887,7 @@ class _OrderSettlementTabs extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
+      key: const ValueKey('stock-order-settlement-tabs'),
       decoration: BoxDecoration(
         color: AppColors.gray100,
         borderRadius: BorderRadius.circular(6),
@@ -829,7 +904,7 @@ class _OrderSettlementTabs extends StatelessWidget {
                   boxShadow: const [
                     BoxShadow(
                       color: Color.fromRGBO(0, 0, 0, 0.03),
-                      blurRadius: 4,
+                      blurRadius: 2,
                       offset: Offset(0, 4),
                     ),
                   ],
@@ -853,6 +928,7 @@ class _OrderSettlementTabs extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(width: 2),
             Expanded(
               child: Padding(
                 padding: const EdgeInsets.symmetric(
@@ -889,6 +965,7 @@ class _OrderSelectField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
+      key: const ValueKey('stock-order-select-field'),
       decoration: BoxDecoration(
         color: AppColors.white,
         border: Border.all(color: AppColors.gray300),
@@ -928,10 +1005,17 @@ class _OrderCheckboxRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      key: const ValueKey('stock-order-checkbox-row'),
       children: const [
-        _OrderCheckboxLabel(label: 'Market'),
+        SizedBox(
+          width: 58,
+          child: _OrderCheckboxLabel(label: 'Market'),
+        ),
         SizedBox(width: 16),
-        _OrderCheckboxLabel(label: 'Mid Price'),
+        SizedBox(
+          width: 69,
+          child: _OrderCheckboxLabel(label: 'Mid Price'),
+        ),
       ],
     );
   }
@@ -951,15 +1035,19 @@ class _OrderCheckboxLabel extends StatelessWidget {
       children: [
         const _OrderCheckbox(),
         const SizedBox(width: 4),
-        Text(
-          label,
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                height: 1.4,
-                letterSpacing: -0.24,
-                color: AppColors.gray700,
-              ),
+        Expanded(
+          child: Text(
+            label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                  height: 1.4,
+                  letterSpacing: -0.24,
+                  color: AppColors.gray700,
+                ),
+          ),
         ),
       ],
     );
@@ -1011,6 +1099,7 @@ class _OrderStepperField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      key: ValueKey('stock-order-stepper-$label'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -1102,28 +1191,16 @@ class _OrderStepControls extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SizedBox(
-          width: 24,
-          height: 24,
-          child: IconButton(
-            key: const ValueKey('stock-order-step-minus'),
-            onPressed: onDecrease,
-            padding: EdgeInsets.zero,
-            splashRadius: 12,
-            icon: const _OrderMinusIcon(),
-          ),
+        _OrderStepIconButton(
+          buttonKey: const ValueKey('stock-order-step-minus'),
+          onTap: onDecrease,
+          child: const _OrderMinusIcon(),
         ),
         const SizedBox(width: 2),
-        SizedBox(
-          width: 24,
-          height: 24,
-          child: IconButton(
-            key: const ValueKey('stock-order-step-plus'),
-            onPressed: onIncrease,
-            padding: EdgeInsets.zero,
-            splashRadius: 12,
-            icon: const _OrderPlusIcon(),
-          ),
+        _OrderStepIconButton(
+          buttonKey: const ValueKey('stock-order-step-plus'),
+          onTap: onIncrease,
+          child: const _OrderPlusIcon(),
         ),
       ],
     );
@@ -1142,6 +1219,7 @@ class _OrderSubmitSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
+      key: const ValueKey('stock-order-submit-section'),
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Align(
@@ -1176,26 +1254,9 @@ class _OrderSubmitSection extends StatelessWidget {
         const SizedBox(height: 12),
         SizedBox(
           height: 45,
-          child: FilledButton(
+          child: _OrderSubmitButton(
             key: const ValueKey('stock-order-submit-button'),
-            onPressed: onSubmit,
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.green500,
-              foregroundColor: AppColors.white,
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            child: Text(
-              'Buy',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    height: 1.4,
-                    color: AppColors.white,
-                  ),
-            ),
+            onTap: onSubmit,
           ),
         ),
       ],
@@ -1235,7 +1296,7 @@ class _AccountPinBottomSheetDialogState
     if (!_isConfirmEnabled) {
       return;
     }
-    Navigator.of(context).pop();
+    Navigator.of(context).pop(true);
   }
 
   @override
@@ -1285,6 +1346,575 @@ class _AccountPinBottomSheetDialogState
         ),
       ),
     );
+  }
+}
+
+class _OrderConfirmationDetails {
+  const _OrderConfirmationDetails({
+    required this.stockName,
+    required this.orderPrice,
+    required this.quantity,
+    required this.totalAmount,
+  });
+
+  final String stockName;
+  final String orderPrice;
+  final String quantity;
+  final String totalAmount;
+}
+
+class _OrderConfirmationDialog extends StatelessWidget {
+  const _OrderConfirmationDialog({
+    required this.confirmation,
+  });
+
+  static const _dialogWidth = 360.0;
+  static const _dialogHeight = 362.0;
+  static const _contentHeight = 164.0;
+
+  final _OrderConfirmationDetails confirmation;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 21),
+          child: Container(
+            key: const ValueKey('stock-order-confirm-dialog'),
+            width: _dialogWidth,
+            height: _dialogHeight,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 69,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              'Confirm Buy Order',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleLarge
+                                  ?.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.4,
+                                    letterSpacing: 0,
+                                    color: AppColors.gray1000,
+                                  ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          _OrderConfirmationCloseButton(
+                            onPressed: () => Navigator.of(context).pop(),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        height: 40,
+                        child: Text(
+                          'Please review your order details\nbefore placing your order.',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.4,
+                                    letterSpacing: -0.28,
+                                    color: AppColors.gray600,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                Container(
+                  key: const ValueKey('stock-order-confirm-details-card'),
+                  height: _contentHeight,
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: AppColors.gray50,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Column(
+                    children: [
+                      _OrderConfirmationSummaryRow(
+                        label: 'Stock',
+                        value: confirmation.stockName,
+                      ),
+                      const SizedBox(height: 12),
+                      _OrderConfirmationSummaryRow(
+                        label: 'Order Price',
+                        value: confirmation.orderPrice,
+                      ),
+                      const SizedBox(height: 12),
+                      _OrderConfirmationSummaryRow(
+                        label: 'Quantity',
+                        value: confirmation.quantity,
+                      ),
+                      const SizedBox(height: 12),
+                      _OrderConfirmationSummaryRow(
+                        label: 'Total Amount',
+                        value: confirmation.totalAmount,
+                        valueColor: AppColors.orange500,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  height: 45,
+                  child: Row(
+                    children: [
+                      _OrderConfirmationActionButton(
+                        buttonKey: const ValueKey('stock-order-confirm-cancel'),
+                        label: 'Cancel',
+                        width: 120,
+                        onPressed: () => Navigator.of(context).pop(),
+                        textColor: AppColors.gray700,
+                        backgroundColor: AppColors.white,
+                        borderColor: AppColors.gray300,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _OrderConfirmationActionButton(
+                          buttonKey:
+                              const ValueKey('stock-order-confirm-submit'),
+                          label: 'Confirm',
+                          onPressed: () => Navigator.of(context).pop(true),
+                          textColor: AppColors.white,
+                          backgroundColor: AppColors.orange500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderCompletedDialog extends StatelessWidget {
+  const _OrderCompletedDialog({
+    required this.onViewAccounts,
+  });
+
+  static const _dialogWidth = 360.0;
+  static const _dialogHeight = 180.0;
+
+  final VoidCallback onViewAccounts;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 21),
+          child: Container(
+            key: const ValueKey('stock-order-complete-dialog'),
+            width: _dialogWidth,
+            height: _dialogHeight,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 69,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        child: Text(
+                          'Order Completed',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.4,
+                                    letterSpacing: 0,
+                                    color: AppColors.gray1000,
+                                  ),
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      SizedBox(
+                        height: 40,
+                        width: double.infinity,
+                        child: Text(
+                          'Your buy order has been successfully submitted.\n'
+                          'You can view your order details in the Accounts tab.',
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w500,
+                                    height: 1.4,
+                                    letterSpacing: -0.28,
+                                    color: AppColors.gray600,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  child: _OrderCompletedActionButton(
+                    onPressed: onViewAccounts,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderConfirmationSummaryRow extends StatelessWidget {
+  const _OrderConfirmationSummaryRow({
+    required this.label,
+    required this.value,
+    this.valueColor = AppColors.gray1000,
+  });
+
+  final String label;
+  final String value;
+  final Color valueColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 22,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w400,
+                    height: 1.4,
+                    letterSpacing: 0,
+                    color: AppColors.gray1000,
+                  ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                    letterSpacing: 0,
+                    color: valueColor,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _OrderConfirmationCloseButton extends StatelessWidget {
+  const _OrderConfirmationCloseButton({
+    required this.onPressed,
+  });
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: const ValueKey('stock-order-confirm-close'),
+        onTap: onPressed,
+        customBorder: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const SizedBox(
+          width: 24,
+          height: 24,
+          child: _OrderCloseIcon(),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderConfirmationActionButton extends StatelessWidget {
+  const _OrderConfirmationActionButton({
+    this.buttonKey,
+    required this.label,
+    required this.onPressed,
+    required this.textColor,
+    required this.backgroundColor,
+    this.borderColor,
+    this.width,
+  });
+
+  final Key? buttonKey;
+  final String label;
+  final VoidCallback onPressed;
+  final Color textColor;
+  final Color backgroundColor;
+  final Color? borderColor;
+  final double? width;
+
+  @override
+  Widget build(BuildContext context) {
+    final buttonChild = Material(
+      color: backgroundColor,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        key: buttonKey,
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Ink(
+          height: 45,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border:
+                borderColor == null ? null : Border.all(color: borderColor!),
+          ),
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.4,
+                    letterSpacing: 0,
+                    color: textColor,
+                  ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    if (width == null) {
+      return buttonChild;
+    }
+
+    return SizedBox(
+      width: width,
+      child: buttonChild,
+    );
+  }
+}
+
+class _OrderCompletedActionButton extends StatelessWidget {
+  const _OrderCompletedActionButton({
+    required this.onPressed,
+  });
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.white,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        key: const ValueKey('stock-order-complete-view-accounts'),
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(8),
+        child: Ink(
+          height: 45,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: AppColors.gray300),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Image.asset(
+                  AppAssets.externalLinkIcon,
+                  width: 24,
+                  height: 24,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'View Accounts',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                        height: 1.4,
+                        letterSpacing: 0,
+                        color: AppColors.gray700,
+                      ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderSubmitButton extends StatelessWidget {
+  const _OrderSubmitButton({
+    super.key,
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.green500,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Center(
+          child: Text(
+            'Buy',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  height: 1.4,
+                  letterSpacing: 0,
+                  color: AppColors.white,
+                ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderStepIconButton extends StatelessWidget {
+  const _OrderStepIconButton({
+    required this.buttonKey,
+    required this.onTap,
+    required this.child,
+  });
+
+  final Key buttonKey;
+  final VoidCallback onTap;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: buttonKey,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: Center(child: child),
+        ),
+      ),
+    );
+  }
+}
+
+class _OrderCloseIcon extends StatelessWidget {
+  const _OrderCloseIcon();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 24,
+      height: 24,
+      child: CustomPaint(
+        painter: _OrderCloseIconPainter(),
+      ),
+    );
+  }
+}
+
+class _OrderCloseIconPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = AppColors.gray400
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+
+    const inset = 6.0;
+    canvas.drawLine(
+      const Offset(inset, inset),
+      Offset(size.width - inset, size.height - inset),
+      paint,
+    );
+    canvas.drawLine(
+      Offset(size.width - inset, inset),
+      Offset(inset, size.height - inset),
+      paint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) {
+    return false;
   }
 }
 
@@ -1737,6 +2367,42 @@ String _formatSignedPercent({
 
 String _formatOrderAmount(int value) {
   return '\$${_formatWholeAmount('$value')}';
+}
+
+String _formatOrderQuantity(int quantity) {
+  return '$quantity ${quantity == 1 ? 'Share' : 'Shares'}';
+}
+
+String _formatDialogOrderAmount(int value) {
+  return '\$${_formatDialogGroupedAmount('$value')}';
+}
+
+String _formatDialogGroupedAmount(String raw) {
+  final digits = raw.replaceAll(',', '').trim();
+  if (digits.isEmpty) {
+    return raw;
+  }
+
+  final number = int.tryParse(digits);
+  if (number == null) {
+    return raw;
+  }
+
+  final sign = number < 0 ? '-' : '';
+  final absoluteDigits = number.abs().toString();
+  final groups = <String>[];
+
+  for (var end = absoluteDigits.length; end > 0; end -= 3) {
+    final start = (end - 3).clamp(0, absoluteDigits.length);
+    groups.insert(0, absoluteDigits.substring(start, end));
+  }
+
+  if (groups.length <= 1) {
+    return '$sign${groups.first}';
+  }
+
+  final lastGroup = groups.removeLast();
+  return '$sign${groups.join(',')}.$lastGroup';
 }
 
 int _krxTickSize(int price) {

@@ -11,6 +11,7 @@ class AppUnderlineTab extends StatelessWidget {
     required this.onTap,
     this.height = 31,
     this.fontSize = 17,
+    this.lineHeight = 1,
     this.fontWeightSelected = FontWeight.w600,
     this.fontWeightUnselected = FontWeight.w400,
     this.activeColor = AppColors.gray1000,
@@ -25,6 +26,7 @@ class AppUnderlineTab extends StatelessWidget {
   final VoidCallback onTap;
   final double height;
   final double fontSize;
+  final double lineHeight;
   final FontWeight fontWeightSelected;
   final FontWeight fontWeightUnselected;
   final Color activeColor;
@@ -49,7 +51,7 @@ class AppUnderlineTab extends StatelessWidget {
                 label,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: fontSize,
-                      height: 1,
+                      height: lineHeight,
                       fontWeight: isSelected
                           ? fontWeightSelected
                           : fontWeightUnselected,

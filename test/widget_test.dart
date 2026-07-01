@@ -33,11 +33,11 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
     await tester.pumpAndSettle();
-    expect(find.text('Accounts tab'), findsOneWidget);
-    expect(find.widgetWithText(AppBar, 'Accounts'), findsOneWidget);
-    expect(find.bySemanticsLabel('AI Assistant'), findsOneWidget);
-    expect(find.bySemanticsLabel('Search'), findsOneWidget);
-    expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
+    expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('accounts-page-title')), findsOneWidget);
+    expect(find.text('Total Assets'), findsOneWidget);
+    expect(find.text('Portfolio'), findsOneWidget);
+    expect(find.text('640-0200-0000-0 [ISA(Brokerage)]'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-WatchLists')));
     await tester.pumpAndSettle();
@@ -329,6 +329,16 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stock-detail-buy-button')));
     await tester.pumpAndSettle();
 
+    await tester.enterText(
+      find.byKey(const ValueKey('stock-order-quantity-input')),
+      '100',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('stock-order-price-input')),
+      '1000000',
+    );
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const ValueKey('stock-order-submit-button')));
     await tester.pumpAndSettle();
 
@@ -370,6 +380,262 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('stock-order-pin-sheet')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('stock-order-confirm-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Confirm Buy Order'), findsOneWidget);
+    expect(find.text('Order Price'), findsOneWidget);
+    expect(find.text('Total Amount'), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('stock-order-confirm-dialog')),
+        matching: find.text('카카오'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text(r'$1,000.000'), findsOneWidget);
+    expect(find.text('100 Shares'), findsOneWidget);
+    expect(find.text(r'$100,000.000'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-confirm-submit')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('stock-order-confirm-dialog')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('stock-order-complete-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Order Completed'), findsOneWidget);
+    expect(
+      find.text(
+        'Your buy order has been successfully submitted.\n'
+        'You can view your order details in the Accounts tab.',
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('View Accounts'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-order-complete-view-accounts')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('stock-order-complete-dialog')),
+      findsNothing,
+    );
+    expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('accounts-page-title')), findsOneWidget);
+    expect(find.text('Total Assets'), findsOneWidget);
+  });
+
+  testWidgets('matches figma layout metrics for order entry confirmation',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 62, bottom: 34);
+    tester.view.viewPadding = const FakeViewPadding(top: 62, bottom: 34);
+    await tester.binding.setSurfaceSize(const Size(402, 874));
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPadding();
+      tester.view.resetViewPadding();
+      tester.binding.setSurfaceSize(null);
+    });
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-detail-buy-button')));
+    await tester.pumpAndSettle();
+
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-detail-page-title'))),
+      const Rect.fromLTWH(0, 62, 402, 44),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-top-section'))),
+      const Rect.fromLTWH(0, 106, 402, 158),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-account-info'))),
+      const Rect.fromLTWH(16, 208, 370, 44),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-entry-tabs'))),
+      const Rect.fromLTWH(0, 264, 402, 41),
+    );
+    _expectRect(
+      tester
+          .getRect(find.byKey(const ValueKey('stock-order-quote-list-shell'))),
+      const Rect.fromLTWH(0, 305, 152, 535),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-form-panel'))),
+      const Rect.fromLTWH(152, 305, 250, 535),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-settlement-tabs'))),
+      const Rect.fromLTWH(168, 325, 218, 36),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-select-field'))),
+      const Rect.fromLTWH(168, 381, 218, 40),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-checkbox-row'))),
+      const Rect.fromLTWH(168, 441, 218, 17),
+    );
+    _expectRect(
+      tester
+          .getRect(find.byKey(const ValueKey('stock-order-stepper-Quantity'))),
+      const Rect.fromLTWH(168, 478, 218, 68),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-stepper-Price'))),
+      const Rect.fromLTWH(168, 566, 218, 68),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-submit-section'))),
+      const Rect.fromLTWH(168, 714, 218, 110),
+    );
+
+    await tester.enterText(
+      find.byKey(const ValueKey('stock-order-quantity-input')),
+      '100',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('stock-order-price-input')),
+      '1000000',
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-submit-button')));
+    await tester.pumpAndSettle();
+
+    for (final key in const ['1', '2', '3', '4', '5', '6']) {
+      await tester.tap(find.byKey(ValueKey('stock-order-pin-key-$key')));
+    }
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-confirm')));
+    await tester.pumpAndSettle();
+
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-confirm-dialog'))),
+      const Rect.fromLTWH(21, 256, 360, 362),
+    );
+    _expectRect(
+      tester.getRect(
+        find.byKey(const ValueKey('stock-order-confirm-details-card')),
+      ),
+      const Rect.fromLTWH(39, 367, 324, 164),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('stock-order-confirm-submit')));
+    await tester.pumpAndSettle();
+
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('stock-order-complete-dialog'))),
+      const Rect.fromLTWH(21, 347, 360, 180),
+    );
+  });
+
+  testWidgets('matches figma layout metrics for accounts screen',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.padding = const FakeViewPadding(top: 62, bottom: 34);
+    tester.view.viewPadding = const FakeViewPadding(top: 62, bottom: 34);
+    await tester.binding.setSurfaceSize(const Size(402, 874));
+    addTearDown(() {
+      tester.view.resetDevicePixelRatio();
+      tester.view.resetPadding();
+      tester.view.resetViewPadding();
+      tester.binding.setSurfaceSize(null);
+    });
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
+    await tester.pumpAndSettle();
+
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-page-title'))),
+      const Rect.fromLTWH(0, 62, 402, 44),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-primary-tabs'))),
+      const Rect.fromLTWH(0, 106, 402, 41),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-account-selector'))),
+      const Rect.fromLTWH(0, 147, 402, 56),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-summary-section'))),
+      const Rect.fromLTWH(0, 203, 402, 149),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-summary-card'))),
+      const Rect.fromLTWH(12, 219, 378, 117),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-asset-filter-tabs'))),
+      const Rect.fromLTWH(0, 352, 402, 34),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-asset-filter-tab-0'))),
+      const Rect.fromLTWH(12, 352, 43, 34),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-asset-filter-tab-1'))),
+      const Rect.fromLTWH(63, 352, 93, 34),
+    );
+    _expectRect(
+      tester
+          .getRect(find.byKey(const ValueKey('accounts-holdings-filter-row'))),
+      const Rect.fromLTWH(0, 402, 402, 56),
+    );
+    _expectRect(
+      tester
+          .getRect(find.byKey(const ValueKey('accounts-market-scope-segment'))),
+      const Rect.fromLTWH(269, 412, 121, 36),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-table-header'))),
+      const Rect.fromLTWH(0, 458, 402, 48),
+    );
+    _expectRect(
+      tester.getRect(find.byKey(const ValueKey('accounts-holding-row-0'))),
+      const Rect.fromLTWH(0, 506, 402, 62),
+    );
   });
 
   testWidgets('shows K-News toolbar and switches between list and card layouts',
@@ -767,4 +1033,11 @@ Iterable<TextSpan> _allTextSpans(InlineSpan span) sync* {
   for (final child in span.children ?? const <InlineSpan>[]) {
     yield* _allTextSpans(child);
   }
+}
+
+void _expectRect(Rect actual, Rect expected, {double tolerance = 1}) {
+  expect(actual.left, closeTo(expected.left, tolerance));
+  expect(actual.top, closeTo(expected.top, tolerance));
+  expect(actual.width, closeTo(expected.width, tolerance));
+  expect(actual.height, closeTo(expected.height, tolerance));
 }

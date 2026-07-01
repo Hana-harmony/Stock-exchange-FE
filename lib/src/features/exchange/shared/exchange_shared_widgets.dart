@@ -91,36 +91,42 @@ class _AnimatedFavoriteIconButtonState
   Widget build(BuildContext context) {
     final assetPath =
         widget.isFavorite ? widget.activeAssetPath : widget.inactiveAssetPath;
-    final iconSize = widget.isFavorite ? 24.0 : 22.0;
+    const iconSize = 24.0;
 
-    return IconButton(
-      onPressed: widget.onTap,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(
-        width: 36,
-        height: 36,
-      ),
-      icon: ScaleTransition(
-        scale: _scaleAnimation,
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 160),
-          switchInCurve: Curves.easeOut,
-          switchOutCurve: Curves.easeIn,
-          transitionBuilder: (child, animation) {
-            return FadeTransition(
-              opacity: animation,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.92, end: 1).animate(animation),
-                child: child,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: widget.onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Center(
+            child: ScaleTransition(
+              scale: _scaleAnimation,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 160),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, animation) {
+                  return FadeTransition(
+                    opacity: animation,
+                    child: ScaleTransition(
+                      scale:
+                          Tween<double>(begin: 0.92, end: 1).animate(animation),
+                      child: child,
+                    ),
+                  );
+                },
+                child: Image.asset(
+                  assetPath,
+                  key: ValueKey<String>(assetPath),
+                  width: iconSize,
+                  height: iconSize,
+                  fit: BoxFit.contain,
+                ),
               ),
-            );
-          },
-          child: Image.asset(
-            assetPath,
-            key: ValueKey<String>(assetPath),
-            width: iconSize,
-            height: iconSize,
-            fit: BoxFit.contain,
+            ),
           ),
         ),
       ),

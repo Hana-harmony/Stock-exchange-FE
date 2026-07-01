@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/account_controller.dart';
 import '../../core/currency_format.dart';
 import '../../core/exchange_session_controller.dart';
 import '../../core/market_detail_controller.dart';
@@ -17,6 +18,7 @@ import '../../ui/theme/app_tokens.dart';
 part 'market/market_screen.dart';
 part 'notifications/notification_article_detail_screen.dart';
 part 'notifications/notification_inbox_screen.dart';
+part 'accounts/accounts_screen.dart';
 part 'search/search_screens.dart';
 part 'search/search_widgets.dart';
 part 'shared/exchange_logic.dart';

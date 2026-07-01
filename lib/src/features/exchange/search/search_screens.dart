@@ -14,6 +14,7 @@ class SearchLandingScreen extends StatefulWidget {
     required this.onRemoveRecentSearch,
     required this.onClearRecentSearches,
     required this.onToggleFavoriteStock,
+    required this.onNavigateToAccounts,
   });
 
   final ExchangeSessionController sessionController;
@@ -27,6 +28,7 @@ class SearchLandingScreen extends StatefulWidget {
   final ValueChanged<String> onRemoveRecentSearch;
   final VoidCallback onClearRecentSearches;
   final ValueChanged<String> onToggleFavoriteStock;
+  final VoidCallback onNavigateToAccounts;
 
   @override
   State<SearchLandingScreen> createState() => _SearchLandingScreenState();
@@ -129,6 +131,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
           favoriteStockCodes: widget.favoriteStockCodes,
           onSearchCommitted: widget.onSearchCommitted,
           onToggleFavoriteStock: widget.onToggleFavoriteStock,
+          onNavigateToAccounts: widget.onNavigateToAccounts,
         ),
       ),
     );
@@ -266,6 +269,7 @@ class SearchResultScreen extends StatefulWidget {
     required this.favoriteStockCodes,
     required this.onSearchCommitted,
     required this.onToggleFavoriteStock,
+    required this.onNavigateToAccounts,
   });
 
   final String initialQuery;
@@ -277,6 +281,7 @@ class SearchResultScreen extends StatefulWidget {
   final Set<String> favoriteStockCodes;
   final ValueChanged<String> onSearchCommitted;
   final ValueChanged<String> onToggleFavoriteStock;
+  final VoidCallback onNavigateToAccounts;
 
   @override
   State<SearchResultScreen> createState() => _SearchResultScreenState();
@@ -384,6 +389,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           sector: item.sector,
           isFavorite: _favoriteStockCodes.contains(item.stockCode),
           onFavoriteToggle: () => _toggleFavorite(item.stockCode),
+          onNavigateToAccounts: widget.onNavigateToAccounts,
         ),
       ),
     );

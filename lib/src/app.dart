@@ -363,6 +363,13 @@ class _ExchangeShellState extends State<ExchangeShell> {
     });
   }
 
+  void _openAccountsTabFromNestedFlow() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    setState(() {
+      _selectedIndex = 2;
+    });
+  }
+
   Future<void> _openSearch() {
     return Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -378,12 +385,17 @@ class _ExchangeShellState extends State<ExchangeShell> {
           onRemoveRecentSearch: _removeRecentSearch,
           onClearRecentSearches: _clearRecentSearches,
           onToggleFavoriteStock: _toggleFavoriteStock,
+          onNavigateToAccounts: _openAccountsTabFromNestedFlow,
         ),
       ),
     );
   }
 
-  PreferredSizeWidget _buildHeader() {
+  PreferredSizeWidget? _buildHeader() {
+    if (_selectedIndex == 2) {
+      return null;
+    }
+
     return AppHeader(
       title: _selectedNavigationTitle,
       showBrandMark: true,
@@ -413,10 +425,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
           marketQuoteController: _marketQuoteController,
           notificationController: _notificationController,
         ),
-        const ShellPlaceholderScreen(
-          title: 'Accounts',
-          description:
-              'The account summary flow is outside the current page specification.',
+        AccountsScreen(
+          sessionController: _sessionController,
+          accountController: _accountController,
+          tradeController: _tradeController,
         ),
         const ShellPlaceholderScreen(
           title: 'Discover',
@@ -439,6 +451,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return AppScaffold(
       appBar: _buildHeader(),
       bodySafeAreaBottom: false,
+      extendBody: _selectedIndex == 2,
       body: _buildIndexedBody(),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: _selectedIndex,

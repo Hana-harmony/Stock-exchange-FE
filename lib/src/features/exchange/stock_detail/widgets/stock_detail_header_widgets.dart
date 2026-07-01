@@ -10,6 +10,9 @@ class _StockDetailHeader extends StatelessWidget {
     required this.onFavorite,
     this.showCompactChange = true,
     this.showBottomBorder = true,
+    this.compactTitleFontSize = 17,
+    this.compactTitleLineHeight = 1,
+    this.leadingTitleSpacing = 8,
   });
 
   final _StockDetailSnapshot snapshot;
@@ -20,6 +23,9 @@ class _StockDetailHeader extends StatelessWidget {
   final VoidCallback onFavorite;
   final bool showCompactChange;
   final bool showBottomBorder;
+  final double compactTitleFontSize;
+  final double compactTitleLineHeight;
+  final double leadingTitleSpacing;
 
   @override
   Widget build(BuildContext context) {
@@ -27,6 +33,7 @@ class _StockDetailHeader extends StatelessWidget {
         snapshot.isPositive ? AppColors.green500 : AppColors.red500;
 
     return DecoratedBox(
+      key: const ValueKey('stock-detail-page-title'),
       decoration: BoxDecoration(
         color: AppColors.white,
         border: Border(
@@ -47,7 +54,7 @@ class _StockDetailHeader extends StatelessWidget {
                 assetPath: AppAssets.backArrow,
                 onTap: onBack,
               ),
-              const SizedBox(width: 8),
+              SizedBox(width: leadingTitleSpacing),
               Expanded(
                 child: AnimatedOpacity(
                   key: const ValueKey('stock-detail-collapsed-header'),
@@ -68,8 +75,8 @@ class _StockDetailHeader extends StatelessWidget {
                                   .textTheme
                                   .titleLarge
                                   ?.copyWith(
-                                    fontSize: 17,
-                                    height: 1,
+                                    fontSize: compactTitleFontSize,
+                                    height: compactTitleLineHeight,
                                     fontWeight: FontWeight.w600,
                                   ),
                             ),
@@ -100,8 +107,8 @@ class _StockDetailHeader extends StatelessWidget {
                                 .textTheme
                                 .titleLarge
                                 ?.copyWith(
-                                  fontSize: 17,
-                                  height: 1,
+                                  fontSize: compactTitleFontSize,
+                                  height: compactTitleLineHeight,
                                   fontWeight: FontWeight.w600,
                                 ),
                           ),
@@ -138,15 +145,23 @@ class _HeaderIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return IconButton(
-      onPressed: onTap,
-      padding: EdgeInsets.zero,
-      constraints: const BoxConstraints.tightFor(width: 36, height: 36),
-      icon: Image.asset(
-        assetPath,
-        width: 24,
-        height: 24,
-        fit: BoxFit.contain,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(18),
+        child: SizedBox(
+          width: 36,
+          height: 36,
+          child: Center(
+            child: Image.asset(
+              assetPath,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
     );
   }

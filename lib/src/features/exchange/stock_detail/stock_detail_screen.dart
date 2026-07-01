@@ -14,6 +14,7 @@ class StockDetailScreen extends StatefulWidget {
     this.sector = '',
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.onNavigateToAccounts,
   });
 
   final ExchangeSessionController sessionController;
@@ -27,6 +28,7 @@ class StockDetailScreen extends StatefulWidget {
   final String sector;
   final bool isFavorite;
   final VoidCallback? onFavoriteToggle;
+  final VoidCallback? onNavigateToAccounts;
 
   @override
   State<StockDetailScreen> createState() => _StockDetailScreenState();
@@ -216,6 +218,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           onRemoveRecentSearch: (_) {},
           onClearRecentSearches: () {},
           onToggleFavoriteStock: (_) {},
+          onNavigateToAccounts: widget.onNavigateToAccounts ?? () {},
         ),
       ),
     );
@@ -251,6 +254,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             snapshot: snapshot,
             initialIsFavorite: _isFavorite,
             onFavoriteToggle: _toggleFavorite,
+            onViewAccounts: widget.onNavigateToAccounts,
           ),
         ),
       );
