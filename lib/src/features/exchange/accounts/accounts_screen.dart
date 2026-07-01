@@ -975,7 +975,7 @@ class _AccountsScreenSnapshot {
       fallback: -10000,
     );
     final totalPnlRate = hasPortfolio && portfolio.holdings.isNotEmpty
-        ? _portfolioReturnRate(portfolio!)
+        ? _portfolioReturnRate(portfolio)
         : '-14.48%';
 
     return _AccountsScreenSnapshot(
