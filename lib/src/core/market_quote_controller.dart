@@ -217,7 +217,9 @@ class MarketQuote {
     if (parsedKrw == null || parsedFx == null) {
       return localCurrencyPrice;
     }
-    return (parsedKrw / parsedFx).toStringAsFixed(2);
+    final converted =
+        parsedFx < 1 ? parsedKrw * parsedFx : parsedKrw / parsedFx;
+    return converted.toStringAsFixed(2);
   }
 
   bool get isAfterHours => marketSession.toUpperCase() == 'AFTER_HOURS';
