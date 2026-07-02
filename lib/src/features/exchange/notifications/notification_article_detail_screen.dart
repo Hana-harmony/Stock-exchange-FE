@@ -121,8 +121,11 @@ class _NotificationArticleDetailScreenState
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: _NotificationArticleBottomActionBar(
-                        onPressed: () =>
-                            _showOriginalLinkMessage(context, detail),
+                        onPressed: () {
+                          unawaited(
+                            _openOriginalArticleUrl(context, detail),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -179,22 +182,37 @@ class _NotificationArticleDetailScreenState
     }
     _dismissGlossaryTooltip();
   }
+}
 
-  void _showOriginalLinkMessage(
-    BuildContext context,
-    _NotificationArticleDetailData detail,
-  ) {
-    final message = detail.originalUrl.isEmpty
-        ? 'Original article link is unavailable.'
-        : 'Original article: ${detail.originalUrl}';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+Future<void> _openOriginalArticleUrl(
+  BuildContext context,
+  _NotificationArticleDetailData detail,
+) async {
+  final uri = Uri.tryParse(detail.originalUrl.trim());
+  if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+    _showOriginalArticleError(context, 'Original article link is unavailable.');
+    return;
   }
+
+  final opened = await launchUrl(
+    uri,
+    mode: LaunchMode.externalApplication,
+    webOnlyWindowName: '_blank',
+  );
+  if (!opened && context.mounted) {
+    _showOriginalArticleError(context, 'Unable to open original article.');
+  }
+}
+
+void _showOriginalArticleError(BuildContext context, String message) {
+  if (!context.mounted) {
+    return;
+  }
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(content: Text(message)),
+    );
 }
 
 class _NotificationArticleBottomActionBar extends StatelessWidget {
@@ -682,12 +700,12 @@ class _NotificationArticleDetailData {
     final resolvedBodyText = useFigmaAnalysisMock
         ? _figmaMockBodyText
         : intelligenceItem != null
-            ? intelligenceItem.originalContent.isNotEmpty
-                ? intelligenceItem.originalContent
-                : intelligenceItem.translatedContent.isNotEmpty
-                    ? intelligenceItem.translatedContent
-                    : intelligenceItem.summary.isNotEmpty
-                        ? intelligenceItem.summary
+            ? intelligenceItem.translatedContent.isNotEmpty
+                ? intelligenceItem.translatedContent
+                : intelligenceItem.translatedSummary.isNotEmpty
+                    ? intelligenceItem.translatedSummary
+                    : intelligenceItem.originalContent.isNotEmpty
+                        ? intelligenceItem.originalContent
                         : intelligenceItem.displaySummary
             : item.summary.isNotEmpty
                 ? '${item.title}\n${item.summary}'
@@ -754,6 +772,61 @@ class _NotificationArticleDetailData {
       glossaryEntries: resolvedGlossaryEntries,
       originalUrl: item.originalUrl,
       imageUrl: null,
+    );
+  }
+
+  factory _NotificationArticleDetailData.fromMarketNews(MarketNewsItem item) {
+    final bodyText = item.displayBody;
+    final rows = <_StockNewsSummaryRowData>[
+      if (item.summaryLines.what.isNotEmpty)
+        _StockNewsSummaryRowData(
+          label: 'What',
+          value: item.summaryLines.what,
+        ),
+      if (item.summaryLines.why.isNotEmpty)
+        _StockNewsSummaryRowData(
+          label: 'Why',
+          value: item.summaryLines.why,
+        ),
+      if (item.summaryLines.impact.isNotEmpty)
+        _StockNewsSummaryRowData(
+          label: 'Impact',
+          value: item.summaryLines.impact,
+        ),
+    ];
+
+    return _NotificationArticleDetailData(
+      title: item.displayTitle,
+      companyLabel: item.displayQuery,
+      relativeTimeLabel: _relativeTimeLabel(item.publishedAt ?? item.createdAt),
+      sentiment: _StockNewsSentiment.positive,
+      priority: _StockNewsPriority.medium,
+      analysisRows: rows.isEmpty
+          ? [
+              _StockNewsSummaryRowData(
+                label: 'What',
+                value: item.displaySummary,
+              ),
+              _StockNewsSummaryRowData(
+                label: 'Why',
+                value:
+                    'OmniLens translated and summarized this Korea market news for local investors.',
+              ),
+              _StockNewsSummaryRowData(
+                label: 'Impact',
+                value:
+                    'Use the full article context and glossary terms before making a trading decision.',
+              ),
+            ]
+          : rows,
+      bodyText: bodyText.isNotEmpty ? bodyText : item.displayTitle,
+      glossaryEntries: _glossaryEntriesFromTerms(
+        item.glossaryTerms,
+        bodyText,
+      ),
+      originalUrl:
+          item.originalUrl.isNotEmpty ? item.originalUrl : item.canonicalUrl,
+      imageUrl: item.imageUrl,
     );
   }
 

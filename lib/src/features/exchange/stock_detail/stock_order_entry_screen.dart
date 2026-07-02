@@ -43,7 +43,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     super.initState();
     _isFavorite = widget.initialIsFavorite;
     _quantity = 3;
-    _price = _parseEditableInt(widget.snapshot.currentPrice) ?? 0;
+    _price = _parseEditableInt(widget.snapshot.currentPriceKrwRaw) ?? 0;
     _quantityController = TextEditingController(text: '3')
       ..addListener(_handleQuantityChanged);
     _priceController = TextEditingController(text: '$_price')
@@ -214,7 +214,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     final step = _krxTickSize(
       _price > 0
           ? _price
-          : _parseEditableInt(widget.snapshot.currentPrice) ?? 0,
+          : _parseEditableInt(widget.snapshot.currentPriceKrwRaw) ?? 0,
     );
     final next = _price <= step ? 0 : _price - step;
     _setPrice(next);
@@ -223,7 +223,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
   void _increasePrice() {
     final baseline = _price > 0
         ? _price
-        : _parseEditableInt(widget.snapshot.currentPrice) ?? 0;
+        : _parseEditableInt(widget.snapshot.currentPriceKrwRaw) ?? 0;
     _setPrice(_price + _krxTickSize(baseline));
   }
 
@@ -775,8 +775,8 @@ class _StockOrderQuoteList extends StatelessWidget {
       return _fallbackQuotes;
     }
 
-    final referencePrice = _parseAmount(snapshot.previousClose) ??
-        _parseAmount(snapshot.currentPrice);
+    final referencePrice = _parseAmount(snapshot.previousCloseKrwRaw) ??
+        _parseAmount(snapshot.currentPriceKrwRaw);
 
     return List<_OrderQuoteData>.generate(levels.length, (index) {
       final level = levels[index];

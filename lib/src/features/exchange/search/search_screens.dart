@@ -14,6 +14,7 @@ class SearchLandingScreen extends StatefulWidget {
     required this.onRemoveRecentSearch,
     required this.onClearRecentSearches,
     required this.onToggleFavoriteStock,
+    this.onFavoriteChanged,
     required this.onNavigateToAccounts,
   });
 
@@ -28,6 +29,8 @@ class SearchLandingScreen extends StatefulWidget {
   final ValueChanged<String> onRemoveRecentSearch;
   final VoidCallback onClearRecentSearches;
   final ValueChanged<String> onToggleFavoriteStock;
+  final Future<bool> Function(String stockCode, bool nextIsFavorite)?
+      onFavoriteChanged;
   final VoidCallback onNavigateToAccounts;
 
   @override
@@ -131,6 +134,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
           favoriteStockCodes: widget.favoriteStockCodes,
           onSearchCommitted: widget.onSearchCommitted,
           onToggleFavoriteStock: widget.onToggleFavoriteStock,
+          onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts,
         ),
       ),
@@ -269,6 +273,7 @@ class SearchResultScreen extends StatefulWidget {
     required this.favoriteStockCodes,
     required this.onSearchCommitted,
     required this.onToggleFavoriteStock,
+    this.onFavoriteChanged,
     required this.onNavigateToAccounts,
   });
 
@@ -281,6 +286,8 @@ class SearchResultScreen extends StatefulWidget {
   final Set<String> favoriteStockCodes;
   final ValueChanged<String> onSearchCommitted;
   final ValueChanged<String> onToggleFavoriteStock;
+  final Future<bool> Function(String stockCode, bool nextIsFavorite)?
+      onFavoriteChanged;
   final VoidCallback onNavigateToAccounts;
 
   @override
@@ -389,6 +396,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           sector: item.sector,
           isFavorite: _favoriteStockCodes.contains(item.stockCode),
           onFavoriteToggle: () => _toggleFavorite(item.stockCode),
+          onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts,
         ),
       ),

@@ -194,6 +194,13 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> logout(String refreshToken) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/auth/logout',
+      body: {'refreshToken': refreshToken},
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getAccount(String accountId) {
     return get<Map<String, dynamic>>('/api/v1/accounts/$accountId');
   }
@@ -349,6 +356,29 @@ class ExchangeApiClient {
           'market': market,
         'currency': currency,
       },
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getWatchlist(String accountId) {
+    return get<Map<String, dynamic>>('/api/v1/accounts/$accountId/watchlist');
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> addWatchlistItem({
+    required String accountId,
+    required String stockCode,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/watchlist',
+      body: {'stockCode': stockCode},
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> removeWatchlistItem({
+    required String accountId,
+    required String stockCode,
+  }) {
+    return delete<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/watchlist/$stockCode',
     );
   }
 

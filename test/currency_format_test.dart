@@ -8,7 +8,7 @@ void main() {
     expect(formatUsdAmount('1024.24'), '1,024.24');
     expect(formatUsdAmount('-2500000.5'), '-2,500,000.50');
     expect(formatCurrencyDisplay('USD', '1024'), 'USD 1,024.00');
-    expect(formatCurrencyDisplay('KRW', '1024'), 'KRW 1024');
+    expect(formatCurrencyDisplay('KRW', '1024'), 'KRW 1,024');
   });
 
   test('formats trade summary USD values consistently', () {

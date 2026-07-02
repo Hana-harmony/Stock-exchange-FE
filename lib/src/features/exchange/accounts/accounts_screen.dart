@@ -6,11 +6,13 @@ class AccountsScreen extends StatefulWidget {
     required this.sessionController,
     required this.accountController,
     required this.tradeController,
+    required this.onSignInTap,
   });
 
   final ExchangeSessionController sessionController;
   final AccountController accountController;
   final TradeController tradeController;
+  final VoidCallback onSignInTap;
 
   @override
   State<AccountsScreen> createState() => _AccountsScreenState();
@@ -71,10 +73,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: Listenable.merge([
+        widget.sessionController,
         widget.accountController,
         widget.tradeController,
       ]),
       builder: (context, _) {
+        final session = widget.sessionController.session;
+        if (session == null) {
+          return _AccountsSignedOutState(onSignInTap: widget.onSignInTap);
+        }
+
         final snapshot = _AccountsScreenSnapshot.fromControllers(
           account: widget.accountController.value.account,
           portfolio: widget.tradeController.value.portfolio,
@@ -95,6 +103,16 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     snapshot: snapshot,
                     selectedPrimaryTab: _selectedPrimaryTab,
                     onPrimaryTabSelected: (index) {
+                      if (index > 1) {
+                        unawaited(
+                          _showComingSoonDialog(
+                            context,
+                            featureName:
+                                _AccountsPrimaryTabs.labelForIndex(index),
+                          ),
+                        );
+                        return;
+                      }
                       setState(() {
                         _selectedPrimaryTab = index;
                       });
@@ -122,6 +140,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                   height: 476,
                   child: _AccountsHoldingsSection(
                     snapshot: snapshot,
+                    showAllocationChart: _selectedPrimaryTab == 1,
                     selectedMarketScope: _selectedMarketScope,
                     onMarketScopeSelected: (index) {
                       setState(() {
@@ -162,6 +181,39 @@ class _AccountsHeaderSection extends StatelessWidget {
         ),
         _AccountsAccountSelector(accountLabel: snapshot.accountLabel),
         _AccountsSummaryCard(snapshot: snapshot),
+      ],
+    );
+  }
+}
+
+class _AccountsSignedOutState extends StatelessWidget {
+  const _AccountsSignedOutState({required this.onSignInTap});
+
+  final VoidCallback onSignInTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      key: const ValueKey('accounts-signed-out-state'),
+      padding: AppInsets.compactScreen,
+      children: [
+        const _MutedInfoCard(
+          title: 'Sign in required',
+          body: 'Sign in to view your cash, assets, and portfolio.',
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          height: 48,
+          child: FilledButton(
+            key: const ValueKey('accounts-sign-in-button'),
+            onPressed: onSignInTap,
+            style: _exchangePrimaryButtonStyle(
+              backgroundColor: AppColors.orange500,
+              radius: 8,
+            ),
+            child: const Text('Sign in'),
+          ),
+        ),
       ],
     );
   }
@@ -271,6 +323,13 @@ class _AccountsPrimaryTabs extends StatelessWidget {
   ];
 
   static const _widths = <double>[56, 72, 138, 164, 160];
+
+  static String labelForIndex(int index) {
+    if (index < 0 || index >= _tabs.length) {
+      return 'This service';
+    }
+    return _tabs[index];
+  }
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -516,11 +575,13 @@ class _AccountsAssetFilterTabs extends StatelessWidget {
 class _AccountsHoldingsSection extends StatelessWidget {
   const _AccountsHoldingsSection({
     required this.snapshot,
+    required this.showAllocationChart,
     required this.selectedMarketScope,
     required this.onMarketScopeSelected,
   });
 
   final _AccountsScreenSnapshot snapshot;
+  final bool showAllocationChart;
   final int selectedMarketScope;
   final ValueChanged<int> onMarketScopeSelected;
 
@@ -529,6 +590,8 @@ class _AccountsHoldingsSection extends StatelessWidget {
     return Column(
       key: const ValueKey('accounts-holdings-section'),
       children: [
+        if (showAllocationChart)
+          _PortfolioAllocationChart(holdings: snapshot.visibleHoldings),
         Container(
           key: const ValueKey('accounts-holdings-filter-row'),
           height: 56,
@@ -616,23 +679,167 @@ class _AccountsHoldingsSection extends StatelessWidget {
             ],
           ),
         ),
-        SizedBox(
-          height: 372,
-          child: Column(
-            children: [
-              for (var index = 0;
-                  index < snapshot.visibleHoldings.length;
-                  index++)
-                _AccountsHoldingRow(
-                  rowKey: ValueKey('accounts-holding-row-$index'),
-                  item: snapshot.visibleHoldings[index],
+        Expanded(
+          child: snapshot.visibleHoldings.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.fromLTRB(16, 16, 16, 0),
+                  child: _MutedInfoCard(
+                    title: 'No holdings yet',
+                    body:
+                        'Your portfolio will appear here after trades settle.',
+                  ),
+                )
+              : ListView.builder(
+                  padding: EdgeInsets.zero,
+                  itemCount: snapshot.visibleHoldings.length,
+                  itemBuilder: (context, index) {
+                    return _AccountsHoldingRow(
+                      rowKey: ValueKey('accounts-holding-row-$index'),
+                      item: snapshot.visibleHoldings[index],
+                    );
+                  },
                 ),
-            ],
-          ),
         ),
       ],
     );
   }
+}
+
+class _PortfolioAllocationChart extends StatelessWidget {
+  const _PortfolioAllocationChart({required this.holdings});
+
+  final List<_AccountsHoldingSnapshot> holdings;
+
+  @override
+  Widget build(BuildContext context) {
+    final total = holdings.fold<double>(
+      0,
+      (sum, item) => sum + item.marketValue,
+    );
+    final chartItems = holdings
+        .where((item) => item.marketValue > 0 && total > 0)
+        .take(5)
+        .toList(growable: false);
+
+    return SizedBox(
+      key: const ValueKey('portfolio-allocation-chart'),
+      height: 96,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 6, 16, 10),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Portfolio Allocation',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray900,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: SizedBox(
+                height: 12,
+                child: Row(
+                  children: [
+                    if (chartItems.isEmpty)
+                      const Expanded(
+                        child: ColoredBox(color: AppColors.gray200),
+                      )
+                    else
+                      for (var index = 0; index < chartItems.length; index++)
+                        Expanded(
+                          flex: _allocationFlex(chartItems[index], total),
+                          child: ColoredBox(
+                            color: _allocationColor(index),
+                          ),
+                        ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    for (var index = 0; index < chartItems.length; index++) ...[
+                      _AllocationLegendItem(
+                        color: _allocationColor(index),
+                        label: chartItems[index].stockName,
+                        percent: total == 0
+                            ? '0.0%'
+                            : '${(chartItems[index].marketValue / total * 100).toStringAsFixed(1)}%',
+                      ),
+                      if (index != chartItems.length - 1)
+                        const SizedBox(width: 12),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AllocationLegendItem extends StatelessWidget {
+  const _AllocationLegendItem({
+    required this.color,
+    required this.label,
+    required this.percent,
+  });
+
+  final Color color;
+  final String label;
+  final String percent;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+          child: const SizedBox.square(dimension: 8),
+        ),
+        const SizedBox(width: 6),
+        Text(
+          '$label $percent',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                fontSize: 12,
+                color: AppColors.gray600,
+              ),
+        ),
+      ],
+    );
+  }
+}
+
+int _allocationFlex(_AccountsHoldingSnapshot item, double total) {
+  if (total <= 0) {
+    return 1;
+  }
+  return math.max(1, (item.marketValue / total * 1000).round());
+}
+
+Color _allocationColor(int index) {
+  const colors = [
+    AppColors.orange500,
+    AppColors.green500,
+    Color(0xFF2E6BFF),
+    Color(0xFF7A4DFF),
+    AppColors.gray750,
+  ];
+  return colors[index % colors.length];
 }
 
 class _AccountsMarketScopeSegmentedControl extends StatelessWidget {
@@ -948,71 +1155,50 @@ class _AccountsScreenSnapshot {
     required MockUsdAccount? account,
     required PortfolioSnapshot? portfolio,
   }) {
-    final hasPortfolio = portfolio != null;
-    final baseHoldings = hasPortfolio && portfolio.holdings.isNotEmpty
-        ? portfolio.holdings
+    final visibleHoldings = portfolio == null
+        ? const <_AccountsHoldingSnapshot>[]
+        : portfolio.holdings
             .map(_AccountsHoldingSnapshot.fromHolding)
-            .toList(growable: false)
-        : _fallbackHoldings;
-
-    final visibleHoldings = [
-      ...baseHoldings,
-      ..._fallbackHoldings,
-    ].take(6).toList(growable: false);
+            .toList(growable: false);
 
     final accountLabel = portfolio != null && portfolio.accountId.isNotEmpty
         ? '${portfolio.accountId} [ISA(Brokerage)]'
         : account != null && account.accountId.isNotEmpty
             ? '${account.accountId} [ISA(Brokerage)]'
-            : '640-0200-0000-0 [ISA(Brokerage)]';
+            : 'Account loading';
 
     final totalAssetsValue = _safeDouble(
       portfolio?.totalAssetValueUsd,
-      fallback: 50000,
+      fallback: 0,
     );
     final totalPnlValue = _safeDouble(
       portfolio?.unrealizedPnlUsd,
-      fallback: -10000,
+      fallback: 0,
     );
-    final totalPnlRate = hasPortfolio && portfolio.holdings.isNotEmpty
-        ? _portfolioReturnRate(portfolio)
-        : '-14.48%';
+    final totalPnlRate = portfolio == null || portfolio.holdings.isEmpty
+        ? '0.00%'
+        : _portfolioReturnRate(portfolio);
 
     return _AccountsScreenSnapshot(
       accountLabel: accountLabel,
-      totalAssetsDisplay: hasPortfolio
-          ? '\$${_formatThreeDecimalAmount(totalAssetsValue)}'
-          : '\$5,0000.000',
-      totalPnlDisplay: hasPortfolio
-          ? '${_formatSignedThreeDecimalAmount(totalPnlValue)}($totalPnlRate)'
-          : '-10,000,000(-14.48%)',
+      totalAssetsDisplay: formatCurrencyDisplay(
+        portfolio?.currency ?? account?.currency ?? 'USD',
+        totalAssetsValue.toStringAsFixed(2),
+      ),
+      totalPnlDisplay:
+          '${formatCurrencyDisplay('USD', totalPnlValue.toStringAsFixed(2))} ($totalPnlRate)',
       totalPnlValue: totalPnlValue,
-      totalPositions: portfolio?.holdings.length ?? 60,
+      totalPositions: visibleHoldings.length,
       visibleHoldings: visibleHoldings,
     );
   }
-
-  static final List<_AccountsHoldingSnapshot> _fallbackHoldings = List.generate(
-    6,
-    (index) {
-      final isPositive = index == 0 || index >= 4;
-      return _AccountsHoldingSnapshot(
-        stockName: 'Samsung Electronics',
-        quantity: 100,
-        unrealizedPnlValue: isPositive ? 1 : -1,
-        unrealizedPnlAmountDisplay: '00000000',
-        unrealizedPnlRateDisplay: isPositive ? '205.19' : '-205.19',
-        marketValueDisplay: '555.000',
-        costBasisDisplay: '222.000',
-      );
-    },
-  );
 }
 
 class _AccountsHoldingSnapshot {
   const _AccountsHoldingSnapshot({
     required this.stockName,
     required this.quantity,
+    required this.marketValue,
     required this.unrealizedPnlValue,
     required this.unrealizedPnlAmountDisplay,
     required this.unrealizedPnlRateDisplay,
@@ -1022,6 +1208,7 @@ class _AccountsHoldingSnapshot {
 
   final String stockName;
   final int quantity;
+  final double marketValue;
   final double unrealizedPnlValue;
   final String unrealizedPnlAmountDisplay;
   final String unrealizedPnlRateDisplay;
@@ -1037,12 +1224,15 @@ class _AccountsHoldingSnapshot {
     return _AccountsHoldingSnapshot(
       stockName: holding.stockName,
       quantity: holding.quantity,
+      marketValue: marketValue,
       unrealizedPnlValue: unrealizedPnl,
       unrealizedPnlAmountDisplay:
-          _formatSignedThreeDecimalAmount(unrealizedPnl),
+          formatCurrencyDisplay('USD', unrealizedPnl.toStringAsFixed(2)),
       unrealizedPnlRateDisplay: _formatRateText(holding.unrealizedPnlRate),
-      marketValueDisplay: _formatThreeDecimalAmount(marketValue),
-      costBasisDisplay: _formatThreeDecimalAmount(costBasis),
+      marketValueDisplay:
+          formatCurrencyDisplay('USD', marketValue.toStringAsFixed(2)),
+      costBasisDisplay:
+          formatCurrencyDisplay('USD', costBasis.toStringAsFixed(2)),
     );
   }
 }
@@ -1077,26 +1267,4 @@ String _portfolioReturnRate(PortfolioSnapshot portfolio) {
   final rate = (unrealizedPnl / costBasis) * 100;
   final sign = rate > 0 ? '+' : '';
   return '$sign${rate.toStringAsFixed(2)}%';
-}
-
-String _formatSignedThreeDecimalAmount(double value) {
-  final sign = value < 0 ? '-' : '';
-  return '$sign${_formatThreeDecimalAmount(value.abs())}';
-}
-
-String _formatThreeDecimalAmount(double value) {
-  final fixed = value.toStringAsFixed(3);
-  final parts = fixed.split('.');
-  final whole = parts.first;
-  final fraction = parts.last;
-  final buffer = StringBuffer();
-
-  for (var index = 0; index < whole.length; index++) {
-    if (index > 0 && (whole.length - index) % 3 == 0) {
-      buffer.write(',');
-    }
-    buffer.write(whole[index]);
-  }
-
-  return '${buffer.toString()}.$fraction';
 }

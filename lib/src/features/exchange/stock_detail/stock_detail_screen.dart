@@ -14,6 +14,7 @@ class StockDetailScreen extends StatefulWidget {
     this.sector = '',
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.onFavoriteChanged,
     this.onNavigateToAccounts,
   });
 
@@ -28,6 +29,8 @@ class StockDetailScreen extends StatefulWidget {
   final String sector;
   final bool isFavorite;
   final VoidCallback? onFavoriteToggle;
+  final Future<bool> Function(String stockCode, bool nextIsFavorite)?
+      onFavoriteChanged;
   final VoidCallback? onNavigateToAccounts;
 
   @override
@@ -38,6 +41,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   late bool _isFavorite;
   late final ScrollController _detailScrollController;
   bool _tabsPinned = false;
+  _StockChartPeriod _chartPeriod = _StockChartPeriod.oneDay;
 
   StockDetail? get _currentDetail => widget.marketDetailController.value.detail;
 
@@ -115,15 +119,33 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     await widget.marketDetailController.loadStock(
       stockCode: widget.stockCode,
       currency: 'USD',
-      interval: '1d',
+      interval: _chartPeriod.apiInterval,
+      from: _chartPeriod.fromDate(DateTime.now()),
+      to: _chartPeriod.toDate(DateTime.now()),
     );
   }
 
-  void _toggleFavorite() {
+  Future<void> _toggleFavorite() async {
+    final wasFavorite = _isFavorite;
+    final nextIsFavorite = !wasFavorite;
     setState(() {
-      _isFavorite = !_isFavorite;
+      _isFavorite = nextIsFavorite;
     });
-    widget.onFavoriteToggle?.call();
+    final changed = widget.onFavoriteChanged == null
+        ? true
+        : await widget.onFavoriteChanged!(
+            widget.stockCode,
+            nextIsFavorite,
+          );
+    if (!changed && mounted) {
+      setState(() {
+        _isFavorite = wasFavorite;
+      });
+      return;
+    }
+    if (widget.onFavoriteChanged == null) {
+      widget.onFavoriteToggle?.call();
+    }
   }
 
   void _handleScroll() {
@@ -140,7 +162,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: AppScaffold(
         bodySafeAreaBottom: false,
         extendBody: true,
@@ -214,6 +236,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                             status: widget.marketDetailController.value.status,
                             errorMessage: widget
                                 .marketDetailController.value.errorMessage,
+                            selectedPeriod: _chartPeriod,
+                            onPeriodChanged: _handleChartPeriodChanged,
                           ),
                           _StockFundamentalsTab(
                             snapshot: snapshot,
@@ -222,10 +246,22 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                           _StockNewsTab(
                             notificationController:
                                 widget.notificationController,
-                            accountId:
-                                widget.sessionController.session?.accountId,
                             stockCode: widget.stockCode,
                             stockName: snapshot.stockName,
+                            sourceType: 'NEWS',
+                            emptyTitle: 'No K-News',
+                            emptyBody:
+                                'There are no related stock news items yet.',
+                          ),
+                          _StockNewsTab(
+                            notificationController:
+                                widget.notificationController,
+                            stockCode: widget.stockCode,
+                            stockName: snapshot.stockName,
+                            sourceType: 'DISCLOSURE',
+                            emptyTitle: 'No disclosures',
+                            emptyBody:
+                                'There are no related disclosure items yet.',
                           ),
                         ],
                       ),
@@ -242,6 +278,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         ),
       ),
     );
+  }
+
+  void _handleChartPeriodChanged(_StockChartPeriod period) {
+    if (period == _chartPeriod) {
+      return;
+    }
+    setState(() {
+      _chartPeriod = period;
+    });
+    unawaited(_loadStockDetail());
   }
 
   _StockDetailSnapshot _buildSnapshot() {
@@ -270,6 +316,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           onRemoveRecentSearch: (_) {},
           onClearRecentSearches: () {},
           onToggleFavoriteStock: (_) {},
+          onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts ?? () {},
         ),
       ),
@@ -279,7 +326,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   void _showTradePlaceholder(String side) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$side order flow is not included in this page scope.'),
+        content: Text('$side orders are being prepared.'),
       ),
     );
   }
