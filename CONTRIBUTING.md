@@ -17,6 +17,16 @@ git config commit.template .gitmessage.txt
 
 ## 로컬 검증
 ```bash
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
+```
+
+## Git hook 설정
+커밋 시 formatter를 자동 적용하고, 푸시 전에 정적 검사와 테스트를 강제하려면 아래 명령으로 `pre-commit`을 설치한다.
+
+```bash
+python3 -m pip install --user pre-commit
+python3 -m pre_commit install --hook-type pre-commit --hook-type pre-push
+python3 -m pre_commit run --all-files
 ```

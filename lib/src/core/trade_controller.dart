@@ -1,13 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+import 'currency_format.dart';
 import 'exchange_api_client.dart';
 
-enum TradeStatus {
-  idle,
-  loading,
-  loaded,
-  failure,
-}
+enum TradeStatus { idle, loading, loaded, failure }
 
 class TradeState {
   const TradeState({
@@ -93,6 +89,21 @@ class PortfolioSnapshot {
   final String realizedPnlUsd;
   final String unrealizedPnlUsd;
   final String tradingMode;
+
+  String get cashBalanceDisplay =>
+      formatCurrencyDisplay(currency, cashBalanceUsd);
+
+  String get totalMarketValueDisplay =>
+      formatCurrencyDisplay(currency, totalMarketValueUsd);
+
+  String get totalAssetValueDisplay =>
+      formatCurrencyDisplay(currency, totalAssetValueUsd);
+
+  String get realizedPnlDisplay =>
+      formatCurrencyDisplay(currency, realizedPnlUsd);
+
+  String get unrealizedPnlDisplay =>
+      formatCurrencyDisplay(currency, unrealizedPnlUsd);
   final List<MockHolding> holdings;
   final List<TradeExecution> recentTrades;
 
@@ -101,8 +112,10 @@ class PortfolioSnapshot {
       accountId: _string(json['accountId'], fallback: ''),
       currency: _string(json['currency'], fallback: 'USD'),
       cashBalanceUsd: _string(json['cashBalanceUsd'], fallback: '0.00'),
-      totalMarketValueUsd:
-          _string(json['totalMarketValueUsd'], fallback: '0.00'),
+      totalMarketValueUsd: _string(
+        json['totalMarketValueUsd'],
+        fallback: '0.00',
+      ),
       totalAssetValueUsd: _string(json['totalAssetValueUsd'], fallback: '0.00'),
       realizedPnlUsd: _string(json['realizedPnlUsd'], fallback: '0.00'),
       unrealizedPnlUsd: _string(json['unrealizedPnlUsd'], fallback: '0.00'),
@@ -110,12 +123,12 @@ class PortfolioSnapshot {
         json['tradingMode'],
         fallback: 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
       ),
-      holdings: _list(json['holdings'])
-          .map((value) => MockHolding.fromJson(_map(value)))
-          .toList(),
-      recentTrades: _list(json['recentTrades'])
-          .map((value) => TradeExecution.fromJson(_map(value)))
-          .toList(),
+      holdings: _list(
+        json['holdings'],
+      ).map((value) => MockHolding.fromJson(_map(value))).toList(),
+      recentTrades: _list(
+        json['recentTrades'],
+      ).map((value) => TradeExecution.fromJson(_map(value))).toList(),
     );
   }
 }
@@ -140,6 +153,17 @@ class MockHolding {
   final String marketValueUsd;
   final String unrealizedPnlUsd;
   final String unrealizedPnlRate;
+
+  String get averagePriceDisplay =>
+      formatCurrencyDisplay('USD', averagePriceUsd);
+
+  String get currentPriceDisplay =>
+      formatCurrencyDisplay('USD', currentPriceUsd);
+
+  String get marketValueDisplay => formatCurrencyDisplay('USD', marketValueUsd);
+
+  String get unrealizedPnlDisplay =>
+      formatCurrencyDisplay('USD', unrealizedPnlUsd);
 
   static MockHolding fromJson(Map<String, dynamic> json) {
     return MockHolding(
@@ -194,8 +218,10 @@ class TradeOrderability {
       canPlaceMockOrder: json['canPlaceMockOrder'] as bool? ?? false,
       blockingReasons: _list(json['blockingReasons']).map((v) => '$v').toList(),
       warnings: _list(json['warnings']).map((v) => '$v').toList(),
-      orderabilitySource:
-          _string(json['orderabilitySource'], fallback: 'Hana-OmniLens-API'),
+      orderabilitySource: _string(
+        json['orderabilitySource'],
+        fallback: 'Hana-OmniLens-API',
+      ),
       tradingMode: _string(
         json['tradingMode'],
         fallback: 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
@@ -206,7 +232,8 @@ class TradeOrderability {
 
 String _orderabilityMessage(String code) {
   return switch (code) {
-    'FOREIGN_LIMIT_EXCEEDED' => 'Foreign ownership limit would be exceeded',
+    'FOREIGN_LIMIT_EXCEEDED' =>
+      'This buy order may not be filled if the foreign ownership limit is reached',
     'TRADING_HALTED' => 'Trading is halted',
     'ORDER_NOT_ALLOWED' => 'Order is not allowed',
     'VI_ACTIVE' => 'Volatility interruption is active',
@@ -246,10 +273,11 @@ class TradeExecution {
 
   bool get isSell => side.toUpperCase() == 'SELL';
 
-  String get realizedPnlDisplay => 'USD $realizedPnlUsd';
+  String get realizedPnlDisplay => formatCurrencyDisplay('USD', realizedPnlUsd);
 
-  String get summary =>
-      '$side $quantity $stockName at USD $executionPriceUsd / gross USD $grossAmountUsd';
+  String get summary => '$side $quantity $stockName at '
+      '${formatCurrencyDisplay('USD', executionPriceUsd)} / gross '
+      '${formatCurrencyDisplay('USD', grossAmountUsd)}';
 
   static TradeExecution fromJson(Map<String, dynamic> json) {
     return TradeExecution(
@@ -262,8 +290,10 @@ class TradeExecution {
       grossAmountUsd: _string(json['grossAmountUsd'], fallback: '0.00'),
       realizedPnlUsd: _string(json['realizedPnlUsd'], fallback: '0.00'),
       remainingQuantity: _int(json['remainingQuantity']),
-      cashBalanceUsdAfter:
-          _string(json['cashBalanceUsdAfter'], fallback: '0.00'),
+      cashBalanceUsdAfter: _string(
+        json['cashBalanceUsdAfter'],
+        fallback: '0.00',
+      ),
       tradingMode: _string(
         json['tradingMode'],
         fallback: 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
@@ -287,9 +317,9 @@ class TradeLedgerHistory {
     return TradeLedgerHistory(
       accountId: _string(json['accountId'], fallback: ''),
       tradeCount: _int(json['tradeCount']),
-      trades: _list(json['trades'])
-          .map((value) => TradeExecution.fromJson(_map(value)))
-          .toList(),
+      trades: _list(
+        json['trades'],
+      ).map((value) => TradeExecution.fromJson(_map(value))).toList(),
     );
   }
 }
@@ -323,11 +353,17 @@ class TradeOrderPlacement {
 
   bool get isFilled => status.toUpperCase() == 'FILLED';
 
+  String get limitPriceDisplay => formatCurrencyDisplay('USD', limitPriceUsd);
+
+  String get observedPriceDisplay =>
+      formatCurrencyDisplay('USD', observedPriceUsd);
+
   String get summary {
     if (isFilled && tradeExecution != null) {
       return tradeExecution!.summary;
     }
-    return '$side $quantity $stockName limit USD $limitPriceUsd / waiting at USD $observedPriceUsd';
+    return '$side $quantity $stockName limit $limitPriceDisplay / '
+        'waiting at $observedPriceDisplay';
   }
 
   static TradeOrderPlacement fromJson(Map<String, dynamic> json) {
@@ -364,9 +400,9 @@ class TradeOrderHistory {
     return TradeOrderHistory(
       accountId: _string(json['accountId'], fallback: ''),
       orderCount: _int(json['orderCount']),
-      orders: _list(json['orders'])
-          .map((value) => TradeOrderPlacement.fromJson(_map(value)))
-          .toList(),
+      orders: _list(
+        json['orders'],
+      ).map((value) => TradeOrderPlacement.fromJson(_map(value))).toList(),
     );
   }
 }
@@ -420,8 +456,10 @@ class TradeController extends ValueNotifier<TradeState> {
     }
 
     await _run(() async {
-      final response =
-          await _apiClient.getTradeHistory(accountId, limit: limit);
+      final response = await _apiClient.getTradeHistory(
+        accountId,
+        limit: limit,
+      );
       final history = TradeLedgerHistory.fromJson(response.data ?? {});
       value = TradeState.loaded(
         portfolio: value.portfolio,
@@ -449,8 +487,10 @@ class TradeController extends ValueNotifier<TradeState> {
     }
 
     await _run(() async {
-      final response =
-          await _apiClient.getOrderHistory(accountId, limit: limit);
+      final response = await _apiClient.getOrderHistory(
+        accountId,
+        limit: limit,
+      );
       final history = TradeOrderHistory.fromJson(response.data ?? {});
       value = TradeState.loaded(
         portfolio: value.portfolio,
@@ -491,6 +531,16 @@ class TradeController extends ValueNotifier<TradeState> {
     });
   }
 
+  void clearOrderability() {
+    value = TradeState.loaded(
+      portfolio: value.portfolio,
+      tradeHistory: value.tradeHistory,
+      orderHistory: value.orderHistory,
+      lastTrade: value.lastTrade,
+      lastOrder: value.lastOrder,
+    );
+  }
+
   Future<void> executeTrade({
     required String? accountId,
     required String stockCode,
@@ -516,10 +566,12 @@ class TradeController extends ValueNotifier<TradeState> {
       final orderHistoryResponse = await _apiClient.getOrderHistory(accountId);
       value = TradeState.loaded(
         portfolio: PortfolioSnapshot.fromJson(portfolioResponse.data ?? {}),
-        tradeHistory:
-            TradeLedgerHistory.fromJson(historyResponse.data ?? {}).trades,
-        orderHistory:
-            TradeOrderHistory.fromJson(orderHistoryResponse.data ?? {}).orders,
+        tradeHistory: TradeLedgerHistory.fromJson(
+          historyResponse.data ?? {},
+        ).trades,
+        orderHistory: TradeOrderHistory.fromJson(
+          orderHistoryResponse.data ?? {},
+        ).orders,
         orderability: value.orderability,
         lastTrade: order.tradeExecution,
         lastOrder: order,

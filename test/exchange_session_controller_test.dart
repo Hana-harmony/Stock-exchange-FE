@@ -90,7 +90,8 @@ void main() {
 
     expect(requestCount, 0);
     expect(controller.value.status, ExchangeSessionStatus.failure);
-    expect(controller.value.errorMessage, 'Username and password are required.');
+    expect(
+        controller.value.errorMessage, 'Username and password are required.');
   });
 
   test('sign up creates an account and then signs in', () async {

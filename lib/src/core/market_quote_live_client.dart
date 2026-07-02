@@ -73,8 +73,8 @@ class MarketQuoteLiveClient {
     required Uri baseUri,
     QuoteSocketConnector? socketConnector,
   })  : _baseUri = baseUri,
-        _socketConnector = socketConnector ??
-            ((uri) => WebSocketQuoteSocketConnection(uri));
+        _socketConnector =
+            socketConnector ?? ((uri) => WebSocketQuoteSocketConnection(uri));
 
   final Uri _baseUri;
   final QuoteSocketConnector _socketConnector;
@@ -99,7 +99,8 @@ class MarketQuoteLiveClient {
     late final StreamSubscription<dynamic> socketSubscription;
     late final StreamController<Map<String, dynamic>> controller;
 
-    void sendFrame(String command, Map<String, String> headers, [String? body]) {
+    void sendFrame(String command, Map<String, String> headers,
+        [String? body]) {
       final buffer = StringBuffer(command)..write('\n');
       headers.forEach((key, value) {
         buffer.write('$key:$value\n');

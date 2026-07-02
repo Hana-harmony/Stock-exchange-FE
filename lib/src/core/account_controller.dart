@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'currency_format.dart';
 import 'exchange_api_client.dart';
 
 enum AccountStatus {
@@ -54,7 +55,7 @@ class MockUsdAccount {
   final String? lastLedgerEntryId;
   final DateTime? updatedAt;
 
-  String get cashDisplay => '$currency $cashBalanceUsd';
+  String get cashDisplay => formatCurrencyDisplay(currency, cashBalanceUsd);
 
   static MockUsdAccount fromJson(Map<String, dynamic> json) {
     return MockUsdAccount(

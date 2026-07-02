@@ -5,7 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_live_client.dart';
 
 void main() {
-  test('builds Stock-exchange-BE STOMP WebSocket URI and subscribes topic', () async {
+  test('builds Stock-exchange-BE STOMP WebSocket URI and subscribes topic',
+      () async {
     late _FakeQuoteSocketConnection connection;
     final liveClient = MarketQuoteLiveClient(
       baseUri: Uri.parse('https://exchange.example.com/api'),

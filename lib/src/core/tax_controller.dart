@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 
+import 'currency_format.dart';
 import 'exchange_api_client.dart';
 
 enum TaxStatus {
@@ -126,11 +127,14 @@ class TaxRefundCase {
 
   String get referenceDisplay => caseId.isEmpty ? 'Not issued' : caseId;
 
-  String get refundDisplay => '$currency $estimatedRefundUsd';
+  String get refundDisplay =>
+      formatCurrencyDisplay(currency, estimatedRefundUsd);
 
-  String get withholdingDisplay => '$currency $estimatedWithholdingTaxUsd';
+  String get withholdingDisplay =>
+      formatCurrencyDisplay(currency, estimatedWithholdingTaxUsd);
 
-  String get treatyDisplay => '$currency $estimatedTreatyTaxUsd';
+  String get treatyDisplay =>
+      formatCurrencyDisplay(currency, estimatedTreatyTaxUsd);
 
   double get refundRatio {
     final withholding = double.tryParse(estimatedWithholdingTaxUsd) ?? 0;
@@ -164,8 +168,7 @@ class TaxRefundCase {
           json['advancePaymentRequested'] as bool? ?? false,
       status: _string(json['status'], fallback: 'NOT_SUBMITTED'),
       currency: _string(json['currency'], fallback: 'USD'),
-      totalSellAmountUsd:
-          _string(json['totalSellAmountUsd'], fallback: '0.00'),
+      totalSellAmountUsd: _string(json['totalSellAmountUsd'], fallback: '0.00'),
       realizedProfitUsd: _string(json['realizedProfitUsd'], fallback: '0.00'),
       realizedLossUsd: _string(json['realizedLossUsd'], fallback: '0.00'),
       netRealizedPnlUsd: _string(json['netRealizedPnlUsd'], fallback: '0.00'),
@@ -175,8 +178,7 @@ class TaxRefundCase {
           _string(json['estimatedWithholdingTaxUsd'], fallback: '0.00'),
       estimatedTreatyTaxUsd:
           _string(json['estimatedTreatyTaxUsd'], fallback: '0.00'),
-      estimatedRefundUsd:
-          _string(json['estimatedRefundUsd'], fallback: '0.00'),
+      estimatedRefundUsd: _string(json['estimatedRefundUsd'], fallback: '0.00'),
       advancePaymentEligible: json['advancePaymentEligible'] as bool? ?? false,
       matchedTradeCount: _int(json['matchedTradeCount']),
       matchedTrades: _list(json['matchedTrades'])
@@ -210,6 +212,10 @@ class TaxMatchedTrade {
   final String grossAmountUsd;
   final String realizedPnlUsd;
   final DateTime? executedAt;
+
+  String get grossAmountDisplay => formatCurrencyDisplay('USD', grossAmountUsd);
+
+  String get realizedPnlDisplay => formatCurrencyDisplay('USD', realizedPnlUsd);
 
   static TaxMatchedTrade fromJson(Map<String, dynamic> json) {
     return TaxMatchedTrade(

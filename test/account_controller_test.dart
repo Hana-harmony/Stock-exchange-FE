@@ -18,7 +18,7 @@ void main() {
           'status': 200,
           'code': 'COMMON_000',
           'message': 'OK',
-          'data': _accountJson(cashBalanceUsd: '125.50'),
+          'data': _accountJson(cashBalanceUsd: '1024.24'),
           'timestamp': '2026-06-18T06:00:00Z',
         });
       }),
@@ -27,7 +27,7 @@ void main() {
     await controller.loadAccount('ACC-ABC123456789');
 
     expect(controller.value.status, AccountStatus.loaded);
-    expect(controller.value.account?.cashDisplay, 'USD 125.50');
+    expect(controller.value.account?.cashDisplay, 'USD 1,024.24');
   });
 
   test('deposits mock USD without real payment settlement', () async {
@@ -46,7 +46,7 @@ void main() {
           'code': 'COMMON_000',
           'message': 'OK',
           'data': _accountJson(
-            cashBalanceUsd: '250.75',
+            cashBalanceUsd: '1250.75',
             lastLedgerEntryId: 'CASH-123',
           ),
           'timestamp': '2026-06-18T06:00:00Z',
@@ -60,7 +60,7 @@ void main() {
     );
 
     expect(controller.value.status, AccountStatus.loaded);
-    expect(controller.value.account?.cashDisplay, 'USD 250.75');
+    expect(controller.value.account?.cashDisplay, 'USD 1,250.75');
     expect(controller.value.account?.lastLedgerEntryId, 'CASH-123');
   });
 
@@ -77,7 +77,8 @@ void main() {
     expect(controller.value.errorMessage, 'Sign in to load mock USD account.');
 
     await controller.depositUsd(accountId: 'ACC-ABC123456789', amount: 0);
-    expect(controller.value.errorMessage, 'Enter a deposit amount greater than 0.');
+    expect(controller.value.errorMessage,
+        'Enter a deposit amount greater than 0.');
     expect(requestCount, 0);
   });
 }

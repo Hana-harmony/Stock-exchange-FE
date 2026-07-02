@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import 'currency_format.dart';
 import 'exchange_api_client.dart';
 import 'market_quote_live_client.dart';
 
@@ -202,7 +203,8 @@ class MarketQuote {
 
   String get krwDisplay => 'KRW $currentPriceKrw';
 
-  String get localCurrencyDisplay => '$localCurrency $localCurrencyPrice';
+  String get localCurrencyDisplay =>
+      formatCurrencyDisplay(localCurrency, localCurrencyPrice);
 
   bool get isAfterHours => marketSession.toUpperCase() == 'AFTER_HOURS';
 
@@ -210,8 +212,10 @@ class MarketQuote {
       afterHoursLocalCurrencyPrice != null &&
       afterHoursLocalCurrencyPrice!.trim().isNotEmpty;
 
-  String get afterHoursLocalCurrencyDisplay =>
-      '$localCurrency ${afterHoursLocalCurrencyPrice ?? localCurrencyPrice}';
+  String get afterHoursLocalCurrencyDisplay => formatCurrencyDisplay(
+        localCurrency,
+        afterHoursLocalCurrencyPrice ?? localCurrencyPrice,
+      );
 
   String get afterHoursKrwDisplay =>
       'KRW ${afterHoursPriceKrw ?? currentPriceKrw}';

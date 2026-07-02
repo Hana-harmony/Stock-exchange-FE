@@ -8,10 +8,23 @@
 - Android 앱
 - Web은 운영 대상이 아니라 내부 QA 또는 데모가 필요한 경우에만 별도 검토한다.
 
+## 반응형
+우선적으로 IOS 17기준으로 제작했습니다.
+
 ## 빠른 시작
 ```bash
 flutter pub get
+dart format lib test
 flutter test
+```
+
+## 개발 도구 설정
+한 번만 `pre-commit` 훅을 설치하면 커밋 시 변경된 Dart 파일에 `dart format`이 적용되고, 푸시 시 `flutter analyze`, `flutter test`가 실행된다.
+
+```bash
+python3 -m pip install --user pre-commit
+python3 -m pre_commit install --hook-type pre-commit --hook-type pre-push
+python3 -m pre_commit run --all-files
 ```
 
 로컬 앱 실행과 검증은 [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)를 따른다. `Stock-exchange-FE`는 iOS/Android 앱이므로 Docker로 앱을 띄우는 방식을 표준으로 두지 않으며, 백엔드는 Hannah-Montana-AI, Hana-OmniLens-API, Stock-exchange-BE 순서로 띄운 뒤 앱을 연결한다.
@@ -74,3 +87,7 @@ flutter test
 - [기능 분류와 레포 책임](docs/FEATURE_CLASSIFICATION.md)
 - [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)
 - [로드맵](docs/ROADMAP.md)
+
+
+## 현재 기능 인벤토리
+- `./current-feature-inventory.md`
