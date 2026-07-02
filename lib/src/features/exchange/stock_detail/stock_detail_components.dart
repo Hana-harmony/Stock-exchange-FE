@@ -38,7 +38,9 @@ class _InvestmentInfoSection extends StatelessWidget {
         _StockInfoRow(
           label: 'Return',
           value: snapshot.returnRate,
-          valueColor: AppColors.red500,
+          valueColor: snapshot.isHoldingReturnPositive
+              ? AppColors.green500
+              : AppColors.red500,
         ),
         const SizedBox(height: 16),
         _StockInfoRow(label: 'Shares', value: snapshot.sharesDisplay),
@@ -47,7 +49,9 @@ class _InvestmentInfoSection extends StatelessWidget {
           label: 'Market Value',
           value: snapshot.marketValue,
           trailing: snapshot.marketValueChange,
-          trailingColor: AppColors.red500,
+          trailingColor: snapshot.isMarketValueChangePositive
+              ? AppColors.green500
+              : AppColors.red500,
         ),
         const SizedBox(height: 16),
         _StockInfoRow(label: 'Cost', value: snapshot.costDisplay),
@@ -65,9 +69,12 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
 
   static const _outerBackgroundColor = Color(0xFFF5F6F6);
   static const _accentColor = Color(0xFFFF1550);
+  static const _forecastColor = AppColors.green500;
 
   @override
   Widget build(BuildContext context) {
+    final accentColor =
+        snapshot.isForeignLimitAlert ? _accentColor : _forecastColor;
     return DecoratedBox(
       decoration: BoxDecoration(
         color: _outerBackgroundColor,
@@ -82,7 +89,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    'Foreign Ownership Limit Alert',
+                    snapshot.foreignLimitCardTitle,
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontSize: 16,
                           height: 1.4,
@@ -100,7 +107,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
             ),
             const SizedBox(height: 4),
             Text(
-              'Based on a time-series regression analysis\nwith a 95% confidence interval',
+              snapshot.foreignLimitCardDescription,
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
@@ -124,7 +131,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: 14,
                             height: 1.4,
-                            color: _accentColor,
+                            color: accentColor,
                             fontWeight: FontWeight.w600,
                           ),
                     ),
@@ -133,7 +140,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                       snapshot.estimatedRange,
                       style:
                           Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                color: _accentColor,
+                                color: accentColor,
                                 fontSize: 22,
                                 height: 1.4,
                                 fontWeight: FontWeight.w600,
@@ -146,8 +153,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                         value: snapshot.alertProgress,
                         minHeight: 10,
                         backgroundColor: AppColors.gray300,
-                        valueColor:
-                            const AlwaysStoppedAnimation<Color>(_accentColor),
+                        valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                       ),
                     ),
                     const SizedBox(height: 6),
@@ -171,10 +177,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 16),
                     Text(
-                      'The estimated maximum foreign ownership ratio '
-                      '(${snapshot.estimatedRangeMax}) is close to the limit '
-                      '(${snapshot.limitForeignRatio}). Trading may be restricted once '
-                      'the limit is reached.',
+                      snapshot.foreignLimitCardMessage,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontSize: 12,
                             fontWeight: FontWeight.w400,

@@ -9,6 +9,7 @@ class MarketScreen extends StatefulWidget {
     required this.marketIndexController,
     required this.marketQuoteController,
     required this.notificationController,
+    required this.onNavigateToAccounts,
   });
 
   final ExchangeSessionController sessionController;
@@ -17,6 +18,7 @@ class MarketScreen extends StatefulWidget {
   final MarketIndexController marketIndexController;
   final MarketQuoteController marketQuoteController;
   final NotificationController notificationController;
+  final VoidCallback onNavigateToAccounts;
 
   @override
   State<MarketScreen> createState() => _MarketScreenState();
@@ -173,6 +175,7 @@ class _MarketScreenState extends State<MarketScreen> {
                       _TrendingStockTile(
                         stock: trendingStocks[index],
                         rank: index + 1,
+                        onTap: () => _openTrendingStock(trendingStocks[index]),
                       ),
                 ],
               ),
@@ -180,6 +183,30 @@ class _MarketScreenState extends State<MarketScreen> {
           ],
         );
       },
+    );
+  }
+
+  void _openTrendingStock(_TrendingStock stock) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => StockDetailScreen(
+          sessionController: widget.sessionController,
+          marketDetailController: widget.marketDetailController,
+          marketQuoteController: widget.marketQuoteController,
+          tradeController: widget.tradeController,
+          notificationController: widget.notificationController,
+          stockCode: stock.symbol,
+          title: stock.name,
+          market: stock.market,
+          sector: '',
+          isFavorite: false,
+          onFavoriteToggle: () {},
+          onNavigateToAccounts: () {
+            Navigator.of(context).pop();
+            widget.onNavigateToAccounts();
+          },
+        ),
+      ),
     );
   }
 
@@ -518,10 +545,15 @@ class _MarketStatusSparklinePainter extends CustomPainter {
 }
 
 class _TrendingStockTile extends StatelessWidget {
-  const _TrendingStockTile({required this.stock, required this.rank});
+  const _TrendingStockTile({
+    required this.stock,
+    required this.rank,
+    required this.onTap,
+  });
 
   final _TrendingStock stock;
   final int rank;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -531,61 +563,32 @@ class _TrendingStockTile extends StatelessWidget {
     final symbolWidth = stock.isPositive ? 215.0 : 218.0;
     final trailingWidth = stock.isPositive ? 73.0 : 70.0;
 
-    return SizedBox(
-      height: 65,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: leadingWidth,
-              height: 45,
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 12,
-                    height: 45,
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: SizedBox(
-                        height: 25,
-                        child: Text(
-                          '$rank',
-                          style:
-                              Theme.of(context).textTheme.titleMedium?.copyWith(
-                                    fontSize: 18,
-                                    height: 25 / 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.gray1000,
-                                  ),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  const SizedBox(
-                    width: 34,
-                    height: 45,
-                    child: Align(
-                      alignment: Alignment.center,
-                      child: _SearchResultAvatar(),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  SizedBox(
-                    width: symbolWidth,
-                    height: 45,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        SizedBox(
+    return InkWell(
+      key: ValueKey('trending-stock-${stock.symbol}'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: SizedBox(
+        height: 65,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: leadingWidth,
+                height: 45,
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SizedBox(
+                      width: 12,
+                      height: 45,
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: SizedBox(
                           height: 25,
                           child: Text(
-                            stock.symbol,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                            '$rank',
                             style: Theme.of(context)
                                 .textTheme
                                 .titleMedium
@@ -593,73 +596,110 @@ class _TrendingStockTile extends StatelessWidget {
                                   fontSize: 18,
                                   height: 25 / 18,
                                   fontWeight: FontWeight.w500,
-                                  color: AppColors.gray750,
+                                  color: AppColors.gray1000,
                                 ),
                           ),
                         ),
-                        SizedBox(
-                          height: 20,
-                          child: Text(
-                            stock.name,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontSize: 14,
-                                  height: 20 / 14,
-                                  fontWeight: FontWeight.w400,
-                                  letterSpacing: -0.28,
-                                  color: AppColors.gray600,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    const SizedBox(
+                      width: 34,
+                      height: 45,
+                      child: Align(
+                        alignment: Alignment.center,
+                        child: _SearchResultAvatar(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    SizedBox(
+                      width: symbolWidth,
+                      height: 45,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SizedBox(
+                            height: 25,
+                            child: Text(
+                              stock.symbol,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .titleMedium
+                                  ?.copyWith(
+                                    fontSize: 18,
+                                    height: 25 / 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.gray750,
+                                  ),
+                            ),
+                          ),
+                          SizedBox(
+                            height: 20,
+                            child: Text(
+                              stock.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    fontSize: 14,
+                                    height: 20 / 14,
+                                    fontWeight: FontWeight.w400,
+                                    letterSpacing: -0.28,
+                                    color: AppColors.gray600,
+                                  ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 20),
+              SizedBox(
+                width: trailingWidth,
+                height: 45,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    SizedBox(
+                      height: 25,
+                      child: Text(
+                        stock.changeDisplay,
+                        maxLines: 1,
+                        textAlign: TextAlign.end,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 18,
+                                  height: 25 / 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: changeColor,
                                 ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                    SizedBox(
+                      height: 20,
+                      child: Text(
+                        stock.priceDisplay,
+                        textAlign: TextAlign.end,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 14,
+                              height: 20 / 14,
+                              fontWeight: FontWeight.w400,
+                              letterSpacing: -0.28,
+                              color: AppColors.gray900,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 20),
-            SizedBox(
-              width: trailingWidth,
-              height: 45,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  SizedBox(
-                    height: 25,
-                    child: Text(
-                      stock.changeDisplay,
-                      maxLines: 1,
-                      textAlign: TextAlign.end,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontSize: 18,
-                            height: 25 / 18,
-                            fontWeight: FontWeight.w500,
-                            color: changeColor,
-                          ),
-                    ),
-                  ),
-                  SizedBox(
-                    height: 20,
-                    child: Text(
-                      stock.priceDisplay,
-                      textAlign: TextAlign.end,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 14,
-                            height: 20 / 14,
-                            fontWeight: FontWeight.w400,
-                            letterSpacing: -0.28,
-                            color: AppColors.gray900,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

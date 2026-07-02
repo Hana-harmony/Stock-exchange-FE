@@ -71,6 +71,20 @@ void main() {
       findsNothing,
     );
 
+    await tester.tap(find.byKey(const ValueKey('trending-stock-005930')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(
+        find.byKey(const ValueKey('stock-detail-tab-chart')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('stock-detail-tab-chart')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('stock-chart-content')), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
@@ -879,7 +893,7 @@ void main() {
     expect(find.text('Card'), findsOneWidget);
   });
 
-  testWidgets('shows temporary VI trigger button in fundamentals tab',
+  testWidgets('renders stock detail chart and API fundamentals',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -909,75 +923,28 @@ void main() {
         .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const PageStorageKey<String>('stock-fundamentals-tab')),
-        findsOneWidget);
+    expect(
+      find.byKey(const PageStorageKey<String>('stock-fundamentals-tab')),
+      findsOneWidget,
+    );
+    expect(find.text('Market Status'), findsOneWidget);
+    expect(find.text('Foreign Ownership'), findsOneWidget);
+    expect(find.text('KOSPI'), findsOneWidget);
+    expect(find.text('27.0%~27.6%'), findsOneWidget);
+    expect(find.text('test / HIGH 0.91'), findsOneWidget);
     expect(find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
-        findsOneWidget);
+        findsNothing);
     expect(find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
-        findsOneWidget);
-    expect(find.text('VI발동 시키기'), findsOneWidget);
-    expect(find.text('Low limit 발동 시키기'), findsOneWidget);
+        findsNothing);
 
-    await tester.tap(
-      find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
-    );
+    await tester.tap(find.byKey(const ValueKey('stock-detail-tab-chart')));
     await tester.pumpAndSettle();
 
-    expect(find.byKey(const ValueKey('vi-triggered-banner')), findsOneWidget);
-    expect(find.text('VI triggered!'), findsOneWidget);
-    expect(find.text('Trading may be temporarily halted.'), findsOneWidget);
-    expect(find.text('VI발동 끄기'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('vi-triggered-banner-info')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('확인'), findsOneWidget);
-    await tester.tap(find.text('확인'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.byKey(const ValueKey('vi-triggered-banner')), findsNothing);
-    expect(find.text('VI발동 시키기'), findsOneWidget);
-
-    await tester.tap(
-      find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('low-limit-reached-banner')),
-      findsOneWidget,
-    );
-    expect(find.text('Lower limit reached!'), findsOneWidget);
-    expect(
-      find.text('Trading is limited at the daily price cap.'),
-      findsOneWidget,
-    );
-    expect(find.text('Low limit 발동 끄기'), findsOneWidget);
-
-    await tester.tap(
-      find.byKey(const ValueKey('low-limit-reached-banner-info')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.text('확인'), findsOneWidget);
-    await tester.tap(find.text('확인'));
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('low-limit-reached-banner')),
-      findsNothing,
-    );
-    expect(find.text('Low limit 발동 시키기'), findsOneWidget);
+    expect(find.byKey(const ValueKey('stock-chart-content')), findsOneWidget);
+    expect(find.text('1D price chart'), findsOneWidget);
+    expect(find.text('USD 35.50'), findsOneWidget);
+    expect(find.text('KRW 54,800'), findsOneWidget);
+    expect(find.text('KRW 53,200'), findsOneWidget);
   });
 
   testWidgets('blocks sell with VI warning modal when VI is triggered',
@@ -986,10 +953,15 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _marketDetailController(viActive: true);
     addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
-      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+      _stockExchangeTestApp(
+        marketDetailController: marketDetailController,
+        marketQuoteController: marketQuoteController,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -1004,15 +976,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
-    await tester.pumpAndSettle();
-
-    await tester
-        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
-    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sell'));
@@ -1036,10 +999,17 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _marketDetailController(
+      priceLimitState: 'LOWER',
+    );
     addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
-      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+      _stockExchangeTestApp(
+        marketDetailController: marketDetailController,
+        marketQuoteController: marketQuoteController,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -1054,15 +1024,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
-    await tester.pumpAndSettle();
-
-    await tester
-        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
-    await tester.pumpAndSettle();
-
-    await tester.tap(
-      find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
-    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Buy'));
@@ -1172,11 +1133,12 @@ Future<void> _loadPretendardFont() async {
 
 StockExchangeApp _stockExchangeTestApp({
   required MarketQuoteController marketQuoteController,
+  MarketDetailController? marketDetailController,
 }) {
   return StockExchangeApp(
     sessionController: _sessionController(),
     tradeController: _tradeController(),
-    marketDetailController: _marketDetailController(),
+    marketDetailController: marketDetailController ?? _marketDetailController(),
     marketIndexController: _marketIndexController(),
     marketQuoteController: marketQuoteController,
   );
@@ -1274,27 +1236,36 @@ TradeController _tradeController() {
   );
 }
 
-MarketDetailController _marketDetailController() {
+MarketDetailController _marketDetailController({
+  bool viActive = false,
+  String priceLimitState = 'NORMAL',
+}) {
   return MarketDetailController(
     apiClient: ExchangeApiClient(
       baseUri: Uri.parse('http://localhost:3000'),
       httpClient: MockClient((request) async {
         final path = request.url.path;
-        if (path == '/api/v1/market/stocks/035720/realtime-subscription') {
-          return _jsonEnvelope({'stockCode': '035720', 'subscribed': true});
-        }
-        if (path == '/api/v1/stocks/035720') {
+        if (path.startsWith('/api/v1/market/stocks/') &&
+            path.endsWith('/realtime-subscription')) {
           return _jsonEnvelope({
-            'stockCode': '035720',
-            'stockName': 'Kakao',
+            'stockCode': request.url.pathSegments[4],
+            'subscribed': true,
+          });
+        }
+        if (path == '/api/v1/stocks/035720' ||
+            path == '/api/v1/stocks/005930') {
+          final isSamsung = path.endsWith('/005930');
+          return _jsonEnvelope({
+            'stockCode': isSamsung ? '005930' : '035720',
+            'stockName': isSamsung ? 'Samsung Electronics' : 'Kakao',
             'market': 'KOSPI',
-            'sector': 'IT',
+            'sector': isSamsung ? 'Semiconductor' : 'IT',
             'baseCurrency': 'KRW',
             'displayCurrency': 'USD',
-            'currentPriceKrw': '54200',
-            'localCurrencyPrice': '35.50',
+            'currentPriceKrw': isSamsung ? '82400' : '54200',
+            'localCurrencyPrice': isSamsung ? '54.00' : '35.50',
             'changeRate': '+1.23%',
-            'volume': 1200000,
+            'volume': isSamsung ? 18300000 : 1200000,
             'marketDataTime': '2026-06-18T06:00:00Z',
             'foreignOwnershipRate': '27.1',
             'foreignLimitExhaustionRate': '27.1',
@@ -1306,19 +1277,22 @@ MarketDetailController _marketDetailController() {
             'foreignOwnershipPredictionConfidenceScore': '0.91',
             'foreignOwnershipPredictionModelVersion': 'test',
             'foreignOwnershipBaseDate': '2026-06-17',
-            'viActive': false,
+            'viActive': viActive,
             'singlePriceTrading': false,
-            'priceLimitState': 'NORMAL',
+            'priceLimitState': priceLimitState,
             'tradingHalted': false,
             'orderable': true,
             'dataSource': 'Stock-exchange-BE',
             'servedAt': '2026-06-18T06:00:00Z',
           });
         }
-        if (path == '/api/v1/market/stocks/035720/chart') {
+        if (path.startsWith('/api/v1/market/stocks/') &&
+            path.endsWith('/chart')) {
+          final stockCode = request.url.pathSegments[4];
+          final isSamsung = stockCode == '005930';
           return _jsonEnvelope({
             'dataSource': 'Stock-exchange-BE',
-            'stockCode': '035720',
+            'stockCode': stockCode,
             'interval': '1d',
             'from': '2026-06-01',
             'to': '2026-06-18',
@@ -1328,26 +1302,27 @@ MarketDetailController _marketDetailController() {
             'points': [
               {
                 'tradeDate': '2026-06-18',
-                'openPriceKrw': '53600',
-                'highPriceKrw': '54800',
-                'lowPriceKrw': '53200',
-                'closePriceKrw': '54200',
+                'openPriceKrw': isSamsung ? '81200' : '53600',
+                'highPriceKrw': isSamsung ? '83600' : '54800',
+                'lowPriceKrw': isSamsung ? '80800' : '53200',
+                'closePriceKrw': isSamsung ? '82400' : '54200',
                 'localCurrency': 'USD',
-                'openLocalCurrencyPrice': '35.10',
-                'highLocalCurrencyPrice': '35.90',
-                'lowLocalCurrencyPrice': '34.88',
-                'closeLocalCurrencyPrice': '35.50',
-                'volume': 1200000,
+                'openLocalCurrencyPrice': isSamsung ? '53.21' : '35.10',
+                'highLocalCurrencyPrice': isSamsung ? '54.79' : '35.90',
+                'lowLocalCurrencyPrice': isSamsung ? '52.95' : '34.88',
+                'closeLocalCurrencyPrice': isSamsung ? '54.00' : '35.50',
+                'volume': isSamsung ? 18300000 : 1200000,
                 'adjusted': false,
               },
             ],
             'servedAt': '2026-06-18T06:00:00Z',
           });
         }
-        if (path == '/api/v1/market/stocks/035720/orderbook') {
+        if (path.startsWith('/api/v1/market/stocks/') &&
+            path.endsWith('/orderbook')) {
           return _jsonEnvelope({
             'dataSource': 'Stock-exchange-BE',
-            'stockCode': '035720',
+            'stockCode': request.url.pathSegments[4],
             'market': 'KOSPI',
             'baseCurrency': 'KRW',
             'displayCurrency': 'USD',
@@ -1357,13 +1332,18 @@ MarketDetailController _marketDetailController() {
             'servedAt': '2026-06-18T06:00:00Z',
           });
         }
-        if (path == '/api/v1/stocks/035720/global-peers') {
+        if (path == '/api/v1/stocks/035720/global-peers' ||
+            path == '/api/v1/stocks/005930/global-peers') {
+          final isSamsung = path.contains('/005930/');
           return _jsonEnvelope({
-            'stockCode': '035720',
-            'stockName': 'Kakao',
-            'headline': 'Kakao is the Block of South Korea',
-            'summary':
-                'Kakao combines messaging, commerce, payments, and financial services into a local platform ecosystem.',
+            'stockCode': isSamsung ? '005930' : '035720',
+            'stockName': isSamsung ? 'Samsung Electronics' : 'Kakao',
+            'headline': isSamsung
+                ? 'Samsung Electronics is the Micron of South Korea'
+                : 'Kakao is the Block of South Korea',
+            'summary': isSamsung
+                ? 'Samsung Electronics anchors Korea memory semiconductor exports with global-scale manufacturing.'
+                : 'Kakao combines messaging, commerce, payments, and financial services into a local platform ecosystem.',
             'primaryPeer': {
               'rank': 1,
               'ticker': 'SQ',
