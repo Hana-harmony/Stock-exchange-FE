@@ -355,12 +355,14 @@ class AlertGlossaryTerm {
     required this.normalizedTerm,
     required this.englishTerm,
     required this.category,
+    required this.description,
   });
 
   final String sourceTerm;
   final String normalizedTerm;
   final String englishTerm;
   final String category;
+  final String description;
 
   String get displayLabel {
     if (sourceTerm.isEmpty && englishTerm.isEmpty) {
@@ -381,6 +383,7 @@ class AlertGlossaryTerm {
       normalizedTerm: _string(json['normalizedTerm'], fallback: ''),
       englishTerm: _string(json['englishTerm'], fallback: ''),
       category: _string(json['category'], fallback: ''),
+      description: _string(json['description'], fallback: ''),
     );
   }
 }

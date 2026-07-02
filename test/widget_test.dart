@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -35,8 +36,34 @@ void main() {
     expect(find.bySemanticsLabel('AI Assistant'), findsOneWidget);
     expect(find.bySemanticsLabel('Search'), findsOneWidget);
     expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-status-section')), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-status-card-0')), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-status-card-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-status-card-2')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('market-indicator-banner')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('market-indicator-summary-0')),
+      findsOneWidget,
+    );
+    expect(find.text('25709.43'), findsNWidgets(2));
+    expect(find.text('51202.26'), findsOneWidget);
+    expect(find.text('21:30'), findsOneWidget);
+    expect(find.text('Retail Sales (MOM)'), findsWidgets);
     expect(find.text('Trending Stocks'), findsOneWidget);
     expect(find.text('NVDA'), findsWidgets);
+    expect(
+      _findAssetImage(AppAssets.stockCardRed),
+      findsNothing,
+    );
+    expect(
+      _findAssetImage(AppAssets.stockCardGreen),
+      findsNothing,
+    );
+    expect(
+      _findAssetImage(AppAssets.marketDataContainer),
+      findsNothing,
+    );
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
     await tester.pumpAndSettle();
@@ -134,6 +161,50 @@ void main() {
 
     expect(find.text('AI Analysis'), findsOneWidget);
     expect(find.text('View Original'), findsOneWidget);
+    final glossaryParagraph = tester.widget<RichText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('notification-article-body-paragraph-1')),
+        matching: find.byType(RichText),
+      ),
+    );
+    expect(
+        glossaryParagraph.text.toPlainText(), contains('Daejangju for FY2025'));
+
+    await _tapSubstringInRichText(
+      tester,
+      find.descendant(
+        of: find.byKey(const ValueKey('notification-article-body-paragraph-1')),
+        matching: find.byType(RichText),
+      ),
+      'Daejangju',
+    );
+    await tester.pump();
+
+    expect(find.text('Financial Glossary'), findsOneWidget);
+    expect(find.text('Daejangju (Market Leader)'), findsOneWidget);
+    expect(
+      find.textContaining('dictates the overall trend.'),
+      findsOneWidget,
+    );
+
+    await tester.tapAt(const Offset(201, 150));
+    await tester.pump();
+    expect(find.text('Financial Glossary'), findsNothing);
+
+    await _tapSubstringInRichText(
+      tester,
+      find.descendant(
+        of: find.byKey(const ValueKey('notification-article-body-paragraph-1')),
+        matching: find.byType(RichText),
+      ),
+      'Daejangju',
+    );
+    await tester.pump();
+    expect(find.text('Financial Glossary'), findsOneWidget);
+
+    await tester.pump(const Duration(seconds: 10));
+    await tester.pump();
+    expect(find.text('Financial Glossary'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('notification-article-back')));
     await tester.pumpAndSettle();
@@ -1209,6 +1280,48 @@ Iterable<TextSpan> _allTextSpans(InlineSpan span) sync* {
   for (final child in span.children ?? const <InlineSpan>[]) {
     yield* _allTextSpans(child);
   }
+}
+
+Finder _findAssetImage(String assetName) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Image &&
+        widget.image is AssetImage &&
+        (widget.image as AssetImage).assetName == assetName,
+  );
+}
+
+Future<void> _tapSubstringInRichText(
+  WidgetTester tester,
+  Finder richTextFinder,
+  String substring,
+) async {
+  final richText = tester.widget<RichText>(richTextFinder);
+  final paragraph = tester.renderObject<RenderParagraph>(richTextFinder);
+  final plainText = richText.text.toPlainText();
+  final start = plainText.indexOf(substring);
+  expect(start, isNonNegative, reason: 'Missing substring: $substring');
+
+  final boxes = paragraph.getBoxesForSelection(
+    TextSelection(baseOffset: start, extentOffset: start + substring.length),
+  );
+  expect(boxes, isNotEmpty, reason: 'No text boxes for substring: $substring');
+
+  var left = boxes.first.left;
+  var top = boxes.first.top;
+  var right = boxes.first.right;
+  var bottom = boxes.first.bottom;
+  for (final box in boxes.skip(1)) {
+    left = left < box.left ? left : box.left;
+    top = top < box.top ? top : box.top;
+    right = right > box.right ? right : box.right;
+    bottom = bottom > box.bottom ? bottom : box.bottom;
+  }
+
+  final tapOffset = paragraph.localToGlobal(
+    Offset((left + right) / 2, (top + bottom) / 2),
+  );
+  await tester.tapAt(tapOffset);
 }
 
 void _expectRect(Rect actual, Rect expected, {double tolerance = 1}) {

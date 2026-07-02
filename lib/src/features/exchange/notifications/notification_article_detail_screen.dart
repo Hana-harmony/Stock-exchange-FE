@@ -1,6 +1,6 @@
 part of '../exchange_pages.dart';
 
-class NotificationArticleDetailScreen extends StatelessWidget {
+class NotificationArticleDetailScreen extends StatefulWidget {
   const NotificationArticleDetailScreen({
     super.key,
     required this.item,
@@ -11,69 +11,173 @@ class NotificationArticleDetailScreen extends StatelessWidget {
   final StockIntelligenceItem? intelligenceItem;
 
   @override
+  State<NotificationArticleDetailScreen> createState() =>
+      _NotificationArticleDetailScreenState();
+}
+
+class _NotificationArticleDetailScreenState
+    extends State<NotificationArticleDetailScreen> {
+  final GlobalKey _articleContentStackKey = GlobalKey();
+  final GlobalKey _glossaryTooltipKey = GlobalKey();
+  Timer? _glossaryTooltipTimer;
+  _VisibleNotificationArticleGlossaryTooltip? _visibleGlossaryTooltip;
+
+  @override
+  void dispose() {
+    _glossaryTooltipTimer?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     final detail = _NotificationArticleDetailData.fromNotification(
-      item,
-      intelligenceItem: intelligenceItem,
+      widget.item,
+      intelligenceItem: widget.intelligenceItem,
     );
 
     return Scaffold(
       backgroundColor: AppColors.white,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          children: [
-            _NotificationArticleDetailHeader(
-              onBack: () => Navigator.of(context).maybePop(),
-            ),
-            Expanded(
-              child: Stack(
-                children: [
-                  SingleChildScrollView(
-                    key: const ValueKey('notification-article-scroll'),
-                    padding: const EdgeInsets.only(bottom: 140),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _NotificationArticleHeroImage(
-                            imageUrl: detail.imageUrl),
-                        const SizedBox(height: 20),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _NotificationArticleSummarySection(
-                            detail: detail,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _NotificationArticleAnalysisCard(
-                            detail: detail,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          child: _NotificationArticleBody(detail: detail),
-                        ),
-                        const SizedBox(height: 32),
-                      ],
-                    ),
-                  ),
-                  Align(
-                    alignment: Alignment.bottomCenter,
-                    child: _NotificationArticleBottomActionBar(
-                      onPressed: () =>
-                          _showOriginalLinkMessage(context, detail),
-                    ),
-                  ),
-                ],
+      body: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _handlePointerDown,
+        child: SafeArea(
+          bottom: false,
+          child: Column(
+            children: [
+              _NotificationArticleDetailHeader(
+                onBack: () => Navigator.of(context).maybePop(),
               ),
-            ),
-          ],
+              Expanded(
+                child: Stack(
+                  children: [
+                    NotificationListener<ScrollStartNotification>(
+                      onNotification: (notification) {
+                        _dismissGlossaryTooltip();
+                        return false;
+                      },
+                      child: SingleChildScrollView(
+                        key: const ValueKey('notification-article-scroll'),
+                        padding: const EdgeInsets.only(bottom: 140),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return Stack(
+                              key: _articleContentStackKey,
+                              clipBehavior: Clip.none,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    _NotificationArticleHeroImage(
+                                      imageUrl: detail.imageUrl,
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      child: _NotificationArticleSummarySection(
+                                        detail: detail,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      child: _NotificationArticleAnalysisCard(
+                                        detail: detail,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      child: _NotificationArticleBody(
+                                        detail: detail,
+                                        articleContentStackKey:
+                                            _articleContentStackKey,
+                                        onGlossaryTap: _showGlossaryTooltip,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 32),
+                                  ],
+                                ),
+                                if (_visibleGlossaryTooltip != null)
+                                  _NotificationArticleGlossaryTooltipOverlay(
+                                    key: _glossaryTooltipKey,
+                                    glossary: _visibleGlossaryTooltip!.glossary,
+                                    anchorRect:
+                                        _visibleGlossaryTooltip!.anchorRect,
+                                    maxWidth: constraints.maxWidth,
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _NotificationArticleBottomActionBar(
+                        onPressed: () =>
+                            _showOriginalLinkMessage(context, detail),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  void _showGlossaryTooltip(
+    _NotificationArticleGlossaryEntry glossary,
+    Rect anchorRect,
+  ) {
+    _glossaryTooltipTimer?.cancel();
+    setState(() {
+      _visibleGlossaryTooltip = _VisibleNotificationArticleGlossaryTooltip(
+        glossary: glossary,
+        anchorRect: anchorRect,
+      );
+    });
+    _glossaryTooltipTimer = Timer(
+      const Duration(seconds: 10),
+      _dismissGlossaryTooltip,
+    );
+  }
+
+  void _dismissGlossaryTooltip() {
+    _glossaryTooltipTimer?.cancel();
+    _glossaryTooltipTimer = null;
+    if (_visibleGlossaryTooltip == null || !mounted) {
+      return;
+    }
+    setState(() {
+      _visibleGlossaryTooltip = null;
+    });
+  }
+
+  void _handlePointerDown(PointerDownEvent event) {
+    if (_visibleGlossaryTooltip == null) {
+      return;
+    }
+    final tooltipContext = _glossaryTooltipKey.currentContext;
+    final tooltipBox = tooltipContext?.findRenderObject() as RenderBox?;
+    if (tooltipBox == null || !tooltipBox.hasSize) {
+      _dismissGlossaryTooltip();
+      return;
+    }
+    final tooltipRect = tooltipBox.localToGlobal(Offset.zero) & tooltipBox.size;
+    if (tooltipRect.contains(event.position)) {
+      return;
+    }
+    _dismissGlossaryTooltip();
   }
 
   void _showOriginalLinkMessage(
@@ -488,13 +592,25 @@ double _analysisLabelVisualWidth(String label) {
 class _NotificationArticleBody extends StatelessWidget {
   const _NotificationArticleBody({
     required this.detail,
+    required this.articleContentStackKey,
+    required this.onGlossaryTap,
   });
 
   final _NotificationArticleDetailData detail;
+  final GlobalKey articleContentStackKey;
+  final void Function(
+          _NotificationArticleGlossaryEntry glossary, Rect anchorRect)
+      onGlossaryTap;
 
   @override
   Widget build(BuildContext context) {
     final textStyle = Theme.of(context).textTheme.bodyLarge?.copyWith(
+              fontSize: 16,
+              height: 1.4,
+              fontWeight: FontWeight.w400,
+              color: AppColors.gray900,
+            ) ??
+        const TextStyle(
           fontSize: 16,
           height: 1.4,
           fontWeight: FontWeight.w400,
@@ -505,9 +621,13 @@ class _NotificationArticleBody extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (var index = 0; index < detail.bodyParagraphs.length; index++) ...[
-          Text(
-            detail.bodyParagraphs[index],
+          _NotificationArticleInteractiveParagraph(
+            key: ValueKey('notification-article-body-paragraph-$index'),
+            paragraph: detail.bodyParagraphs[index],
+            glossaryEntries: detail.glossaryEntries,
             style: textStyle,
+            articleContentStackKey: articleContentStackKey,
+            onGlossaryTap: onGlossaryTap,
           ),
           if (index != detail.bodyParagraphs.length - 1)
             const SizedBox(height: 28),
@@ -526,6 +646,7 @@ class _NotificationArticleDetailData {
     required this.priority,
     required this.analysisRows,
     required this.bodyText,
+    required this.glossaryEntries,
     required this.originalUrl,
     this.imageUrl,
   });
@@ -537,6 +658,7 @@ class _NotificationArticleDetailData {
   final _StockNewsPriority priority;
   final List<_StockNewsSummaryRowData> analysisRows;
   final String bodyText;
+  final List<_NotificationArticleGlossaryEntry> glossaryEntries;
   final String originalUrl;
   final String? imageUrl;
 
@@ -557,6 +679,25 @@ class _NotificationArticleDetailData {
       item,
       intelligenceItem: intelligenceItem,
     );
+    final resolvedBodyText = useFigmaAnalysisMock
+        ? _figmaMockBodyText
+        : intelligenceItem != null
+            ? intelligenceItem.originalContent.isNotEmpty
+                ? intelligenceItem.originalContent
+                : intelligenceItem.translatedContent.isNotEmpty
+                    ? intelligenceItem.translatedContent
+                    : intelligenceItem.summary.isNotEmpty
+                        ? intelligenceItem.summary
+                        : intelligenceItem.displaySummary
+            : item.summary.isNotEmpty
+                ? '${item.title}\n${item.summary}'
+                : item.title;
+    final resolvedGlossaryEntries = useFigmaAnalysisMock
+        ? const [_figmaMockGlossaryEntry]
+        : _glossaryEntriesFromTerms(
+            intelligenceItem?.glossaryTerms ?? item.glossaryTerms,
+            resolvedBodyText,
+          );
 
     if (intelligenceItem != null) {
       return _NotificationArticleDetailData(
@@ -575,13 +716,8 @@ class _NotificationArticleDetailData {
         analysisRows: useFigmaAnalysisMock
             ? _figmaMockAnalysisRows()
             : _analysisRowsFromIntelligence(intelligenceItem),
-        bodyText: intelligenceItem.originalContent.isNotEmpty
-            ? intelligenceItem.originalContent
-            : intelligenceItem.translatedContent.isNotEmpty
-                ? intelligenceItem.translatedContent
-                : intelligenceItem.summary.isNotEmpty
-                    ? intelligenceItem.summary
-                    : intelligenceItem.displaySummary,
+        bodyText: resolvedBodyText,
+        glossaryEntries: resolvedGlossaryEntries,
         originalUrl: intelligenceItem.originalUrl.isNotEmpty
             ? intelligenceItem.originalUrl
             : item.originalUrl,
@@ -614,9 +750,8 @@ class _NotificationArticleDetailData {
                     '${item.targetLabel} notification triggered for ${_notificationCompanyLabel(item)}.',
               ),
             ],
-      bodyText: item.summary.isNotEmpty
-          ? '${item.title}\n${item.summary}'
-          : item.title,
+      bodyText: resolvedBodyText,
+      glossaryEntries: resolvedGlossaryEntries,
       originalUrl: item.originalUrl,
       imageUrl: null,
     );
@@ -672,6 +807,476 @@ class _NotificationArticleDetailData {
   }
 }
 
+class _NotificationArticleGlossaryEntry {
+  const _NotificationArticleGlossaryEntry({
+    required this.highlightedText,
+    required this.eyebrow,
+    required this.title,
+    required this.description,
+  });
+
+  final String highlightedText;
+  final String eyebrow;
+  final String title;
+  final String description;
+}
+
+class _VisibleNotificationArticleGlossaryTooltip {
+  const _VisibleNotificationArticleGlossaryTooltip({
+    required this.glossary,
+    required this.anchorRect,
+  });
+
+  final _NotificationArticleGlossaryEntry glossary;
+  final Rect anchorRect;
+}
+
+class _NotificationArticleInteractiveParagraph extends StatelessWidget {
+  const _NotificationArticleInteractiveParagraph({
+    super.key,
+    required this.paragraph,
+    required this.glossaryEntries,
+    required this.style,
+    required this.articleContentStackKey,
+    required this.onGlossaryTap,
+  });
+
+  final String paragraph;
+  final List<_NotificationArticleGlossaryEntry> glossaryEntries;
+  final TextStyle style;
+  final GlobalKey articleContentStackKey;
+  final void Function(
+          _NotificationArticleGlossaryEntry glossary, Rect anchorRect)
+      onGlossaryTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final paragraphLayout = _buildNotificationArticleParagraphLayout(
+          paragraph,
+          glossaryEntries,
+          style,
+        );
+
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTapUp: paragraphLayout.highlightRanges.isEmpty
+              ? null
+              : (details) {
+                  final highlight = _findTappedHighlightRange(
+                    tapPosition: details.localPosition,
+                    layout: paragraphLayout,
+                    maxWidth: constraints.maxWidth,
+                    textDirection: Directionality.of(context),
+                  );
+                  if (highlight == null) {
+                    return;
+                  }
+                  final paragraphBox = context.findRenderObject() as RenderBox?;
+                  final stackBox = articleContentStackKey.currentContext
+                      ?.findRenderObject() as RenderBox?;
+                  if (paragraphBox == null ||
+                      stackBox == null ||
+                      !paragraphBox.hasSize ||
+                      !stackBox.hasSize) {
+                    return;
+                  }
+                  final anchorRect = Rect.fromPoints(
+                    paragraphBox.localToGlobal(
+                      highlight.rect.topLeft,
+                      ancestor: stackBox,
+                    ),
+                    paragraphBox.localToGlobal(
+                      highlight.rect.bottomRight,
+                      ancestor: stackBox,
+                    ),
+                  );
+                  onGlossaryTap(highlight.entry, anchorRect);
+                },
+          child: RichText(
+            text: paragraphLayout.textSpan,
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
+  const _NotificationArticleGlossaryTooltipOverlay({
+    super.key,
+    required this.glossary,
+    required this.anchorRect,
+    required this.maxWidth,
+  });
+
+  final _NotificationArticleGlossaryEntry glossary;
+  final Rect anchorRect;
+  final double maxWidth;
+
+  static const double _bubbleWidth = 264;
+  static const double _bubbleHeight = 128;
+  static const double _pointerWidth = 34;
+  static const double _pointerHeight = 20;
+  static const double _pointerOverlap = 12;
+  static const double _topGap = 4;
+  static const double _pointerAnchorBias = 13;
+
+  @override
+  Widget build(BuildContext context) {
+    final left = (anchorRect.center.dx - (_bubbleWidth / 2))
+        .clamp(0.0, (maxWidth - _bubbleWidth).clamp(0.0, double.infinity))
+        .toDouble();
+    final top = (anchorRect.top -
+            (_bubbleHeight + _pointerHeight - _pointerOverlap + _topGap))
+        .toDouble();
+    final pointerLeft =
+        (anchorRect.center.dx - left - (_pointerWidth / 2) - _pointerAnchorBias)
+            .clamp(16.0, _bubbleWidth - _pointerWidth - 16)
+            .toDouble();
+
+    return Positioned(
+      left: left,
+      top: top,
+      child: SizedBox(
+        width: _bubbleWidth,
+        height: _bubbleHeight + _pointerHeight - _pointerOverlap,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: _bubbleWidth,
+              height: _bubbleHeight,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+              decoration: BoxDecoration(
+                color: AppColors.slate600,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    glossary.eyebrow,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 12,
+                          height: 1.4,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: -0.24,
+                          color: AppColors.orange500,
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    glossary.title,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 14,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.28,
+                          color: AppColors.white,
+                        ),
+                  ),
+                  if (glossary.description.isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      glossary.description,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 12,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                            letterSpacing: -0.24,
+                            color: AppColors.gray400,
+                          ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            Positioned(
+              left: pointerLeft,
+              top: _bubbleHeight - _pointerOverlap,
+              child: CustomPaint(
+                size: const Size(_pointerWidth, _pointerHeight),
+                painter: _NotificationArticleTooltipPointerPainter(),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationArticleTooltipPointerPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = AppColors.slate600;
+    const radius = 4.0;
+    final halfWidth = size.width / 2;
+    final path = Path()
+      ..moveTo(radius, 0)
+      ..lineTo(size.width - radius, 0)
+      ..quadraticBezierTo(size.width, 0, size.width - 1.5, radius)
+      ..lineTo(halfWidth + radius, size.height - radius)
+      ..quadraticBezierTo(
+        halfWidth,
+        size.height,
+        halfWidth - radius,
+        size.height - radius,
+      )
+      ..lineTo(1.5, radius)
+      ..quadraticBezierTo(0, 0, radius, 0)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+class _NotificationArticleParagraphLayout {
+  const _NotificationArticleParagraphLayout({
+    required this.textSpan,
+    required this.highlightRanges,
+  });
+
+  final TextSpan textSpan;
+  final List<_NotificationArticleHighlightRange> highlightRanges;
+}
+
+class _NotificationArticleHighlightRange {
+  const _NotificationArticleHighlightRange({
+    required this.start,
+    required this.end,
+    required this.entry,
+  });
+
+  final int start;
+  final int end;
+  final _NotificationArticleGlossaryEntry entry;
+}
+
+class _TappedNotificationArticleHighlight {
+  const _TappedNotificationArticleHighlight({
+    required this.entry,
+    required this.rect,
+  });
+
+  final _NotificationArticleGlossaryEntry entry;
+  final Rect rect;
+}
+
+_NotificationArticleParagraphLayout _buildNotificationArticleParagraphLayout(
+  String paragraph,
+  List<_NotificationArticleGlossaryEntry> glossaryEntries,
+  TextStyle style,
+) {
+  final highlightRanges = _findNotificationArticleHighlightRanges(
+    paragraph,
+    glossaryEntries,
+  );
+  final spans = <InlineSpan>[];
+  var cursor = 0;
+  for (final range in highlightRanges) {
+    if (cursor < range.start) {
+      spans.add(
+        TextSpan(
+          text: paragraph.substring(cursor, range.start),
+          style: style,
+        ),
+      );
+    }
+    spans.add(
+      TextSpan(
+        text: paragraph.substring(range.start, range.end),
+        style: style.copyWith(backgroundColor: AppColors.orange300),
+      ),
+    );
+    cursor = range.end;
+  }
+  if (cursor < paragraph.length) {
+    spans.add(TextSpan(text: paragraph.substring(cursor), style: style));
+  }
+
+  return _NotificationArticleParagraphLayout(
+    textSpan: TextSpan(children: spans, style: style),
+    highlightRanges: highlightRanges,
+  );
+}
+
+List<_NotificationArticleHighlightRange>
+    _findNotificationArticleHighlightRanges(
+  String paragraph,
+  List<_NotificationArticleGlossaryEntry> glossaryEntries,
+) {
+  final ranges = <_NotificationArticleHighlightRange>[];
+  var searchStart = 0;
+  while (searchStart < paragraph.length) {
+    _NotificationArticleGlossaryEntry? bestEntry;
+    int? bestStart;
+    int bestLength = -1;
+
+    for (final entry in glossaryEntries) {
+      if (entry.highlightedText.isEmpty) {
+        continue;
+      }
+      final matchStart = paragraph.indexOf(entry.highlightedText, searchStart);
+      if (matchStart == -1) {
+        continue;
+      }
+      final entryLength = entry.highlightedText.length;
+      final isEarlier = bestStart == null || matchStart < bestStart;
+      final isLongerAtSamePosition =
+          matchStart == bestStart && entryLength > bestLength;
+      if (isEarlier || isLongerAtSamePosition) {
+        bestEntry = entry;
+        bestStart = matchStart;
+        bestLength = entryLength;
+      }
+    }
+
+    if (bestEntry == null || bestStart == null) {
+      break;
+    }
+
+    ranges.add(
+      _NotificationArticleHighlightRange(
+        start: bestStart,
+        end: bestStart + bestLength,
+        entry: bestEntry,
+      ),
+    );
+    searchStart = bestStart + bestLength;
+  }
+  return ranges;
+}
+
+_TappedNotificationArticleHighlight? _findTappedHighlightRange({
+  required Offset tapPosition,
+  required _NotificationArticleParagraphLayout layout,
+  required double maxWidth,
+  required TextDirection textDirection,
+}) {
+  final textPainter = TextPainter(
+    text: layout.textSpan,
+    textDirection: textDirection,
+  )..layout(maxWidth: maxWidth);
+
+  for (final range in layout.highlightRanges) {
+    final boxes = textPainter.getBoxesForSelection(
+      TextSelection(baseOffset: range.start, extentOffset: range.end),
+    );
+    if (boxes.isEmpty) {
+      continue;
+    }
+    final rect = _notificationArticleSelectionRect(boxes);
+    final containsTap =
+        boxes.any((box) => box.toRect().inflate(2).contains(tapPosition));
+    if (containsTap) {
+      return _TappedNotificationArticleHighlight(
+        entry: range.entry,
+        rect: rect,
+      );
+    }
+  }
+
+  return null;
+}
+
+Rect _notificationArticleSelectionRect(List<TextBox> boxes) {
+  var left = boxes.first.left;
+  var top = boxes.first.top;
+  var right = boxes.first.right;
+  var bottom = boxes.first.bottom;
+  for (final box in boxes.skip(1)) {
+    left = left < box.left ? left : box.left;
+    top = top < box.top ? top : box.top;
+    right = right > box.right ? right : box.right;
+    bottom = bottom > box.bottom ? bottom : box.bottom;
+  }
+  return Rect.fromLTRB(left, top, right, bottom);
+}
+
+List<_NotificationArticleGlossaryEntry> _glossaryEntriesFromTerms(
+  List<AlertGlossaryTerm> terms,
+  String bodyText,
+) {
+  final entries = <_NotificationArticleGlossaryEntry>[];
+  for (final term in terms) {
+    final highlightedText = _glossaryHighlightText(term, bodyText);
+    if (highlightedText == null) {
+      continue;
+    }
+    entries.add(
+      _NotificationArticleGlossaryEntry(
+        highlightedText: highlightedText,
+        eyebrow: 'Financial Glossary',
+        title: _glossaryTooltipTitle(term, highlightedText),
+        description: term.description.isNotEmpty
+            ? term.description
+            : term.category.isNotEmpty
+                ? 'Category: ${_titleCaseWords(term.category.replaceAll('_', ' ').toLowerCase())}'
+                : '',
+      ),
+    );
+  }
+  return entries;
+}
+
+String? _glossaryHighlightText(
+  AlertGlossaryTerm term,
+  String bodyText,
+) {
+  final candidates = <String>[
+    term.sourceTerm,
+    term.normalizedTerm,
+    _titleCaseWords(term.englishTerm),
+    term.englishTerm,
+  ];
+  for (final candidate in candidates) {
+    if (candidate.isNotEmpty && bodyText.contains(candidate)) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+String _glossaryTooltipTitle(
+  AlertGlossaryTerm term,
+  String highlightedText,
+) {
+  final englishTitle = _titleCaseWords(term.englishTerm);
+  if (term.sourceTerm.isNotEmpty && englishTitle.isNotEmpty) {
+    return '${term.sourceTerm} ($englishTitle)';
+  }
+  if (englishTitle.isNotEmpty) {
+    return englishTitle;
+  }
+  if (term.sourceTerm.isNotEmpty) {
+    return term.sourceTerm;
+  }
+  if (term.normalizedTerm.isNotEmpty) {
+    return term.normalizedTerm;
+  }
+  return highlightedText;
+}
+
+String _titleCaseWords(String value) {
+  if (value.isEmpty) {
+    return value;
+  }
+  return value
+      .split(RegExp(r'\s+'))
+      .where((word) => word.isNotEmpty)
+      .map(
+        (word) => word.length == 1
+            ? word.toUpperCase()
+            : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
+      )
+      .join(' ');
+}
+
 bool _shouldUseFigmaAnalysisMock(
   NotificationItem item, {
   StockIntelligenceItem? intelligenceItem,
@@ -684,22 +1289,42 @@ bool _shouldUseFigmaAnalysisMock(
 
 const _figmaMockDetailTitle =
     'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025';
+const _figmaMockAnalysisText =
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG SAMSUNG ELEC: Dividend Payout';
+const _figmaMockBodyText =
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG  '
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
+    '\n'
+    'SAMSUNG ELEC: Daejangju for FY2025 AMSUNG  SAMSUNG ELEC: '
+    'Dividend Payout Confirmed for FY2025 AMSUNG\n'
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
+    '\n'
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG  '
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
+    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG';
+const _figmaMockGlossaryEntry = _NotificationArticleGlossaryEntry(
+  highlightedText: 'Daejangju',
+  eyebrow: 'Financial Glossary',
+  title: 'Daejangju (Market Leader)',
+  description:
+      'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend.',
+);
 
 List<_StockNewsSummaryRowData> _figmaMockAnalysisRows() {
-  const figmaText =
-      'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG SAMSUNG ELEC: Dividend Payout';
   return const [
     _StockNewsSummaryRowData(
       label: 'What',
-      value: figmaText,
+      value: _figmaMockAnalysisText,
     ),
     _StockNewsSummaryRowData(
       label: 'Why',
-      value: figmaText,
+      value: _figmaMockAnalysisText,
     ),
     _StockNewsSummaryRowData(
       label: 'Impact',
-      value: figmaText,
+      value: _figmaMockAnalysisText,
     ),
   ];
 }

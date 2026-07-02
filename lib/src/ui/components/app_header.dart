@@ -74,7 +74,9 @@ class _HeaderTitle extends StatelessWidget {
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: Theme.of(context).textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.w700,
+            fontSize: 22,
+            height: 31 / 22,
+            fontWeight: FontWeight.w600,
           ),
     );
 
@@ -88,14 +90,14 @@ class _HeaderTitle extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          height: 28,
-          width: 28,
+          height: 36,
+          width: 36,
           child: Image.asset(
             AppAssets.logoSymbol,
             fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         Expanded(
           child: Align(
             alignment: Alignment.centerLeft,
@@ -158,7 +160,7 @@ class _HeaderActionsBody extends StatelessWidget {
           onTap: onAiTap,
           padding: const EdgeInsets.all(2),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 4),
         _HeaderActionButton(
           assetPath: AppAssets.headerSearch,
           semanticLabel: 'Search',
