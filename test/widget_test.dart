@@ -321,7 +321,7 @@ void main() {
         findsOneWidget);
     expect(find.byKey(const ValueKey('stock-search-result-035720')),
         findsOneWidget);
-    expect(find.text('카카오뱅크'), findsOneWidget);
+    expect(find.textContaining('KakaoBank'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
     await tester.pumpAndSettle();
@@ -1250,7 +1250,7 @@ void main() {
     );
   });
 
-  testWidgets('shows samsung dummy results with orange query highlight',
+  testWidgets('shows API search results with orange query highlight',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -1777,9 +1777,35 @@ MarketQuoteController _marketQuoteController() {
           });
         }
         if (request.url.path == '/api/v1/stocks/search') {
-          expect(request.url.queryParameters['query'], '카카오');
+          final query = request.url.queryParameters['query'] ?? '';
+          if (query.toLowerCase().contains('samsung')) {
+            return _jsonEnvelope({
+              'query': query,
+              'marketFilter': 'ALL',
+              'displayCurrency': 'USD',
+              'resultCount': 2,
+              'results': [
+                {
+                  'stockCode': '005930',
+                  'stockName': 'Samsung Electronics',
+                  'market': 'KOSPI',
+                  'sector': 'Semiconductor',
+                  'dataSource': 'Stock-exchange-BE',
+                },
+                {
+                  'stockCode': '07747',
+                  'stockName':
+                      'CSOP Samsung Electronics Daily (2x) Leveraged Product',
+                  'market': 'HKEX',
+                  'sector': 'ETF',
+                  'dataSource': 'Stock-exchange-BE',
+                },
+              ],
+              'servedAt': '2026-06-18T06:00:00Z',
+            });
+          }
           return _jsonEnvelope({
-            'query': '카카오',
+            'query': query,
             'marketFilter': 'ALL',
             'displayCurrency': 'USD',
             'resultCount': 2,

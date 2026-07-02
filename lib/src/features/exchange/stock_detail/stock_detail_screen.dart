@@ -172,7 +172,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             widget.tradeController,
           ]),
           builder: (context, _) {
+            final detailState = widget.marketDetailController.value;
             final snapshot = _buildSnapshot();
+            final isInitialLoading =
+                detailState.status == MarketDetailStatus.loading &&
+                    detailState.detail == null;
 
             return SafeArea(
               bottom: false,
@@ -187,85 +191,92 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                     onFavorite: _toggleFavorite,
                   ),
                   Expanded(
-                    child: NestedScrollView(
-                      controller: _detailScrollController,
-                      headerSliverBuilder: (context, innerBoxIsScrolled) {
-                        return [
-                          if (_activeAlertBannerCount > 0)
-                            SliverToBoxAdapter(
-                              child: Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  16,
-                                  8,
-                                  16,
-                                  12,
-                                ),
-                                child: Column(
-                                  children: [
-                                    if (_showViBanner)
-                                      _ViTriggeredBanner(
-                                        onInfoTap: _showViInfoPanel,
-                                      ),
-                                    if (_showViBanner && _isLowLimitTriggered)
-                                      const SizedBox(height: 12),
-                                    if (_isLowLimitTriggered)
-                                      _LowLimitReachedBanner(
-                                        onInfoTap: _showLowLimitInfoPanel,
-                                      ),
-                                  ],
-                                ),
-                              ),
+                    child: isInitialLoading
+                        ? const Center(
+                            key: ValueKey('stock-detail-initial-loading'),
+                            child: CircularProgressIndicator(
+                              color: AppColors.orange500,
                             ),
-                          SliverToBoxAdapter(
-                            child: _StockOverviewSection(
-                              snapshot: snapshot,
-                              onQuestionTap: _showGlobalPeers,
+                          )
+                        : NestedScrollView(
+                            controller: _detailScrollController,
+                            headerSliverBuilder: (context, innerBoxIsScrolled) {
+                              return [
+                                if (_activeAlertBannerCount > 0)
+                                  SliverToBoxAdapter(
+                                    child: Padding(
+                                      padding: const EdgeInsets.fromLTRB(
+                                        16,
+                                        8,
+                                        16,
+                                        12,
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          if (_showViBanner)
+                                            _ViTriggeredBanner(
+                                              onInfoTap: _showViInfoPanel,
+                                            ),
+                                          if (_showViBanner &&
+                                              _isLowLimitTriggered)
+                                            const SizedBox(height: 12),
+                                          if (_isLowLimitTriggered)
+                                            _LowLimitReachedBanner(
+                                              onInfoTap: _showLowLimitInfoPanel,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                SliverToBoxAdapter(
+                                  child: _StockOverviewSection(
+                                    snapshot: snapshot,
+                                    onQuestionTap: _showGlobalPeers,
+                                  ),
+                                ),
+                                SliverPersistentHeader(
+                                  pinned: true,
+                                  delegate: _StockDetailTabsHeaderDelegate(),
+                                ),
+                              ];
+                            },
+                            body: TabBarView(
+                              children: [
+                                _StockOrderTab(snapshot: snapshot),
+                                _StockChartTab(
+                                  chart: detailState.chart,
+                                  status: detailState.status,
+                                  errorMessage: detailState.errorMessage,
+                                  selectedPeriod: _chartPeriod,
+                                  onPeriodChanged: _handleChartPeriodChanged,
+                                ),
+                                _StockFundamentalsTab(
+                                  snapshot: snapshot,
+                                  detail: _currentDetail,
+                                ),
+                                _StockNewsTab(
+                                  notificationController:
+                                      widget.notificationController,
+                                  stockCode: widget.stockCode,
+                                  stockName: snapshot.stockName,
+                                  sourceType: 'NEWS',
+                                  emptyTitle: 'No K-News',
+                                  emptyBody:
+                                      'There are no related stock news items yet.',
+                                ),
+                                _StockNewsTab(
+                                  notificationController:
+                                      widget.notificationController,
+                                  stockCode: widget.stockCode,
+                                  stockName: snapshot.stockName,
+                                  sourceType: 'DISCLOSURE',
+                                  emptyTitle: 'No disclosures',
+                                  emptyBody:
+                                      'There are no related disclosure items yet.',
+                                ),
+                              ],
                             ),
                           ),
-                          SliverPersistentHeader(
-                            pinned: true,
-                            delegate: _StockDetailTabsHeaderDelegate(),
-                          ),
-                        ];
-                      },
-                      body: TabBarView(
-                        children: [
-                          _StockOrderTab(snapshot: snapshot),
-                          _StockChartTab(
-                            chart: widget.marketDetailController.value.chart,
-                            status: widget.marketDetailController.value.status,
-                            errorMessage: widget
-                                .marketDetailController.value.errorMessage,
-                            selectedPeriod: _chartPeriod,
-                            onPeriodChanged: _handleChartPeriodChanged,
-                          ),
-                          _StockFundamentalsTab(
-                            snapshot: snapshot,
-                            detail: _currentDetail,
-                          ),
-                          _StockNewsTab(
-                            notificationController:
-                                widget.notificationController,
-                            stockCode: widget.stockCode,
-                            stockName: snapshot.stockName,
-                            sourceType: 'NEWS',
-                            emptyTitle: 'No K-News',
-                            emptyBody:
-                                'There are no related stock news items yet.',
-                          ),
-                          _StockNewsTab(
-                            notificationController:
-                                widget.notificationController,
-                            stockCode: widget.stockCode,
-                            stockName: snapshot.stockName,
-                            sourceType: 'DISCLOSURE',
-                            emptyTitle: 'No disclosures',
-                            emptyBody:
-                                'There are no related disclosure items yet.',
-                          ),
-                        ],
-                      ),
-                    ),
                   ),
                 ],
               ),

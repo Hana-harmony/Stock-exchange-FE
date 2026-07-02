@@ -180,10 +180,27 @@ class _StockChartTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final points = chart?.points ?? const <MarketChartPoint>[];
-    if (status == MarketDetailStatus.loading && points.isEmpty) {
-      return const Center(
-        key: ValueKey('stock-chart-loading'),
-        child: CircularProgressIndicator(color: AppColors.orange500),
+    if (status == MarketDetailStatus.loading) {
+      return ListView(
+        key: const PageStorageKey<String>('stock-chart-tab-loading'),
+        padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
+        children: [
+          _StockChartPeriodSelector(
+            selectedPeriod: selectedPeriod,
+            onPeriodChanged: onPeriodChanged,
+            isDisabled: true,
+          ),
+          const SizedBox(height: 18),
+          const _MutedInfoCard(
+            title: 'Loading chart',
+            body: 'Price candles and volume are loading from the exchange.',
+          ),
+          const SizedBox(height: 18),
+          const Center(
+            key: ValueKey('stock-chart-loading'),
+            child: CircularProgressIndicator(color: AppColors.orange500),
+          ),
+        ],
       );
     }
 
@@ -207,6 +224,7 @@ class _StockChartTab extends StatelessWidget {
         _StockChartPeriodSelector(
           selectedPeriod: selectedPeriod,
           onPeriodChanged: onPeriodChanged,
+          isDisabled: false,
         ),
         const SizedBox(height: 14),
         _StockChartCard(
@@ -235,6 +253,8 @@ class _StockChartCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final latest = points.last;
+    final firstLabel = _formatChartAxisTime(points.first.tradeDate);
+    final lastLabel = _formatChartAxisTime(points.last.tradeDate);
     return DecoratedBox(
       key: const ValueKey('stock-chart-content'),
       decoration: BoxDecoration(
@@ -284,14 +304,19 @@ class _StockChartCard extends StatelessWidget {
             Row(
               children: [
                 Expanded(
-                  child: Text(
-                    points.first.tradeDate,
-                    style: _chartAxisStyle(context),
+                  child: _ChartAxisLabel(
+                    label: firstLabel,
+                    alignment: Alignment.centerLeft,
+                    textAlign: TextAlign.left,
                   ),
                 ),
-                Text(
-                  points.last.tradeDate,
-                  style: _chartAxisStyle(context),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _ChartAxisLabel(
+                    label: lastLabel,
+                    alignment: Alignment.centerRight,
+                    textAlign: TextAlign.right,
+                  ),
                 ),
               ],
             ),
@@ -302,14 +327,45 @@ class _StockChartCard extends StatelessWidget {
   }
 }
 
+class _ChartAxisLabel extends StatelessWidget {
+  const _ChartAxisLabel({
+    required this.label,
+    required this.alignment,
+    required this.textAlign,
+  });
+
+  final String label;
+  final Alignment alignment;
+  final TextAlign textAlign;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: alignment,
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: alignment,
+        child: Text(
+          label,
+          maxLines: 2,
+          textAlign: textAlign,
+          style: _chartAxisStyle(context),
+        ),
+      ),
+    );
+  }
+}
+
 class _StockChartPeriodSelector extends StatelessWidget {
   const _StockChartPeriodSelector({
     required this.selectedPeriod,
     required this.onPeriodChanged,
+    required this.isDisabled,
   });
 
   final _StockChartPeriod selectedPeriod;
   final ValueChanged<_StockChartPeriod> onPeriodChanged;
+  final bool isDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -327,6 +383,7 @@ class _StockChartPeriodSelector extends StatelessWidget {
                 child: _StockChartPeriodButton(
                   period: period,
                   isSelected: period == selectedPeriod,
+                  isDisabled: isDisabled,
                   onTap: () => onPeriodChanged(period),
                 ),
               ),
@@ -341,18 +398,20 @@ class _StockChartPeriodButton extends StatelessWidget {
   const _StockChartPeriodButton({
     required this.period,
     required this.isSelected,
+    required this.isDisabled,
     required this.onTap,
   });
 
   final _StockChartPeriod period;
   final bool isSelected;
+  final bool isDisabled;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       key: ValueKey('stock-chart-period-${period.label}'),
-      onTap: onTap,
+      onTap: isDisabled ? null : onTap,
       borderRadius: BorderRadius.circular(7),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
@@ -376,7 +435,11 @@ class _StockChartPeriodButton extends StatelessWidget {
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
-                color: isSelected ? AppColors.gray1000 : AppColors.gray600,
+                color: isDisabled
+                    ? AppColors.gray500
+                    : isSelected
+                        ? AppColors.gray1000
+                        : AppColors.gray600,
               ),
         ),
       ),
@@ -652,4 +715,12 @@ TextStyle? _chartAxisStyle(BuildContext context) {
         fontWeight: FontWeight.w500,
         color: AppColors.gray600,
       );
+}
+
+String _formatChartAxisTime(String value) {
+  final parsed = DateTime.tryParse(value);
+  if (parsed == null) {
+    return value.replaceAll('T', ' ');
+  }
+  return formatEtWithKst(parsed);
 }
