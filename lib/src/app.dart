@@ -119,12 +119,7 @@ class ExchangeShell extends StatefulWidget {
 }
 
 class _ExchangeShellState extends State<ExchangeShell> {
-  static const _initialRecentSearches = <String>[
-    '삼성전자',
-    '반도체',
-    '카카오',
-    'NAVER',
-  ];
+  static const _initialRecentSearches = <String>[];
 
   int _selectedIndex = 1;
   http.Client? _ownedHttpClient;
@@ -500,6 +495,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           tradeController: _tradeController,
           marketDetailController: _marketDetailController,
           marketQuoteController: _marketQuoteController,
+          marketNewsController: _marketNewsController,
           notificationController: _notificationController,
           recentSearches: _recentSearches,
           favoriteStockCodes: _favoriteStockCodes,

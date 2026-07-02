@@ -305,19 +305,22 @@ class _StockOverviewSection extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Flexible(
-                                child: Text(
-                                  snapshot.currentPrice,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineLarge
-                                      ?.copyWith(
-                                        fontSize: 44,
-                                        height: 1,
-                                        fontWeight: FontWeight.w500,
-                                        color: priceColor,
-                                      ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: Text(
+                                    snapshot.currentPrice,
+                                    maxLines: 1,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .headlineLarge
+                                        ?.copyWith(
+                                          fontSize: 44,
+                                          height: 1,
+                                          fontWeight: FontWeight.w500,
+                                          color: priceColor,
+                                        ),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 2),
@@ -338,7 +341,7 @@ class _StockOverviewSection extends StatelessWidget {
                         Text(
                           snapshot.currentPriceKrwDisplay,
                           maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
+                          overflow: TextOverflow.visible,
                           style:
                               Theme.of(context).textTheme.bodyMedium?.copyWith(
                                     fontSize: 12,
@@ -415,15 +418,18 @@ class _StockStatRow extends StatelessWidget {
           ),
           const Spacer(),
           Expanded(
-            child: Text(
-              value,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    fontSize: 12,
-                    color: AppColors.gray1000,
-                  ),
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                value,
+                maxLines: 1,
+                textAlign: TextAlign.right,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      fontSize: 12,
+                      color: AppColors.gray1000,
+                    ),
+              ),
             ),
           ),
         ],

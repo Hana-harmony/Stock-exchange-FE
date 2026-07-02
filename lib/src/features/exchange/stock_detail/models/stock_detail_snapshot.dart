@@ -93,24 +93,28 @@ class _StockDetailSnapshot {
       market: market,
       sector: fallbackSector,
     );
-    final chartPoint = chart?.latestPoint;
+    final chartMetrics = _StockChartMetrics.fromChart(chart);
     final currentPrice = detail?.localCurrencyDisplay ?? fallback.currentPrice;
     final currentPriceKrwDisplay =
         detail?.krwDisplay ?? fallback.currentPriceKrwDisplay;
     final currentPriceKrwRaw =
         detail?.currentPriceKrw ?? fallback.currentPriceKrwRaw;
     final previousCloseKrwRaw =
-        chartPoint?.closePriceKrw ?? fallback.previousCloseKrwRaw;
+        chartMetrics?.baselineKrwRaw ?? fallback.previousCloseKrwRaw;
     final previousClose =
-        chartPoint?.openLocalCurrencyPrice ?? fallback.previousClose;
-    final changeRate = detail?.changeRate ?? fallback.changeRate;
-    final changeAmount = detail != null && chartPoint != null
+        chartMetrics?.baselineLocalDisplay ?? fallback.previousClose;
+    final previousCloseRaw =
+        chartMetrics?.baselineLocalRaw ?? fallback.previousClose;
+    final changeAmount = detail != null && chartMetrics != null
         ? _formatSignedCurrencyDifference(
             detail.displayCurrency,
             detail.localCurrencyPrice,
-            previousClose,
+            previousCloseRaw,
           )
         : fallback.changeAmount;
+    final changeRate = detail != null && chartMetrics != null
+        ? chartMetrics.returnRate(detail.localCurrencyPrice)
+        : _formatPercentDisplay(detail?.changeRate ?? fallback.changeRate);
     final maxLimitRate = _parsePercent(
       '${detail?.predictedForeignLimitExhaustionRateMax ?? fallback.estimatedMax}%',
     );
@@ -145,30 +149,15 @@ class _StockDetailSnapshot {
       currentPriceKrwDisplay: currentPriceKrwDisplay,
       currentPriceKrwRaw: currentPriceKrwRaw,
       previousCloseKrwRaw: previousCloseKrwRaw,
-      changeAmount: changeAmount == '+0' ? fallback.changeAmount : changeAmount,
+      changeAmount: changeAmount == '+0' ? '+USD 0.00' : changeAmount,
       changeRate: changeRate,
       isPositive: !changeRate.trim().startsWith('-'),
-      highPrice: chartPoint == null
-          ? fallback.highPrice
-          : formatCurrencyDisplay(
-              chartPoint.localCurrency,
-              chartPoint.highLocalCurrencyPrice,
-            ),
-      lowPrice: chartPoint == null
-          ? fallback.lowPrice
-          : formatCurrencyDisplay(
-              chartPoint.localCurrency,
-              chartPoint.lowLocalCurrencyPrice,
-            ),
-      volume: chartPoint != null
-          ? _formatCompactNumber(chartPoint.volume)
-          : fallback.volume,
-      previousClose: chartPoint == null
-          ? fallback.previousClose
-          : formatCurrencyDisplay(
-              chartPoint.localCurrency,
-              chartPoint.closeLocalCurrencyPrice,
-            ),
+      highPrice: chartMetrics?.highLocalDisplay ?? fallback.highPrice,
+      lowPrice: chartMetrics?.lowLocalDisplay ?? fallback.lowPrice,
+      volume: chartMetrics == null
+          ? fallback.volume
+          : _formatCompactNumber(chartMetrics.totalVolume),
+      previousClose: previousClose,
       countryBadgeAsset: _isHongKongMarket(market)
           ? AppAssets.countryBadgeHk
           : AppAssets.countryBadgeKr,
@@ -226,6 +215,70 @@ class _StockDetailSnapshot {
       costDisplay: holding == null
           ? fallback.costDisplay
           : _formatHoldingCostDisplay(holding),
+    );
+  }
+}
+
+class _StockChartMetrics {
+  const _StockChartMetrics({
+    required this.currency,
+    required this.highLocalValue,
+    required this.lowLocalValue,
+    required this.baselineLocalRaw,
+    required this.baselineKrwRaw,
+    required this.totalVolume,
+  });
+
+  final String currency;
+  final double highLocalValue;
+  final double lowLocalValue;
+  final String baselineLocalRaw;
+  final String baselineKrwRaw;
+  final int totalVolume;
+
+  String get highLocalDisplay =>
+      formatCurrencyDisplay(currency, highLocalValue.toStringAsFixed(2));
+
+  String get lowLocalDisplay =>
+      formatCurrencyDisplay(currency, lowLocalValue.toStringAsFixed(2));
+
+  String get baselineLocalDisplay =>
+      formatCurrencyDisplay(currency, baselineLocalRaw);
+
+  String returnRate(String currentRaw) {
+    final baseline = _parseAmount(baselineLocalRaw);
+    final current = _parseAmount(currentRaw);
+    if (baseline == null || baseline == 0 || current == null) {
+      return '0.00%';
+    }
+    final rate = ((current - baseline) / baseline) * 100;
+    final sign = rate > 0 ? '+' : '';
+    return '$sign${rate.toStringAsFixed(2)}%';
+  }
+
+  static _StockChartMetrics? fromChart(MarketChart? chart) {
+    final points = chart?.points ?? const <MarketChartPoint>[];
+    if (points.isEmpty) {
+      return null;
+    }
+    final localHighs = points
+        .map((point) => _parseAmount(point.highLocalCurrencyPrice))
+        .whereType<double>()
+        .toList(growable: false);
+    final localLows = points
+        .map((point) => _parseAmount(point.lowLocalCurrencyPrice))
+        .whereType<double>()
+        .toList(growable: false);
+    if (localHighs.isEmpty || localLows.isEmpty) {
+      return null;
+    }
+    return _StockChartMetrics(
+      currency: points.last.localCurrency,
+      highLocalValue: localHighs.reduce(math.max),
+      lowLocalValue: localLows.reduce(math.min),
+      baselineLocalRaw: points.first.openLocalCurrencyPrice,
+      baselineKrwRaw: points.first.openPriceKrw,
+      totalVolume: points.fold<int>(0, (sum, point) => sum + point.volume),
     );
   }
 }

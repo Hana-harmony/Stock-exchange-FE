@@ -237,7 +237,7 @@ class MarketQuote {
       'KRW ${afterHoursPriceKrw ?? currentPriceKrw}';
 
   String get fxTimeDisplay =>
-      fxRateTime?.toUtc().toIso8601String() ?? 'unknown time';
+      fxRateTime == null ? 'unknown time' : _displayTime(fxRateTime!);
 
   String get liveUpdateKey =>
       publishedAt?.toUtc().toIso8601String() ??
@@ -347,6 +347,30 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     return StockSearchResponse.fromJson(response.data ?? {});
   }
 
+  Future<StockSearchRankingResponse> loadSearchRankings({
+    int windowHours = 24,
+    int limit = 10,
+  }) async {
+    final response = await _apiClient.getStockSearchRankings(
+      windowHours: windowHours,
+      limit: limit,
+    );
+    return StockSearchRankingResponse.fromJson(response.data ?? {});
+  }
+
+  Future<void> recordSearchSelection(StockSearchItem item) async {
+    try {
+      await _apiClient.recordStockSearchEvent(
+        stockCode: item.stockCode,
+        stockName: item.stockName,
+        market: item.market,
+        sector: item.sector,
+      );
+    } on Object {
+      // 검색 통계 적재 실패는 종목 상세 진입을 막지 않는다.
+    }
+  }
+
   Future<void> loadSnapshot({
     String? market,
     String currency = 'USD',
@@ -420,7 +444,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     );
 
     try {
-      final response = await loader();
+      final response = await _loadWithTimeoutRetry(loader);
       final snapshot = MarketQuoteSnapshot.fromJson(response.data ?? {});
       value = MarketQuoteState.loaded(
         snapshot,
@@ -449,6 +473,21 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         lastTickAt: value.lastTickAt,
         liveStale: value.liveStale,
       );
+    }
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> _loadWithTimeoutRetry(
+    Future<ApiEnvelope<Map<String, dynamic>>> Function() loader,
+  ) async {
+    try {
+      return await loader();
+    } on ExchangeApiException catch (error) {
+      if (error.code != 'EXCHANGE_API_TIMEOUT') {
+        rethrow;
+      }
+      // 첫 캐시 생성 중 지연되는 quote API는 한 번 더 확인한다.
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      return loader();
     }
   }
 
@@ -645,6 +684,76 @@ class StockSearchItem {
   }
 }
 
+class StockSearchRankingResponse {
+  const StockSearchRankingResponse({
+    required this.windowHours,
+    required this.resultCount,
+    required this.results,
+    required this.servedAt,
+  });
+
+  final int windowHours;
+  final int resultCount;
+  final List<StockSearchRankingItem> results;
+  final DateTime? servedAt;
+
+  static StockSearchRankingResponse fromJson(Map<String, dynamic> json) {
+    final values = json['results'];
+    return StockSearchRankingResponse(
+      windowHours: json['windowHours'] is int ? json['windowHours'] as int : 24,
+      resultCount: json['resultCount'] is int ? json['resultCount'] as int : 0,
+      results: values is List
+          ? values
+              .map((value) => StockSearchRankingItem.fromJson(_map(value)))
+              .toList(growable: false)
+          : const [],
+      servedAt: _dateTime(json['servedAt']),
+    );
+  }
+}
+
+class StockSearchRankingItem {
+  const StockSearchRankingItem({
+    required this.rank,
+    required this.stockCode,
+    required this.stockName,
+    required this.market,
+    required this.sector,
+    required this.searchCount,
+    required this.lastSearchedAt,
+  });
+
+  final int rank;
+  final String stockCode;
+  final String stockName;
+  final String market;
+  final String sector;
+  final int searchCount;
+  final DateTime? lastSearchedAt;
+
+  StockSearchItem toSearchItem() {
+    return StockSearchItem(
+      stockCode: stockCode,
+      stockName: stockName,
+      market: market,
+      sector: sector,
+      dataSource: 'Search analytics',
+    );
+  }
+
+  static StockSearchRankingItem fromJson(Map<String, dynamic> json) {
+    return StockSearchRankingItem(
+      rank: json['rank'] is int ? json['rank'] as int : 0,
+      stockCode: _string(json['stockCode'], fallback: ''),
+      stockName: _string(json['stockName'], fallback: 'Unknown stock'),
+      market: _string(json['market'], fallback: ''),
+      sector: _string(json['sector'], fallback: ''),
+      searchCount: json['searchCount'] is int ? json['searchCount'] as int : 0,
+      lastSearchedAt: _dateTime(json['lastSearchedAt']),
+    );
+  }
+}
+
 const List<MarketQuote> seedMarketQuotes = [
   MarketQuote(
     stockCode: '005930',
@@ -717,4 +826,12 @@ double? _positiveDouble(String value) {
     return null;
   }
   return parsed;
+}
+
+String _displayTime(DateTime value) {
+  final utc = value.toUtc();
+  final kst = utc.add(const Duration(hours: 9));
+  String two(int number) => number.toString().padLeft(2, '0');
+  return '${kst.year}-${two(kst.month)}-${two(kst.day)} '
+      '${two(kst.hour)}:${two(kst.minute)} KST';
 }
