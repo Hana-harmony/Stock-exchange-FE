@@ -94,7 +94,7 @@ void main() {
 
     expect(
       controller.value.orderability?.summary,
-      'Blocked: Foreign ownership limit would be exceeded',
+      'Blocked: This buy order may not be filled if the foreign ownership limit is reached',
     );
   });
 

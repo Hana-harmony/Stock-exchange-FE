@@ -1,9 +1,6 @@
 part of '../exchange_pages.dart';
 
-enum _StockNewsLayout {
-  list,
-  grid,
-}
+enum _StockNewsLayout { list, grid }
 
 class _StockNewsTab extends StatefulWidget {
   const _StockNewsTab({
@@ -102,7 +99,7 @@ class _StockNewsTabState extends State<_StockNewsTab> {
           .toList();
     }
 
-    return _StockNewsItemViewModel.fallbackItems(widget.stockName);
+    return const [];
   }
 }
 
@@ -151,18 +148,9 @@ class _StockNewsContent extends StatelessWidget {
               ),
             )
             .toList()
-        : items
-            .map(
-              (item) => _StockNewsCard(
-                item: item,
-              ),
-            )
-            .toList();
+        : items.map((item) => _StockNewsCard(item: item)).toList();
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: children,
-    );
+    return Column(mainAxisSize: MainAxisSize.min, children: children);
   }
 }
 

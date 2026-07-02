@@ -48,6 +48,12 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
       ..addListener(_handleQuantityChanged);
     _priceController = TextEditingController(text: '$_price')
       ..addListener(_handlePriceChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.tradeController.clearOrderability();
+        unawaited(_checkOrderability(showWarningDialog: false));
+      }
+    });
   }
 
   @override
@@ -108,15 +114,24 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
                     ),
                   ),
                   Expanded(
-                    child: _StockOrderFormPanel(
-                      quantityController: _quantityController,
-                      priceController: _priceController,
-                      orderAmount: _quantity * _price,
-                      onDecreaseQuantity: _decreaseQuantity,
-                      onIncreaseQuantity: _increaseQuantity,
-                      onDecreasePrice: _decreasePrice,
-                      onIncreasePrice: _increasePrice,
-                      onSubmit: _showAccountPinBottomSheet,
+                    child: AnimatedBuilder(
+                      animation: widget.tradeController,
+                      builder: (context, _) {
+                        final tradeState = widget.tradeController.value;
+                        return _StockOrderFormPanel(
+                          quantityController: _quantityController,
+                          priceController: _priceController,
+                          orderAmount: _quantity * _price,
+                          orderability: tradeState.orderability,
+                          isCheckingOrderability:
+                              tradeState.status == TradeStatus.loading,
+                          onDecreaseQuantity: _decreaseQuantity,
+                          onIncreaseQuantity: _increaseQuantity,
+                          onDecreasePrice: _decreasePrice,
+                          onIncreasePrice: _increasePrice,
+                          onSubmit: _showAccountPinBottomSheet,
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -196,9 +211,11 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
   }
 
   void _decreasePrice() {
-    final step = _krxTickSize(_price > 0
-        ? _price
-        : _parseEditableInt(widget.snapshot.currentPrice) ?? 0);
+    final step = _krxTickSize(
+      _price > 0
+          ? _price
+          : _parseEditableInt(widget.snapshot.currentPrice) ?? 0,
+    );
     final next = _price <= step ? 0 : _price - step;
     _setPrice(next);
   }
@@ -231,6 +248,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     setState(() {
       _quantity = sanitized;
     });
+    unawaited(_checkOrderability(showWarningDialog: false));
   }
 
   void _setPrice(int value) {
@@ -249,6 +267,11 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
   }
 
   Future<void> _showAccountPinBottomSheet() async {
+    final canContinue = await _checkOrderability();
+    if (!canContinue || !mounted) {
+      return;
+    }
+
     final isPinConfirmed = await showGeneralDialog<bool>(
       context: context,
       barrierDismissible: false,
@@ -259,10 +282,8 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
         return const _AccountPinBottomSheetDialog();
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final slideAnimation = Tween<Offset>(
-          begin: const Offset(0, 1),
-          end: Offset.zero,
-        ).animate(
+        final slideAnimation =
+            Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
           CurvedAnimation(
             parent: animation,
             curve: Curves.easeOutCubic,
@@ -270,10 +291,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
           ),
         );
 
-        return SlideTransition(
-          position: slideAnimation,
-          child: child,
-        );
+        return SlideTransition(position: slideAnimation, child: child);
       },
     );
 
@@ -294,7 +312,81 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
       return;
     }
 
+    await _executeTrade();
+    if (!mounted) {
+      return;
+    }
+    if (widget.tradeController.value.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(widget.tradeController.value.errorMessage!)),
+      );
+      return;
+    }
+
     await _showOrderCompletedDialog();
+  }
+
+  Future<bool> _checkOrderability({bool showWarningDialog = true}) async {
+    await widget.tradeController.checkOrderability(
+      accountId: widget.sessionController.session?.accountId,
+      stockCode: widget.stockCode,
+      side: 'BUY',
+      quantity: _quantity,
+    );
+    if (!mounted) {
+      return false;
+    }
+    final orderability = widget.tradeController.value.orderability;
+    if (orderability == null) {
+      return widget.tradeController.value.errorMessage == null;
+    }
+    if (!orderability.canPlaceMockOrder) {
+      if (showWarningDialog) {
+        await _showOrderabilityDialog(orderability);
+      }
+      return false;
+    }
+    if (showWarningDialog && orderability.warnings.isNotEmpty) {
+      return await _showOrderabilityDialog(orderability) ?? false;
+    }
+    return true;
+  }
+
+  Future<void> _executeTrade() {
+    return widget.tradeController.executeTrade(
+      accountId: widget.sessionController.session?.accountId,
+      stockCode: widget.stockCode,
+      side: 'BUY',
+      quantity: _quantity,
+      limitPriceUsd: _estimateLimitPriceUsd(),
+    );
+  }
+
+  num _estimateLimitPriceUsd() {
+    final detail = widget.marketDetailController.value.detail;
+    final krw = _parseAmount(detail?.currentPriceKrw ?? '');
+    final usd = _parseAmount(detail?.localCurrencyPrice ?? '');
+    if (krw != null && krw > 0 && usd != null && usd > 0) {
+      return _price * usd / krw;
+    }
+    return _price;
+  }
+
+  Future<bool?> _showOrderabilityDialog(TradeOrderability orderability) {
+    final isBlocked = !orderability.canPlaceMockOrder;
+    return showGeneralDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: isBlocked ? 'Order blocked' : 'Order warning',
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return _OrderabilityDialog(orderability: orderability);
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
   }
 
   Future<bool?> _showOrderConfirmationDialog({
@@ -310,10 +402,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
         return _OrderConfirmationDialog(confirmation: confirmation);
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
+        return FadeTransition(opacity: animation, child: child);
       },
     );
   }
@@ -334,19 +423,14 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
         );
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
+        return FadeTransition(opacity: animation, child: child);
       },
     );
   }
 }
 
 class _StockOrderTopSection extends StatelessWidget {
-  const _StockOrderTopSection({
-    required this.snapshot,
-  });
+  const _StockOrderTopSection({required this.snapshot});
 
   final _StockDetailSnapshot snapshot;
 
@@ -448,7 +532,9 @@ class _StockOrderTopSection extends StatelessWidget {
                       child: Column(
                         children: [
                           _StockStatRow(
-                              label: 'High', value: snapshot.highPrice),
+                            label: 'High',
+                            value: snapshot.highPrice,
+                          ),
                           _StockStatRow(label: 'Low', value: snapshot.lowPrice),
                           _StockStatRow(label: 'Vol', value: snapshot.volume),
                           _StockStatRow(
@@ -518,31 +604,15 @@ class _StockOrderEntryTabs extends StatelessWidget {
           padding: const EdgeInsets.only(left: 12, top: 10),
           child: Row(
             children: const [
-              _StockOrderTopTab(
-                label: 'Buy',
-                width: 32,
-                isSelected: true,
-              ),
+              _StockOrderTopTab(label: 'Buy', width: 32, isSelected: true),
               SizedBox(width: 18),
-              _StockOrderTopTab(
-                label: 'Sell',
-                width: 30,
-              ),
+              _StockOrderTopTab(label: 'Sell', width: 30),
               SizedBox(width: 18),
-              _StockOrderTopTab(
-                label: 'Modify/Cancel',
-                width: 119,
-              ),
+              _StockOrderTopTab(label: 'Modify/Cancel', width: 119),
               SizedBox(width: 18),
-              _StockOrderTopTab(
-                label: 'Filled/Pending',
-                width: 117,
-              ),
+              _StockOrderTopTab(label: 'Filled/Pending', width: 117),
               SizedBox(width: 18),
-              _StockOrderTopTab(
-                label: 'Scheduled Orders',
-                width: 148,
-              ),
+              _StockOrderTopTab(label: 'Scheduled Orders', width: 148),
             ],
           ),
         ),
@@ -679,9 +749,7 @@ class _StockOrderQuoteList extends StatelessWidget {
     return DecoratedBox(
       key: const ValueKey('stock-order-quote-list-shell'),
       decoration: const BoxDecoration(
-        border: Border(
-          right: BorderSide(color: AppColors.gray100),
-        ),
+        border: Border(right: BorderSide(color: AppColors.gray100)),
       ),
       child: ListView.builder(
         key: const PageStorageKey<String>('stock-order-quote-list'),
@@ -735,10 +803,7 @@ class _StockOrderQuoteList extends StatelessWidget {
 }
 
 class _StockOrderQuoteRow extends StatelessWidget {
-  const _StockOrderQuoteRow({
-    required this.data,
-    required this.onTap,
-  });
+  const _StockOrderQuoteRow({required this.data, required this.onTap});
 
   final _OrderQuoteData data;
   final VoidCallback onTap;
@@ -825,6 +890,8 @@ class _StockOrderFormPanel extends StatelessWidget {
     required this.quantityController,
     required this.priceController,
     required this.orderAmount,
+    required this.orderability,
+    required this.isCheckingOrderability,
     required this.onDecreaseQuantity,
     required this.onIncreaseQuantity,
     required this.onDecreasePrice,
@@ -835,6 +902,8 @@ class _StockOrderFormPanel extends StatelessWidget {
   final TextEditingController quantityController;
   final TextEditingController priceController;
   final int orderAmount;
+  final TradeOrderability? orderability;
+  final bool isCheckingOrderability;
   final VoidCallback onDecreaseQuantity;
   final VoidCallback onIncreaseQuantity;
   final VoidCallback onDecreasePrice;
@@ -870,11 +939,23 @@ class _StockOrderFormPanel extends StatelessWidget {
             onDecrease: onDecreasePrice,
             onIncrease: onIncreasePrice,
           ),
+          if (isCheckingOrderability) ...[
+            const SizedBox(height: 12),
+            const _OrderabilityInlineCard(
+              message: 'Checking order conditions...',
+              isBlocked: false,
+            ),
+          ] else if (orderability != null &&
+              (!orderability!.canPlaceMockOrder ||
+                  orderability!.warnings.isNotEmpty)) ...[
+            const SizedBox(height: 12),
+            _OrderabilityInlineCard(
+              message: orderability!.summary,
+              isBlocked: !orderability!.canPlaceMockOrder,
+            ),
+          ],
           const Spacer(),
-          _OrderSubmitSection(
-            orderAmount: orderAmount,
-            onSubmit: onSubmit,
-          ),
+          _OrderSubmitSection(orderAmount: orderAmount, onSubmit: onSubmit),
         ],
       ),
     );
@@ -931,10 +1012,7 @@ class _OrderSettlementTabs extends StatelessWidget {
             const SizedBox(width: 2),
             Expanded(
               child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 child: Text(
                   'Margin',
                   textAlign: TextAlign.center,
@@ -956,9 +1034,7 @@ class _OrderSettlementTabs extends StatelessWidget {
 }
 
 class _OrderSelectField extends StatelessWidget {
-  const _OrderSelectField({
-    required this.label,
-  });
+  const _OrderSelectField({required this.label});
 
   final String label;
 
@@ -1007,24 +1083,16 @@ class _OrderCheckboxRow extends StatelessWidget {
     return Row(
       key: const ValueKey('stock-order-checkbox-row'),
       children: const [
-        SizedBox(
-          width: 58,
-          child: _OrderCheckboxLabel(label: 'Market'),
-        ),
+        SizedBox(width: 58, child: _OrderCheckboxLabel(label: 'Market')),
         SizedBox(width: 16),
-        SizedBox(
-          width: 69,
-          child: _OrderCheckboxLabel(label: 'Mid Price'),
-        ),
+        SizedBox(width: 69, child: _OrderCheckboxLabel(label: 'Mid Price')),
       ],
     );
   }
 }
 
 class _OrderCheckboxLabel extends StatelessWidget {
-  const _OrderCheckboxLabel({
-    required this.label,
-  });
+  const _OrderCheckboxLabel({required this.label});
 
   final String label;
 
@@ -1071,9 +1139,7 @@ class _OrderCheckbox extends StatelessWidget {
           child: SizedBox(
             width: 12.5,
             height: 8.38,
-            child: CustomPaint(
-              painter: _OrderCheckPainter(),
-            ),
+            child: CustomPaint(painter: _OrderCheckPainter()),
           ),
         ),
       ),
@@ -1131,9 +1197,7 @@ class _OrderStepperField extends StatelessWidget {
                       controller: controller,
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.done,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
-                      ],
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                       cursorColor: AppColors.gray1000,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: 14,
@@ -1203,6 +1267,52 @@ class _OrderStepControls extends StatelessWidget {
           child: const _OrderPlusIcon(),
         ),
       ],
+    );
+  }
+}
+
+class _OrderabilityInlineCard extends StatelessWidget {
+  const _OrderabilityInlineCard({
+    required this.message,
+    required this.isBlocked,
+  });
+
+  final String message;
+  final bool isBlocked;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isBlocked ? AppColors.red500 : AppColors.orange500;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: isBlocked ? AppColors.red100 : const Color(0xFFFFF4E8),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(
+              isBlocked ? Icons.block : Icons.info_outline,
+              size: 18,
+              color: color,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                message,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.gray900,
+                    ),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1310,9 +1420,7 @@ class _AccountPinBottomSheetDialogState
           width: double.infinity,
           decoration: const BoxDecoration(
             color: AppColors.white,
-            borderRadius: BorderRadius.vertical(
-              top: Radius.circular(20),
-            ),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             boxShadow: [
               BoxShadow(
                 color: Color.fromRGBO(0, 0, 0, 0.05),
@@ -1349,6 +1457,106 @@ class _AccountPinBottomSheetDialogState
   }
 }
 
+class _OrderabilityDialog extends StatelessWidget {
+  const _OrderabilityDialog({required this.orderability});
+
+  final TradeOrderability orderability;
+
+  @override
+  Widget build(BuildContext context) {
+    final isBlocked = !orderability.canPlaceMockOrder;
+    return Material(
+      type: MaterialType.transparency,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 21),
+          child: Container(
+            width: 360,
+            padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: const [
+                BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.05),
+                  blurRadius: 10,
+                  offset: Offset(0, 4),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      isBlocked ? Icons.block : Icons.info_outline,
+                      color: isBlocked ? AppColors.red500 : AppColors.orange500,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        isBlocked ? 'Order unavailable' : 'Before you buy',
+                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontSize: 18,
+                              height: 1.4,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.gray1000,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  orderability.summary,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: 14,
+                        height: 1.45,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.gray700,
+                      ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _OrderConfirmationActionButton(
+                        buttonKey: const ValueKey('stock-orderability-dismiss'),
+                        label: isBlocked ? 'OK' : 'Cancel',
+                        onPressed: () => Navigator.of(context).pop(false),
+                        textColor: AppColors.gray700,
+                        backgroundColor: AppColors.white,
+                        borderColor: AppColors.gray300,
+                      ),
+                    ),
+                    if (!isBlocked) ...[
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _OrderConfirmationActionButton(
+                          buttonKey: const ValueKey(
+                            'stock-orderability-continue',
+                          ),
+                          label: 'Continue',
+                          onPressed: () => Navigator.of(context).pop(true),
+                          textColor: AppColors.white,
+                          backgroundColor: AppColors.orange500,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _OrderConfirmationDetails {
   const _OrderConfirmationDetails({
     required this.stockName,
@@ -1364,9 +1572,7 @@ class _OrderConfirmationDetails {
 }
 
 class _OrderConfirmationDialog extends StatelessWidget {
-  const _OrderConfirmationDialog({
-    required this.confirmation,
-  });
+  const _OrderConfirmationDialog({required this.confirmation});
 
   static const _dialogWidth = 360.0;
   static const _dialogHeight = 362.0;
@@ -1501,8 +1707,9 @@ class _OrderConfirmationDialog extends StatelessWidget {
                       const SizedBox(width: 10),
                       Expanded(
                         child: _OrderConfirmationActionButton(
-                          buttonKey:
-                              const ValueKey('stock-order-confirm-submit'),
+                          buttonKey: const ValueKey(
+                            'stock-order-confirm-submit',
+                          ),
                           label: 'Confirm',
                           onPressed: () => Navigator.of(context).pop(true),
                           textColor: AppColors.white,
@@ -1522,9 +1729,7 @@ class _OrderConfirmationDialog extends StatelessWidget {
 }
 
 class _OrderCompletedDialog extends StatelessWidget {
-  const _OrderCompletedDialog({
-    required this.onViewAccounts,
-  });
+  const _OrderCompletedDialog({required this.onViewAccounts});
 
   static const _dialogWidth = 360.0;
   static const _dialogHeight = 180.0;
@@ -1601,9 +1806,7 @@ class _OrderCompletedDialog extends StatelessWidget {
                 const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,
-                  child: _OrderCompletedActionButton(
-                    onPressed: onViewAccounts,
-                  ),
+                  child: _OrderCompletedActionButton(onPressed: onViewAccounts),
                 ),
               ],
             ),
@@ -1669,9 +1872,7 @@ class _OrderConfirmationSummaryRow extends StatelessWidget {
 }
 
 class _OrderConfirmationCloseButton extends StatelessWidget {
-  const _OrderConfirmationCloseButton({
-    required this.onPressed,
-  });
+  const _OrderConfirmationCloseButton({required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -1685,11 +1886,7 @@ class _OrderConfirmationCloseButton extends StatelessWidget {
         customBorder: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
         ),
-        child: const SizedBox(
-          width: 24,
-          height: 24,
-          child: _OrderCloseIcon(),
-        ),
+        child: const SizedBox(width: 24, height: 24, child: _OrderCloseIcon()),
       ),
     );
   }
@@ -1752,17 +1949,12 @@ class _OrderConfirmationActionButton extends StatelessWidget {
       return buttonChild;
     }
 
-    return SizedBox(
-      width: width,
-      child: buttonChild,
-    );
+    return SizedBox(width: width, child: buttonChild);
   }
 }
 
 class _OrderCompletedActionButton extends StatelessWidget {
-  const _OrderCompletedActionButton({
-    required this.onPressed,
-  });
+  const _OrderCompletedActionButton({required this.onPressed});
 
   final VoidCallback onPressed;
 
@@ -1818,10 +2010,7 @@ class _OrderCompletedActionButton extends StatelessWidget {
 }
 
 class _OrderSubmitButton extends StatelessWidget {
-  const _OrderSubmitButton({
-    super.key,
-    required this.onTap,
-  });
+  const _OrderSubmitButton({super.key, required this.onTap});
 
   final VoidCallback onTap;
 
@@ -1869,11 +2058,7 @@ class _OrderStepIconButton extends StatelessWidget {
         key: buttonKey,
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: Center(child: child),
-        ),
+        child: SizedBox(width: 24, height: 24, child: Center(child: child)),
       ),
     );
   }
@@ -1887,9 +2072,7 @@ class _OrderCloseIcon extends StatelessWidget {
     return SizedBox(
       width: 24,
       height: 24,
-      child: CustomPaint(
-        painter: _OrderCloseIconPainter(),
-      ),
+      child: CustomPaint(painter: _OrderCloseIconPainter()),
     );
   }
 }
@@ -1922,9 +2105,7 @@ class _OrderCloseIconPainter extends CustomPainter {
 }
 
 class _AccountPinInputSection extends StatelessWidget {
-  const _AccountPinInputSection({
-    required this.pin,
-  });
+  const _AccountPinInputSection({required this.pin});
 
   final String pin;
 
@@ -1980,9 +2161,7 @@ class _AccountPinInputSection extends StatelessWidget {
 }
 
 class _AccountPinKeypad extends StatelessWidget {
-  const _AccountPinKeypad({
-    required this.onDigitPressed,
-  });
+  const _AccountPinKeypad({required this.onDigitPressed});
 
   static const _rows = [
     ['1', null, '2', '3'],
@@ -2023,10 +2202,7 @@ class _AccountPinKeypad extends StatelessWidget {
 }
 
 class _AccountPinKeypadCell extends StatelessWidget {
-  const _AccountPinKeypadCell({
-    required this.digit,
-    required this.onPressed,
-  });
+  const _AccountPinKeypadCell({required this.digit, required this.onPressed});
 
   final String? digit;
   final VoidCallback? onPressed;
@@ -2173,9 +2349,7 @@ class _OrderChevronDownIcon extends StatelessWidget {
         child: SizedBox(
           width: 10,
           height: 6,
-          child: CustomPaint(
-            painter: _OrderChevronPainter(),
-          ),
+          child: CustomPaint(painter: _OrderChevronPainter()),
         ),
       ),
     );
@@ -2190,9 +2364,7 @@ class _OrderMinusIcon extends StatelessWidget {
     return const SizedBox(
       width: 10,
       height: 2,
-      child: CustomPaint(
-        painter: _OrderMinusPainter(),
-      ),
+      child: CustomPaint(painter: _OrderMinusPainter()),
     );
   }
 }
@@ -2205,9 +2377,7 @@ class _OrderPlusIcon extends StatelessWidget {
     return const SizedBox(
       width: 10,
       height: 10,
-      child: CustomPaint(
-        painter: _OrderPlusPainter(),
-      ),
+      child: CustomPaint(painter: _OrderPlusPainter()),
     );
   }
 }

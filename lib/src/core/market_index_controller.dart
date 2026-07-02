@@ -6,24 +6,15 @@ import 'package:flutter/foundation.dart';
 import 'exchange_api_client.dart';
 import 'market_quote_live_client.dart';
 
-enum MarketIndexStatus {
-  idle,
-  loading,
-  loaded,
-  failure,
-}
+enum MarketIndexStatus { idle, loading, loaded, failure }
 
-enum MarketIndexLiveStatus {
-  disconnected,
-  connecting,
-  live,
-  failure,
-}
+enum MarketIndexLiveStatus { disconnected, connecting, live, failure }
 
 class MarketIndexState {
   const MarketIndexState({
     required this.status,
     required this.indices,
+    this.intradaySeriesByCode = const {},
     this.liveStatus = MarketIndexLiveStatus.disconnected,
     this.errorMessage,
     this.liveMessage,
@@ -33,6 +24,7 @@ class MarketIndexState {
   const MarketIndexState.idle()
       : status = MarketIndexStatus.idle,
         indices = const [],
+        intradaySeriesByCode = const {},
         liveStatus = MarketIndexLiveStatus.disconnected,
         errorMessage = null,
         liveMessage = null,
@@ -40,14 +32,20 @@ class MarketIndexState {
 
   final MarketIndexStatus status;
   final List<MarketIndex> indices;
+  final Map<String, List<double>> intradaySeriesByCode;
   final MarketIndexLiveStatus liveStatus;
   final String? errorMessage;
   final String? liveMessage;
   final DateTime? lastTickAt;
 
+  List<double> intradaySeriesFor(String indexCode) {
+    return intradaySeriesByCode[indexCode] ?? const [];
+  }
+
   MarketIndexState copyWith({
     MarketIndexStatus? status,
     List<MarketIndex>? indices,
+    Map<String, List<double>>? intradaySeriesByCode,
     MarketIndexLiveStatus? liveStatus,
     String? errorMessage,
     String? liveMessage,
@@ -57,6 +55,7 @@ class MarketIndexState {
     return MarketIndexState(
       status: status ?? this.status,
       indices: indices ?? this.indices,
+      intradaySeriesByCode: intradaySeriesByCode ?? this.intradaySeriesByCode,
       liveStatus: liveStatus ?? this.liveStatus,
       errorMessage:
           clearErrorMessage ? null : errorMessage ?? this.errorMessage,
@@ -133,6 +132,51 @@ class MarketIndex {
   }
 }
 
+class MarketIndexIntradaySnapshot {
+  const MarketIndexIntradaySnapshot({
+    required this.dataSource,
+    required this.indexCode,
+    required this.pointCount,
+    required this.points,
+  });
+
+  final String dataSource;
+  final String indexCode;
+  final int pointCount;
+  final List<MarketIndexIntradayPoint> points;
+
+  static MarketIndexIntradaySnapshot fromJson(Map<String, dynamic> json) {
+    final values = json['points'];
+    return MarketIndexIntradaySnapshot(
+      dataSource: _string(json['dataSource'], fallback: 'Stock-exchange-BE'),
+      indexCode: _string(json['indexCode'], fallback: ''),
+      pointCount: json['pointCount'] is int ? json['pointCount'] as int : 0,
+      points: values is List
+          ? values
+              .map((value) => MarketIndexIntradayPoint.fromJson(_map(value)))
+              .toList()
+          : const [],
+    );
+  }
+}
+
+class MarketIndexIntradayPoint {
+  const MarketIndexIntradayPoint({
+    required this.bucketStart,
+    required this.closeValue,
+  });
+
+  final DateTime? bucketStart;
+  final double? closeValue;
+
+  static MarketIndexIntradayPoint fromJson(Map<String, dynamic> json) {
+    return MarketIndexIntradayPoint(
+      bucketStart: _dateTime(json['bucketStart']),
+      closeValue: _double(json['closeValue']),
+    );
+  }
+}
+
 class MarketIndexController extends ValueNotifier<MarketIndexState> {
   MarketIndexController({
     required ExchangeApiClient apiClient,
@@ -152,9 +196,14 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
     try {
       final response = await _apiClient.getMarketIndices();
       final snapshot = MarketIndexSnapshot.fromJson(response.data ?? {});
+      final intradaySeriesByCode = await _loadIntradaySeries(snapshot.indices);
       value = value.copyWith(
         status: MarketIndexStatus.loaded,
         indices: snapshot.indices,
+        intradaySeriesByCode: _mergeSnapshotCurrentPoints(
+          snapshot.indices,
+          intradaySeriesByCode,
+        ),
         clearErrorMessage: true,
       );
     } on ExchangeApiException catch (error) {
@@ -199,8 +248,9 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
 
   void _applyLiveIndex(MarketIndex tick) {
     final nextIndices = List<MarketIndex>.of(value.indices);
-    final index =
-        nextIndices.indexWhere((item) => item.indexCode == tick.indexCode);
+    final index = nextIndices.indexWhere(
+      (item) => item.indexCode == tick.indexCode,
+    );
     if (index >= 0) {
       nextIndices[index] = tick;
     } else {
@@ -209,6 +259,10 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
     value = value.copyWith(
       status: MarketIndexStatus.loaded,
       indices: nextIndices,
+      intradaySeriesByCode: _appendIntradayPoint(
+        value.intradaySeriesByCode,
+        tick,
+      ),
       liveStatus: MarketIndexLiveStatus.live,
       liveMessage: 'Live index ${tick.indexName} received.',
       lastTickAt: DateTime.now().toUtc(),
@@ -216,11 +270,88 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
     );
   }
 
+  Future<Map<String, List<double>>> _loadIntradaySeries(
+    List<MarketIndex> indices,
+  ) async {
+    final entries = await Future.wait(
+      indices.map((index) async {
+        try {
+          final response = await _apiClient.getMarketIndexIntraday(
+            indexCode: index.indexCode,
+            limit: 390,
+          );
+          final snapshot = MarketIndexIntradaySnapshot.fromJson(
+            response.data ?? {},
+          );
+          final values = snapshot.points
+              .where((point) => point.bucketStart != null)
+              .map((point) => point.closeValue)
+              .whereType<double>()
+              .toList(growable: false);
+          return MapEntry(index.indexCode, values);
+        } on Object {
+          return MapEntry(index.indexCode, const <double>[]);
+        }
+      }),
+    );
+    return {
+      for (final entry in entries)
+        if (entry.value.isNotEmpty) entry.key: entry.value,
+    };
+  }
+
   @override
   void dispose() {
     _liveSubscription?.cancel();
     super.dispose();
   }
+}
+
+Map<String, List<double>> _mergeSnapshotCurrentPoints(
+  List<MarketIndex> indices,
+  Map<String, List<double>> existing,
+) {
+  final next = <String, List<double>>{
+    for (final entry in existing.entries)
+      entry.key: List<double>.of(entry.value),
+  };
+  for (final index in indices) {
+    next[index.indexCode] = _appendSeriesPoint(
+      next[index.indexCode] ?? const [],
+      _double(index.currentValue),
+    );
+  }
+  return next;
+}
+
+Map<String, List<double>> _appendIntradayPoint(
+  Map<String, List<double>> existing,
+  MarketIndex tick,
+) {
+  final next = <String, List<double>>{
+    for (final entry in existing.entries)
+      entry.key: List<double>.of(entry.value),
+  };
+  next[tick.indexCode] = _appendSeriesPoint(
+    next[tick.indexCode] ?? const [],
+    _double(tick.currentValue),
+  );
+  return next;
+}
+
+List<double> _appendSeriesPoint(List<double> series, double? value) {
+  if (value == null) {
+    return series;
+  }
+  if (series.isNotEmpty && series.last == value) {
+    return series;
+  }
+  final next = [...series, value];
+  const maxPoints = 420;
+  if (next.length <= maxPoints) {
+    return next;
+  }
+  return next.sublist(next.length - maxPoints);
 }
 
 class MarketIndexLiveClient {
@@ -251,8 +382,11 @@ class MarketIndexLiveClient {
     late final StreamSubscription<dynamic> socketSubscription;
     late final StreamController<Map<String, dynamic>> controller;
 
-    void sendFrame(String command, Map<String, String> headers,
-        [String? body]) {
+    void sendFrame(
+      String command,
+      Map<String, String> headers, [
+      String? body,
+    ]) {
       final buffer = StringBuffer(command)..write('\n');
       headers.forEach((key, value) {
         buffer.write('$key:$value\n');
@@ -347,6 +481,16 @@ int _int(Object? value) {
     return value.toInt();
   }
   return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+double? _double(Object? value) {
+  if (value is double) {
+    return value;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse(value?.toString() ?? '');
 }
 
 DateTime? _dateTime(Object? value) {

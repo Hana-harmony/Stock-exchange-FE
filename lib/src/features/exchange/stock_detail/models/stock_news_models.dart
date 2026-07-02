@@ -99,49 +99,6 @@ class _StockNewsItemViewModel {
           : rows,
     );
   }
-
-  static List<_StockNewsItemViewModel> fallbackItems(String stockName) {
-    final companyLabel = _companyLabel(stockName);
-    return [
-      _fallbackItem(targetLabel: 'Watchlist', showTargetBadge: false),
-      _fallbackItem(targetLabel: 'My Portfolio', showTargetBadge: true),
-      _fallbackItem(targetLabel: companyLabel, showTargetBadge: false),
-      _fallbackItem(targetLabel: companyLabel, showTargetBadge: false),
-    ];
-  }
-
-  static _StockNewsItemViewModel _fallbackItem({
-    required String targetLabel,
-    required bool showTargetBadge,
-  }) {
-    return _StockNewsItemViewModel(
-      title:
-          'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-      imageUrl: null,
-      sentiment: _StockNewsSentiment.positive,
-      priority: _StockNewsPriority.high,
-      targetLabel: targetLabel,
-      showTargetBadge: showTargetBadge,
-      relativeTimeLabel: showTargetBadge ? '53m ago' : '1h ago',
-      summaryRows: const [
-        _StockNewsSummaryRowData(
-          label: 'What',
-          value:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG ELEC: Dividend Payout...',
-        ),
-        _StockNewsSummaryRowData(
-          label: 'Why',
-          value:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG ELEC: Dividend Payout...',
-        ),
-        _StockNewsSummaryRowData(
-          label: 'Impact',
-          value:
-              'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG ELEC: Dividend Payout...',
-        ),
-      ],
-    );
-  }
 }
 
 _StockNewsSentiment _sentimentFromString(String value) {

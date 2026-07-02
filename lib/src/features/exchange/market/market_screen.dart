@@ -14,7 +14,7 @@ class MarketScreen extends StatefulWidget {
   final ExchangeSessionController sessionController;
   final TradeController tradeController;
   final MarketDetailController marketDetailController;
-  final Object marketIndexController;
+  final MarketIndexController marketIndexController;
   final MarketQuoteController marketQuoteController;
   final NotificationController notificationController;
 
@@ -33,30 +33,6 @@ class _MarketScreenState extends State<MarketScreen> {
   ];
 
   int _selectedCategoryIndex = 0;
-
-  static const _marketStatusCards = <_MarketStatusCardData>[
-    _MarketStatusCardData(
-      title: 'S&P 500',
-      value: '25709.43',
-      change: '-1121.53 -4.18%',
-      isPositive: false,
-      points: [0.62, 0.58, 0.61, 0.52, 0.54, 0.48, 0.5, 0.41, 0.44, 0.38],
-    ),
-    _MarketStatusCardData(
-      title: 'S&P 500',
-      value: '51202.26',
-      change: '+353.51 +0.7%',
-      isPositive: true,
-      points: [0.68, 0.42, 0.47, 0.39, 0.56, 0.52, 0.7, 0.63, 0.71, 0.76],
-    ),
-    _MarketStatusCardData(
-      title: 'S&P 500',
-      value: '25709.43',
-      change: '-1121.53 -4.18%',
-      isPositive: false,
-      points: [0.62, 0.58, 0.61, 0.52, 0.54, 0.48, 0.5, 0.41, 0.44, 0.38],
-    ),
-  ];
 
   static const _marketIndicators = <_MarketIndicatorData>[
     _MarketIndicatorData(
@@ -79,131 +55,165 @@ class _MarketScreenState extends State<MarketScreen> {
     ),
   ];
 
-  static const _trendingStocks = <_TrendingStock>[
-    _TrendingStock(
-      symbol: 'NVDA',
-      name: 'NVIDIA',
-      market: 'NASDAQ',
-      priceDisplay: '205.190',
-      changeDisplay: '+37.25%',
-      isPositive: true,
-    ),
-    _TrendingStock(
-      symbol: 'NVDA',
-      name: 'NVIDIA',
-      market: 'NASDAQ',
-      priceDisplay: '205.190',
-      changeDisplay: '-37.25%',
-      isPositive: false,
-    ),
-    _TrendingStock(
-      symbol: 'NVDA',
-      name: 'NVIDIA',
-      market: 'NASDAQ',
-      priceDisplay: '205.190',
-      changeDisplay: '-37.25%',
-      isPositive: false,
-    ),
-    _TrendingStock(
-      symbol: 'NVDA',
-      name: 'NVIDIA',
-      market: 'NASDAQ',
-      priceDisplay: '205.190',
-      changeDisplay: '+37.25%',
-      isPositive: true,
-    ),
-    _TrendingStock(
-      symbol: 'NVDA',
-      name: 'NVIDIA',
-      market: 'NASDAQ',
-      priceDisplay: '205.190',
-      changeDisplay: '+37.25%',
-      isPositive: true,
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    _loadLiveMarketData();
+  }
+
+  Future<void> _loadLiveMarketData() async {
+    await Future.wait([
+      widget.marketIndexController.loadSnapshot(),
+      widget.marketQuoteController.loadSnapshot(),
+    ]);
+    unawaited(widget.marketIndexController.subscribeLive());
+    unawaited(widget.marketQuoteController.subscribeLive());
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
-      children: [
-        SizedBox(
-          height: 41,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 12, top: 10),
-            child: ListView.separated(
-              padding: EdgeInsets.zero,
-              scrollDirection: Axis.horizontal,
-              itemBuilder: (context, index) {
-                final isSelected = index == _selectedCategoryIndex;
-                final category = _marketCategories[index];
-                return _MarketCategoryTab(
-                  label: category.label,
-                  width: category.width,
-                  isSelected: isSelected,
-                  onTap: () {
-                    setState(() {
-                      _selectedCategoryIndex = index;
-                    });
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        widget.marketIndexController,
+        widget.marketQuoteController,
+      ]),
+      builder: (context, _) {
+        final indexState = widget.marketIndexController.value;
+        final quoteState = widget.marketQuoteController.value;
+        final marketStatusCards = _buildMarketStatusCards(indexState);
+        final trendingStocks = _buildTrendingStocks(quoteState);
+
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
+          children: [
+            SizedBox(
+              height: 41,
+              child: Padding(
+                padding: const EdgeInsets.only(left: 12, top: 10),
+                child: ListView.separated(
+                  padding: EdgeInsets.zero,
+                  scrollDirection: Axis.horizontal,
+                  itemBuilder: (context, index) {
+                    final isSelected = index == _selectedCategoryIndex;
+                    final category = _marketCategories[index];
+                    return _MarketCategoryTab(
+                      label: category.label,
+                      width: category.width,
+                      isSelected: isSelected,
+                      onTap: () {
+                        setState(() {
+                          _selectedCategoryIndex = index;
+                        });
+                      },
+                    );
                   },
-                );
-              },
-              separatorBuilder: (context, index) => const SizedBox(width: 18),
-              itemCount: _marketCategories.length,
+                  separatorBuilder: (context, index) =>
+                      const SizedBox(width: 18),
+                  itemCount: _marketCategories.length,
+                ),
+              ),
             ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        const _MarketStatusSection(
-          cards: _marketStatusCards,
-          indicators: _marketIndicators,
-        ),
-        const SizedBox(height: 24),
-        Padding(
-          padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
-          child: Column(
-            children: [
-              SizedBox(
-                height: 36,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Trending Stocks',
-                        style:
-                            Theme.of(context).textTheme.headlineSmall?.copyWith(
+            const SizedBox(height: 24),
+            _MarketStatusSection(
+              cards: marketStatusCards,
+              indicators: _marketIndicators,
+              isLoading: indexState.status == MarketIndexStatus.loading,
+            ),
+            const SizedBox(height: 24),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+              child: Column(
+                children: [
+                  SizedBox(
+                    height: 36,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Trending Stocks',
+                            style: Theme.of(context)
+                                .textTheme
+                                .headlineSmall
+                                ?.copyWith(
                                   fontSize: 22,
                                   height: 31 / 22,
                                   fontWeight: FontWeight.w600,
                                   color: AppColors.gray1000,
                                 ),
-                      ),
-                    ),
-                    SizedBox.square(
-                      dimension: 36,
-                      child: Center(
-                        child: Image.asset(
-                          AppAssets.rightArrow,
-                          width: 24,
-                          height: 24,
-                          fit: BoxFit.contain,
+                          ),
                         ),
-                      ),
+                        SizedBox.square(
+                          dimension: 36,
+                          child: Center(
+                            child: Image.asset(
+                              AppAssets.rightArrow,
+                              width: 24,
+                              height: 24,
+                              fit: BoxFit.contain,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  if (quoteState.status == MarketQuoteStatus.loading &&
+                      trendingStocks.isEmpty)
+                    const _MutedInfoCard(
+                      title: 'Loading stocks',
+                      body: 'Live Korea market quotes are being loaded.',
+                    )
+                  else if (trendingStocks.isEmpty)
+                    const _MutedInfoCard(
+                      title: 'No stocks',
+                      body: 'No live market quotes are available yet.',
+                    )
+                  else
+                    for (var index = 0; index < trendingStocks.length; index++)
+                      _TrendingStockTile(
+                        stock: trendingStocks[index],
+                        rank: index + 1,
+                      ),
+                ],
               ),
-              const SizedBox(height: 8),
-              for (var index = 0; index < _trendingStocks.length; index++)
-                _TrendingStockTile(
-                  stock: _trendingStocks[index],
-                  rank: index + 1,
-                ),
-            ],
-          ),
-        ),
-      ],
+            ),
+          ],
+        );
+      },
     );
+  }
+
+  List<_MarketStatusCardData> _buildMarketStatusCards(MarketIndexState state) {
+    return state.indices.take(3).map((index) {
+      final changeRate = _parsePercent(index.changeRate);
+      return _MarketStatusCardData(
+        title: index.indexName,
+        value: index.currentValue,
+        change:
+            '${_signedText(index.changeValue)} ${_signedPercent(changeRate)}',
+        isPositive: changeRate >= 0,
+        points: _normalizeSparkline(
+          state.intradaySeriesFor(index.indexCode),
+          fallback: double.tryParse(index.currentValue.replaceAll(',', '')),
+        ),
+      );
+    }).toList(growable: false);
+  }
+
+  List<_TrendingStock> _buildTrendingStocks(MarketQuoteState state) {
+    final sorted = List<MarketQuote>.of(state.quotes)
+      ..sort((a, b) => b.volume.compareTo(a.volume));
+    return sorted.take(10).map((quote) {
+      final changeRate = _parsePercent(quote.changeRate);
+      return _TrendingStock(
+        symbol: quote.stockCode,
+        name: quote.stockName,
+        market: quote.market,
+        priceDisplay: quote.localCurrencyDisplay,
+        changeDisplay: _signedPercent(changeRate),
+        isPositive: changeRate >= 0,
+      );
+    }).toList(growable: false);
   }
 }
 
@@ -211,32 +221,45 @@ class _MarketStatusSection extends StatelessWidget {
   const _MarketStatusSection({
     required this.cards,
     required this.indicators,
+    required this.isLoading,
   });
 
   final List<_MarketStatusCardData> cards;
   final List<_MarketIndicatorData> indicators;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       key: const ValueKey('market-status-section'),
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Row(
-            children: [
-              for (var index = 0; index < cards.length; index++) ...[
-                Expanded(
-                  child: _MarketStatusCard(
-                    key: ValueKey('market-status-card-$index'),
-                    data: cards[index],
+        if (cards.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: _MutedInfoCard(
+              title: isLoading ? 'Loading indices' : 'No indices',
+              body: isLoading
+                  ? 'Today market index charts are being loaded.'
+                  : 'No market index data is available yet.',
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Row(
+              children: [
+                for (var index = 0; index < cards.length; index++) ...[
+                  Expanded(
+                    child: _MarketStatusCard(
+                      key: ValueKey('market-status-card-$index'),
+                      data: cards[index],
+                    ),
                   ),
-                ),
-                if (index != cards.length - 1) const SizedBox(width: 10),
+                  if (index != cards.length - 1) const SizedBox(width: 10),
+                ],
               ],
-            ],
+            ),
           ),
-        ),
         const SizedBox(height: 8),
         SizedBox(
           key: const ValueKey('market-indicator-banner'),
@@ -245,10 +268,7 @@ class _MarketStatusSection extends StatelessWidget {
             padding: const EdgeInsets.only(left: 16),
             child: Row(
               children: [
-                const _MarketIndicatorTimeBlock(
-                  time: '21:30',
-                  date: 'Jun 17',
-                ),
+                const _MarketIndicatorTimeBlock(time: '21:30', date: 'Jun 17'),
                 const SizedBox(width: 20),
                 Expanded(
                   child: SingleChildScrollView(
@@ -287,10 +307,7 @@ class _MarketStatusSection extends StatelessWidget {
 }
 
 class _MarketStatusCard extends StatelessWidget {
-  const _MarketStatusCard({
-    super.key,
-    required this.data,
-  });
+  const _MarketStatusCard({super.key, required this.data});
 
   final _MarketStatusCardData data;
 
@@ -359,10 +376,7 @@ class _MarketStatusCard extends StatelessWidget {
 }
 
 class _MarketIndicatorTimeBlock extends StatelessWidget {
-  const _MarketIndicatorTimeBlock({
-    required this.time,
-    required this.date,
-  });
+  const _MarketIndicatorTimeBlock({required this.time, required this.date});
 
   final String time;
   final String date;
@@ -407,10 +421,7 @@ class _MarketIndicatorTimeBlock extends StatelessWidget {
 }
 
 class _MarketIndicatorSummary extends StatelessWidget {
-  const _MarketIndicatorSummary({
-    super.key,
-    required this.data,
-  });
+  const _MarketIndicatorSummary({super.key, required this.data});
 
   final _MarketIndicatorData data;
 
@@ -441,7 +452,9 @@ class _MarketIndicatorSummary extends StatelessWidget {
             child: Row(
               children: [
                 SizedBox(
-                    width: 53, child: Text(data.previous, style: labelStyle)),
+                  width: 53,
+                  child: Text(data.previous, style: labelStyle),
+                ),
                 const SizedBox(width: 8),
                 SizedBox(
                   width: 57,
@@ -449,15 +462,14 @@ class _MarketIndicatorSummary extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 SizedBox(
-                    width: 34, child: Text(data.actual, style: labelStyle)),
+                  width: 34,
+                  child: Text(data.actual, style: labelStyle),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 2),
-          Text(
-            data.indicator,
-            style: indicatorStyle,
-          ),
+          Text(data.indicator, style: indicatorStyle),
         ],
       ),
     );
@@ -506,10 +518,7 @@ class _MarketStatusSparklinePainter extends CustomPainter {
 }
 
 class _TrendingStockTile extends StatelessWidget {
-  const _TrendingStockTile({
-    required this.stock,
-    required this.rank,
-  });
+  const _TrendingStockTile({required this.stock, required this.rank});
 
   final _TrendingStock stock;
   final int rank;
@@ -544,14 +553,13 @@ class _TrendingStockTile extends StatelessWidget {
                         height: 25,
                         child: Text(
                           '$rank',
-                          style: Theme.of(
-                            context,
-                          ).textTheme.titleMedium?.copyWith(
-                                fontSize: 18,
-                                height: 25 / 18,
-                                fontWeight: FontWeight.w500,
-                                color: AppColors.gray1000,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontSize: 18,
+                                    height: 25 / 18,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.gray1000,
+                                  ),
                         ),
                       ),
                     ),
@@ -578,9 +586,10 @@ class _TrendingStockTile extends StatelessWidget {
                             stock.symbol,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.titleMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
                                   fontSize: 18,
                                   height: 25 / 18,
                                   fontWeight: FontWeight.w500,
@@ -594,9 +603,10 @@ class _TrendingStockTile extends StatelessWidget {
                             stock.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodyMedium?.copyWith(
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
                                   fontSize: 14,
                                   height: 20 / 14,
                                   fontWeight: FontWeight.w400,
@@ -734,4 +744,36 @@ class _MarketIndicatorData {
   final String consensus;
   final String actual;
   final String indicator;
+}
+
+List<double> _normalizeSparkline(List<double> values, {double? fallback}) {
+  final source = values.isNotEmpty ? values : [if (fallback != null) fallback];
+  if (source.length < 2) {
+    return const [0.5, 0.5];
+  }
+  final minValue = source.reduce((a, b) => a < b ? a : b);
+  final maxValue = source.reduce((a, b) => a > b ? a : b);
+  final spread = maxValue - minValue;
+  if (spread == 0) {
+    return List<double>.filled(source.length, 0.5);
+  }
+  return source
+      .map((value) => ((value - minValue) / spread).clamp(0.0, 1.0))
+      .toList(growable: false);
+}
+
+String _signedPercent(double value) {
+  final prefix = value >= 0 ? '+' : '';
+  return '$prefix${value.toStringAsFixed(2)}%';
+}
+
+String _signedText(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return '+0';
+  }
+  if (trimmed.startsWith('-') || trimmed.startsWith('+')) {
+    return trimmed;
+  }
+  return '+$trimmed';
 }

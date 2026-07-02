@@ -3,12 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'currency_format.dart';
 import 'exchange_api_client.dart';
 
-enum TradeStatus {
-  idle,
-  loading,
-  loaded,
-  failure,
-}
+enum TradeStatus { idle, loading, loaded, failure }
 
 class TradeState {
   const TradeState({
@@ -117,8 +112,10 @@ class PortfolioSnapshot {
       accountId: _string(json['accountId'], fallback: ''),
       currency: _string(json['currency'], fallback: 'USD'),
       cashBalanceUsd: _string(json['cashBalanceUsd'], fallback: '0.00'),
-      totalMarketValueUsd:
-          _string(json['totalMarketValueUsd'], fallback: '0.00'),
+      totalMarketValueUsd: _string(
+        json['totalMarketValueUsd'],
+        fallback: '0.00',
+      ),
       totalAssetValueUsd: _string(json['totalAssetValueUsd'], fallback: '0.00'),
       realizedPnlUsd: _string(json['realizedPnlUsd'], fallback: '0.00'),
       unrealizedPnlUsd: _string(json['unrealizedPnlUsd'], fallback: '0.00'),
@@ -126,12 +123,12 @@ class PortfolioSnapshot {
         json['tradingMode'],
         fallback: 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
       ),
-      holdings: _list(json['holdings'])
-          .map((value) => MockHolding.fromJson(_map(value)))
-          .toList(),
-      recentTrades: _list(json['recentTrades'])
-          .map((value) => TradeExecution.fromJson(_map(value)))
-          .toList(),
+      holdings: _list(
+        json['holdings'],
+      ).map((value) => MockHolding.fromJson(_map(value))).toList(),
+      recentTrades: _list(
+        json['recentTrades'],
+      ).map((value) => TradeExecution.fromJson(_map(value))).toList(),
     );
   }
 }
@@ -221,8 +218,10 @@ class TradeOrderability {
       canPlaceMockOrder: json['canPlaceMockOrder'] as bool? ?? false,
       blockingReasons: _list(json['blockingReasons']).map((v) => '$v').toList(),
       warnings: _list(json['warnings']).map((v) => '$v').toList(),
-      orderabilitySource:
-          _string(json['orderabilitySource'], fallback: 'Hana-OmniLens-API'),
+      orderabilitySource: _string(
+        json['orderabilitySource'],
+        fallback: 'Hana-OmniLens-API',
+      ),
       tradingMode: _string(
         json['tradingMode'],
         fallback: 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
@@ -233,7 +232,8 @@ class TradeOrderability {
 
 String _orderabilityMessage(String code) {
   return switch (code) {
-    'FOREIGN_LIMIT_EXCEEDED' => 'Foreign ownership limit would be exceeded',
+    'FOREIGN_LIMIT_EXCEEDED' =>
+      'This buy order may not be filled if the foreign ownership limit is reached',
     'TRADING_HALTED' => 'Trading is halted',
     'ORDER_NOT_ALLOWED' => 'Order is not allowed',
     'VI_ACTIVE' => 'Volatility interruption is active',
@@ -290,8 +290,10 @@ class TradeExecution {
       grossAmountUsd: _string(json['grossAmountUsd'], fallback: '0.00'),
       realizedPnlUsd: _string(json['realizedPnlUsd'], fallback: '0.00'),
       remainingQuantity: _int(json['remainingQuantity']),
-      cashBalanceUsdAfter:
-          _string(json['cashBalanceUsdAfter'], fallback: '0.00'),
+      cashBalanceUsdAfter: _string(
+        json['cashBalanceUsdAfter'],
+        fallback: '0.00',
+      ),
       tradingMode: _string(
         json['tradingMode'],
         fallback: 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
@@ -315,9 +317,9 @@ class TradeLedgerHistory {
     return TradeLedgerHistory(
       accountId: _string(json['accountId'], fallback: ''),
       tradeCount: _int(json['tradeCount']),
-      trades: _list(json['trades'])
-          .map((value) => TradeExecution.fromJson(_map(value)))
-          .toList(),
+      trades: _list(
+        json['trades'],
+      ).map((value) => TradeExecution.fromJson(_map(value))).toList(),
     );
   }
 }
@@ -398,9 +400,9 @@ class TradeOrderHistory {
     return TradeOrderHistory(
       accountId: _string(json['accountId'], fallback: ''),
       orderCount: _int(json['orderCount']),
-      orders: _list(json['orders'])
-          .map((value) => TradeOrderPlacement.fromJson(_map(value)))
-          .toList(),
+      orders: _list(
+        json['orders'],
+      ).map((value) => TradeOrderPlacement.fromJson(_map(value))).toList(),
     );
   }
 }
@@ -454,8 +456,10 @@ class TradeController extends ValueNotifier<TradeState> {
     }
 
     await _run(() async {
-      final response =
-          await _apiClient.getTradeHistory(accountId, limit: limit);
+      final response = await _apiClient.getTradeHistory(
+        accountId,
+        limit: limit,
+      );
       final history = TradeLedgerHistory.fromJson(response.data ?? {});
       value = TradeState.loaded(
         portfolio: value.portfolio,
@@ -483,8 +487,10 @@ class TradeController extends ValueNotifier<TradeState> {
     }
 
     await _run(() async {
-      final response =
-          await _apiClient.getOrderHistory(accountId, limit: limit);
+      final response = await _apiClient.getOrderHistory(
+        accountId,
+        limit: limit,
+      );
       final history = TradeOrderHistory.fromJson(response.data ?? {});
       value = TradeState.loaded(
         portfolio: value.portfolio,
@@ -525,6 +531,16 @@ class TradeController extends ValueNotifier<TradeState> {
     });
   }
 
+  void clearOrderability() {
+    value = TradeState.loaded(
+      portfolio: value.portfolio,
+      tradeHistory: value.tradeHistory,
+      orderHistory: value.orderHistory,
+      lastTrade: value.lastTrade,
+      lastOrder: value.lastOrder,
+    );
+  }
+
   Future<void> executeTrade({
     required String? accountId,
     required String stockCode,
@@ -550,10 +566,12 @@ class TradeController extends ValueNotifier<TradeState> {
       final orderHistoryResponse = await _apiClient.getOrderHistory(accountId);
       value = TradeState.loaded(
         portfolio: PortfolioSnapshot.fromJson(portfolioResponse.data ?? {}),
-        tradeHistory:
-            TradeLedgerHistory.fromJson(historyResponse.data ?? {}).trades,
-        orderHistory:
-            TradeOrderHistory.fromJson(orderHistoryResponse.data ?? {}).orders,
+        tradeHistory: TradeLedgerHistory.fromJson(
+          historyResponse.data ?? {},
+        ).trades,
+        orderHistory: TradeOrderHistory.fromJson(
+          orderHistoryResponse.data ?? {},
+        ).orders,
         orderability: value.orderability,
         lastTrade: order.tradeExecution,
         lastOrder: order,
