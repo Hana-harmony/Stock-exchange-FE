@@ -21,6 +21,7 @@ import '../../ui/components/app_underline_tab.dart';
 import '../../ui/theme/app_tokens.dart';
 
 part 'market/market_screen.dart';
+part 'market_news/market_news_detail_screen.dart';
 part 'market_news/market_news_screen.dart';
 part 'notifications/notification_article_detail_screen.dart';
 part 'notifications/notification_inbox_screen.dart';

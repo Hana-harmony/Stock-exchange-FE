@@ -682,12 +682,12 @@ class _NotificationArticleDetailData {
     final resolvedBodyText = useFigmaAnalysisMock
         ? _figmaMockBodyText
         : intelligenceItem != null
-            ? intelligenceItem.originalContent.isNotEmpty
-                ? intelligenceItem.originalContent
-                : intelligenceItem.translatedContent.isNotEmpty
-                    ? intelligenceItem.translatedContent
-                    : intelligenceItem.summary.isNotEmpty
-                        ? intelligenceItem.summary
+            ? intelligenceItem.translatedContent.isNotEmpty
+                ? intelligenceItem.translatedContent
+                : intelligenceItem.translatedSummary.isNotEmpty
+                    ? intelligenceItem.translatedSummary
+                    : intelligenceItem.originalContent.isNotEmpty
+                        ? intelligenceItem.originalContent
                         : intelligenceItem.displaySummary
             : item.summary.isNotEmpty
                 ? '${item.title}\n${item.summary}'
@@ -754,6 +754,61 @@ class _NotificationArticleDetailData {
       glossaryEntries: resolvedGlossaryEntries,
       originalUrl: item.originalUrl,
       imageUrl: null,
+    );
+  }
+
+  factory _NotificationArticleDetailData.fromMarketNews(MarketNewsItem item) {
+    final bodyText = item.displayBody;
+    final rows = <_StockNewsSummaryRowData>[
+      if (item.summaryLines.what.isNotEmpty)
+        _StockNewsSummaryRowData(
+          label: 'What',
+          value: item.summaryLines.what,
+        ),
+      if (item.summaryLines.why.isNotEmpty)
+        _StockNewsSummaryRowData(
+          label: 'Why',
+          value: item.summaryLines.why,
+        ),
+      if (item.summaryLines.impact.isNotEmpty)
+        _StockNewsSummaryRowData(
+          label: 'Impact',
+          value: item.summaryLines.impact,
+        ),
+    ];
+
+    return _NotificationArticleDetailData(
+      title: item.displayTitle,
+      companyLabel: item.displayQuery,
+      relativeTimeLabel: _relativeTimeLabel(item.publishedAt ?? item.createdAt),
+      sentiment: _StockNewsSentiment.positive,
+      priority: _StockNewsPriority.medium,
+      analysisRows: rows.isEmpty
+          ? [
+              _StockNewsSummaryRowData(
+                label: 'What',
+                value: item.displaySummary,
+              ),
+              _StockNewsSummaryRowData(
+                label: 'Why',
+                value:
+                    'OmniLens translated and summarized this Korea market news for local investors.',
+              ),
+              _StockNewsSummaryRowData(
+                label: 'Impact',
+                value:
+                    'Use the full article context and glossary terms before making a trading decision.',
+              ),
+            ]
+          : rows,
+      bodyText: bodyText.isNotEmpty ? bodyText : item.displayTitle,
+      glossaryEntries: _glossaryEntriesFromTerms(
+        item.glossaryTerms,
+        bodyText,
+      ),
+      originalUrl:
+          item.originalUrl.isNotEmpty ? item.originalUrl : item.canonicalUrl,
+      imageUrl: item.imageUrl,
     );
   }
 

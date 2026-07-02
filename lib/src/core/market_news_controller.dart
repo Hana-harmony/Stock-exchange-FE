@@ -59,6 +59,11 @@ class MarketNewsController extends ValueNotifier<MarketNewsState> {
       );
     }
   }
+
+  Future<MarketNewsItem> loadDetail(String newsId) async {
+    final response = await _apiClient.getMarketNewsDetail(newsId);
+    return MarketNewsItem.fromJson(response.data ?? {});
+  }
 }
 
 class MarketNewsFeed {
@@ -134,6 +139,25 @@ class MarketNewsItem {
       return summaryLines.lines.join('\n');
     }
     return translatedSummary.isNotEmpty ? translatedSummary : summary;
+  }
+
+  String get displayBody {
+    if (_looksEnglish(translatedContent)) {
+      return translatedContent;
+    }
+    if (_looksEnglish(translatedSummary)) {
+      return translatedSummary;
+    }
+    if (summaryLines.hasAny) {
+      return summaryLines.lines.join('\n\n');
+    }
+    if (_looksEnglish(summary)) {
+      return summary;
+    }
+    if (_looksEnglish(originalContent)) {
+      return originalContent;
+    }
+    return displayTitle;
   }
 
   String? get imageUrl => imageUrls.isEmpty ? null : imageUrls.first;
@@ -235,4 +259,17 @@ String _englishMarketQueryLabel(String query) {
     return 'Korea Market';
   }
   return query;
+}
+
+bool _looksEnglish(String value) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) {
+    return false;
+  }
+  final hangulCount = RegExp(r'[가-힣]').allMatches(trimmed).length;
+  final letterCount = RegExp(r'[A-Za-z]').allMatches(trimmed).length;
+  if (hangulCount == 0) {
+    return letterCount > 0;
+  }
+  return letterCount > hangulCount * 2;
 }

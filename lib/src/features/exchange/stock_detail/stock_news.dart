@@ -103,11 +103,52 @@ class _StockNewsTabState extends State<_StockNewsTab> {
                 stockName: widget.stockName,
                 emptyTitle: widget.emptyTitle,
                 emptyBody: widget.emptyBody,
+                onOpen: _openStockNewsDetail,
               ),
             ),
           ],
         );
       },
+    );
+  }
+
+  void _openStockNewsDetail(_StockNewsItemViewModel item) {
+    final sourceItem = item.sourceItem;
+    Navigator.of(context).push<void>(
+      MaterialPageRoute(
+        builder: (_) => NotificationArticleDetailScreen(
+          item: NotificationItem(
+            notificationId: 'stock-detail-${sourceItem.eventId}',
+            eventId: sourceItem.eventId,
+            subjectType: 'STOCK',
+            subjectId: widget.stockCode,
+            sourceType: sourceItem.sourceType,
+            title: sourceItem.title,
+            summary: sourceItem.displaySummary,
+            originalUrl: sourceItem.originalUrl,
+            primaryStockCode: sourceItem.primaryStockCode.isNotEmpty
+                ? sourceItem.primaryStockCode
+                : widget.stockCode,
+            matchedStockCodes: sourceItem.relatedStocks.isEmpty
+                ? [widget.stockCode]
+                : sourceItem.relatedStocks,
+            matchReasons: sourceItem.holderTarget
+                ? const ['HOLDER']
+                : sourceItem.watchlistTarget
+                    ? const ['WATCHLIST']
+                    : const ['MARKET'],
+            glossaryTerms: sourceItem.glossaryTerms,
+            translationQualityFlags: sourceItem.translationQualityFlags,
+            deliveryStatus: 'DELIVERED',
+            deliveryProvider: 'OMNILENS',
+            deliveryAttemptCount: 1,
+            read: true,
+            createdAt: sourceItem.receivedAt ?? sourceItem.publishedAt,
+            deliveredAt: sourceItem.receivedAt ?? sourceItem.publishedAt,
+          ),
+          intelligenceItem: sourceItem,
+        ),
+      ),
     );
   }
 
@@ -141,6 +182,7 @@ class _StockNewsContent extends StatelessWidget {
     required this.stockName,
     required this.emptyTitle,
     required this.emptyBody,
+    required this.onOpen,
   });
 
   final NotificationStatus status;
@@ -149,6 +191,7 @@ class _StockNewsContent extends StatelessWidget {
   final String stockName;
   final String emptyTitle;
   final String emptyBody;
+  final ValueChanged<_StockNewsItemViewModel> onOpen;
 
   @override
   Widget build(BuildContext context) {
@@ -179,10 +222,18 @@ class _StockNewsContent extends StatelessWidget {
               (item) => _StockNewsListTile(
                 item: item,
                 companyLabel: _companyLabel(stockName),
+                onTap: () => onOpen(item),
               ),
             )
             .toList()
-        : items.map((item) => _StockNewsCard(item: item)).toList();
+        : items
+            .map(
+              (item) => _StockNewsCard(
+                item: item,
+                onTap: () => onOpen(item),
+              ),
+            )
+            .toList();
 
     return Column(mainAxisSize: MainAxisSize.min, children: children);
   }

@@ -141,6 +141,34 @@ void main() {
       find.text('Korea market rebounds as chip stocks recover'),
       findsOneWidget,
     );
+    await tester.tap(
+      find.byKey(const ValueKey('market-news-card-MKT-NEWS-001')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('market-news-detail-screen')),
+      findsOneWidget,
+    );
+    expect(find.text('AI Analysis'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text
+                .toPlainText()
+                .contains('Detailed translated market article from OmniLens.'),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('View Original'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('notification-article-back')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('discover-market-news-list')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-MY')));
     await tester.pumpAndSettle();
@@ -906,6 +934,23 @@ void main() {
       find.text('Kakao files major shareholding disclosure'),
       findsNothing,
     );
+    await tester.tap(find.byKey(const ValueKey('stock-news-list-tile-NEWS-1')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI Analysis'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains(
+                  'Kakao full translated news content.',
+                ),
+      ),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('notification-article-back')));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('stock-news-layout-grid')));
     await tester.pumpAndSettle();
@@ -925,6 +970,22 @@ void main() {
     expect(
       find.text('Kakao expands global content partnerships'),
       findsNothing,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('stock-news-list-tile-DISCLOSURE-1')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('AI Analysis'), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains(
+                  'Kakao full translated disclosure content.',
+                ),
+      ),
+      findsOneWidget,
     );
   });
 
@@ -1469,6 +1530,9 @@ MarketNewsController _marketNewsController() {
         if (request.url.path == '/api/v1/market/news') {
           return _jsonEnvelope(_marketNewsJson());
         }
+        if (request.url.path == '/api/v1/market/news/MKT-NEWS-001') {
+          return _jsonEnvelope(_marketNewsDetailJson());
+        }
         return http.Response('{}', 404);
       }),
     ),
@@ -1833,6 +1897,26 @@ Map<String, Object?> _marketNewsJson() {
         'duplicateKey': 'market-news-key',
         'publishedAt': '2026-06-18T04:00:00Z',
         'createdAt': '2026-06-18T04:05:00Z',
+      },
+    ],
+  };
+}
+
+Map<String, Object?> _marketNewsDetailJson() {
+  return {
+    ...(_marketNewsJson()['news']! as List<Object?>).first!
+        as Map<String, Object?>,
+    'translatedContent': 'Detailed translated market article from OmniLens.\n\n'
+        'Daejangju stocks led the recovery while foreign investors '
+        'returned to large-cap exporters.',
+    'glossaryTerms': [
+      {
+        'sourceTerm': '',
+        'normalizedTerm': 'daejangju',
+        'englishTerm': 'Daejangju',
+        'category': 'market_slang',
+        'description':
+            'A leading stock that often sets the tone for a sector or the broader market.',
       },
     ],
   };
