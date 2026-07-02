@@ -6,6 +6,7 @@ import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_index_controller.dart';
+import 'core/market_news_controller.dart';
 import 'core/market_quote_controller.dart';
 import 'core/market_quote_live_client.dart';
 import 'core/notification_controller.dart';
@@ -29,6 +30,7 @@ class StockExchangeApp extends StatelessWidget {
     this.tradeController,
     this.marketDetailController,
     this.marketIndexController,
+    this.marketNewsController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -42,6 +44,7 @@ class StockExchangeApp extends StatelessWidget {
   final TradeController? tradeController;
   final MarketDetailController? marketDetailController;
   final MarketIndexController? marketIndexController;
+  final MarketNewsController? marketNewsController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -61,6 +64,7 @@ class StockExchangeApp extends StatelessWidget {
         tradeController: tradeController,
         marketDetailController: marketDetailController,
         marketIndexController: marketIndexController,
+        marketNewsController: marketNewsController,
         marketQuoteController: marketQuoteController,
         watchlistQuoteController: watchlistQuoteController,
         portfolioQuoteController: portfolioQuoteController,
@@ -80,6 +84,7 @@ class ExchangeShell extends StatefulWidget {
     this.tradeController,
     this.marketDetailController,
     this.marketIndexController,
+    this.marketNewsController,
     this.marketQuoteController,
     this.watchlistQuoteController,
     this.portfolioQuoteController,
@@ -93,6 +98,7 @@ class ExchangeShell extends StatefulWidget {
   final TradeController? tradeController;
   final MarketDetailController? marketDetailController;
   final MarketIndexController? marketIndexController;
+  final MarketNewsController? marketNewsController;
   final MarketQuoteController? marketQuoteController;
   final MarketQuoteController? watchlistQuoteController;
   final MarketQuoteController? portfolioQuoteController;
@@ -121,6 +127,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final TradeController _tradeController;
   late final MarketDetailController _marketDetailController;
   late final MarketIndexController _marketIndexController;
+  late final MarketNewsController _marketNewsController;
   late final MarketQuoteController _marketQuoteController;
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
@@ -141,6 +148,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
         widget.marketDetailController ?? _createMarketDetailController();
     _marketIndexController =
         widget.marketIndexController ?? _createMarketIndexController();
+    _marketNewsController =
+        widget.marketNewsController ?? _createMarketNewsController();
     _marketQuoteController =
         widget.marketQuoteController ?? _createMarketQuoteController();
     _watchlistQuoteController =
@@ -201,6 +210,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
+  MarketNewsController _createMarketNewsController() {
+    return MarketNewsController(apiClient: _apiClient);
+  }
+
   MarketQuoteController _createMarketQuoteController() {
     return MarketQuoteController(
       apiClient: _apiClient,
@@ -239,6 +252,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.marketIndexController == null) {
       _marketIndexController.dispose();
+    }
+    if (widget.marketNewsController == null) {
+      _marketNewsController.dispose();
     }
     if (widget.marketQuoteController == null) {
       _marketQuoteController.dispose();
@@ -431,10 +447,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
           accountController: _accountController,
           tradeController: _tradeController,
         ),
-        const ShellPlaceholderScreen(
-          title: 'Discover',
-          description:
-              'Discover remains a placeholder until its dedicated page specification is provided.',
+        MarketNewsScreen(
+          marketNewsController: _marketNewsController,
         ),
         ShellPlaceholderScreen(
           title: 'MY',

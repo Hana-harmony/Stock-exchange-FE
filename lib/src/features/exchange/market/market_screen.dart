@@ -603,12 +603,15 @@ class _TrendingStockTile extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const SizedBox(
+                    SizedBox(
                       width: 34,
                       height: 45,
                       child: Align(
                         alignment: Alignment.center,
-                        child: _SearchResultAvatar(),
+                        child: _SearchResultAvatar(
+                          stockCode: stock.symbol,
+                          stockName: stock.name,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 8),

@@ -5,15 +5,19 @@ enum _StockNewsLayout { list, grid }
 class _StockNewsTab extends StatefulWidget {
   const _StockNewsTab({
     required this.notificationController,
-    required this.accountId,
     required this.stockCode,
     required this.stockName,
+    required this.sourceType,
+    required this.emptyTitle,
+    required this.emptyBody,
   });
 
   final NotificationController notificationController;
-  final String? accountId;
   final String stockCode;
   final String stockName;
+  final String sourceType;
+  final String emptyTitle;
+  final String emptyBody;
 
   @override
   State<_StockNewsTab> createState() => _StockNewsTabState();
@@ -27,8 +31,27 @@ class _StockNewsTabState extends State<_StockNewsTab> {
   @override
   void initState() {
     super.initState();
-    widget.notificationController.loadAlerts(
-      accountId: widget.accountId,
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        unawaited(_loadStockIntelligenceFeed());
+      }
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _StockNewsTab oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.stockCode != widget.stockCode) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          unawaited(_loadStockIntelligenceFeed());
+        }
+      });
+    }
+  }
+
+  Future<void> _loadStockIntelligenceFeed() {
+    return widget.notificationController.loadStockIntelligenceFeed(
       stockCode: widget.stockCode,
     );
   }
@@ -78,6 +101,8 @@ class _StockNewsTabState extends State<_StockNewsTab> {
                 items: items,
                 layout: _layout,
                 stockName: widget.stockName,
+                emptyTitle: widget.emptyTitle,
+                emptyBody: widget.emptyBody,
               ),
             ),
           ],
@@ -88,8 +113,12 @@ class _StockNewsTabState extends State<_StockNewsTab> {
 
   List<_StockNewsItemViewModel> _resolveNewsItems(NotificationState state) {
     final feedItems = state.feed?.items ?? const <StockIntelligenceItem>[];
-    if (feedItems.isNotEmpty) {
-      return feedItems
+    final sourceType = widget.sourceType.toUpperCase();
+    final filtered = feedItems
+        .where((item) => item.sourceType.toUpperCase() == sourceType)
+        .toList(growable: false);
+    if (filtered.isNotEmpty) {
+      return filtered
           .map(
             (item) => _StockNewsItemViewModel.fromFeedItem(
               item,
@@ -110,12 +139,16 @@ class _StockNewsContent extends StatelessWidget {
     required this.items,
     required this.layout,
     required this.stockName,
+    required this.emptyTitle,
+    required this.emptyBody,
   });
 
   final NotificationStatus status;
   final List<_StockNewsItemViewModel> items;
   final _StockNewsLayout layout;
   final String stockName;
+  final String emptyTitle;
+  final String emptyBody;
 
   @override
   Widget build(BuildContext context) {
@@ -123,18 +156,19 @@ class _StockNewsContent extends StatelessWidget {
       return const Padding(
         padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: _MutedInfoCard(
-          title: 'Loading K-News',
-          body: 'The latest stock intelligence feed is being prepared.',
+          title: 'Loading intelligence',
+          body:
+              'The latest OmniLens stock intelligence feed is being prepared.',
         ),
       );
     }
 
     if (items.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
+      return Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: _MutedInfoCard(
-          title: 'No K-News',
-          body: 'There are no related intelligence items for this stock yet.',
+          title: emptyTitle,
+          body: emptyBody,
         ),
       );
     }

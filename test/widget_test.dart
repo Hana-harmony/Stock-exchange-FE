@@ -12,7 +12,9 @@ import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_index_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_news_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/core/notification_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 import 'package:stock_exchange_fe/src/ui/assets/app_assets.dart';
 import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
@@ -127,6 +129,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('WatchLists tab'), findsOneWidget);
     expect(find.widgetWithText(AppBar, 'WatchLists'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-Discover')));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(AppBar, 'Discover'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('discover-market-news-list')),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Korea market rebounds as chip stocks recover'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-MY')));
     await tester.pumpAndSettle();
@@ -884,6 +898,14 @@ void main() {
         find.byKey(const ValueKey('stock-news-layout-list')), findsOneWidget);
     expect(
         find.byKey(const ValueKey('stock-news-layout-grid')), findsOneWidget);
+    expect(
+      find.text('Kakao expands global content partnerships'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Kakao files major shareholding disclosure'),
+      findsNothing,
+    );
 
     await tester.tap(find.byKey(const ValueKey('stock-news-layout-grid')));
     await tester.pumpAndSettle();
@@ -891,6 +913,19 @@ void main() {
     expect(find.byKey(const PageStorageKey<String>('stock-k-news-tab')),
         findsOneWidget);
     expect(find.text('Card'), findsOneWidget);
+
+    await tester
+        .tap(find.byKey(const ValueKey('stock-detail-tab-disclosures')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Kakao files major shareholding disclosure'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('Kakao expands global content partnerships'),
+      findsNothing,
+    );
   });
 
   testWidgets('renders stock detail chart and API fundamentals',
@@ -945,6 +980,14 @@ void main() {
     expect(find.text('USD 35.50'), findsOneWidget);
     expect(find.text('KRW 54,800'), findsOneWidget);
     expect(find.text('KRW 53,200'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('stock-chart-period-1W')));
+    await tester.pumpAndSettle();
+    expect(find.text('1W price chart'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('stock-chart-period-1M')));
+    await tester.pumpAndSettle();
+    expect(find.text('1M price chart'), findsOneWidget);
   });
 
   testWidgets('blocks sell with VI warning modal when VI is triggered',
@@ -1134,13 +1177,17 @@ Future<void> _loadPretendardFont() async {
 StockExchangeApp _stockExchangeTestApp({
   required MarketQuoteController marketQuoteController,
   MarketDetailController? marketDetailController,
+  MarketNewsController? marketNewsController,
+  NotificationController? notificationController,
 }) {
   return StockExchangeApp(
     sessionController: _sessionController(),
     tradeController: _tradeController(),
     marketDetailController: marketDetailController ?? _marketDetailController(),
     marketIndexController: _marketIndexController(),
+    marketNewsController: marketNewsController ?? _marketNewsController(),
     marketQuoteController: marketQuoteController,
+    notificationController: notificationController ?? _notificationController(),
   );
 }
 
@@ -1290,10 +1337,11 @@ MarketDetailController _marketDetailController({
             path.endsWith('/chart')) {
           final stockCode = request.url.pathSegments[4];
           final isSamsung = stockCode == '005930';
+          final interval = request.url.queryParameters['interval'] ?? '1m';
           return _jsonEnvelope({
             'dataSource': 'Stock-exchange-BE',
             'stockCode': stockCode,
-            'interval': '1d',
+            'interval': interval,
             'from': '2026-06-01',
             'to': '2026-06-18',
             'baseCurrency': 'KRW',
@@ -1378,6 +1426,48 @@ MarketDetailController _marketDetailController({
             'dataSource': 'Hana-OmniLens-API',
             'servedAt': '2026-06-18T06:00:00Z',
           });
+        }
+        return http.Response('{}', 404);
+      }),
+    ),
+  );
+}
+
+NotificationController _notificationController() {
+  return NotificationController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        if (request.url.path.endsWith('/intelligence')) {
+          if (request.url.path.contains('/005930/')) {
+            return _jsonEnvelope(_samsungIntelligenceJson());
+          }
+          return _jsonEnvelope(_stockIntelligenceJson());
+        }
+        if (request.url.path.endsWith('/notifications/devices')) {
+          return _jsonEnvelope({
+            'accountId': _testSession.accountId,
+            'activeCount': 0,
+            'totalCount': 0,
+            'devices': <Object?>[],
+          });
+        }
+        if (request.url.path.endsWith('/notifications')) {
+          return _jsonEnvelope(_notificationInboxJson());
+        }
+        return http.Response('{}', 404);
+      }),
+    ),
+  );
+}
+
+MarketNewsController _marketNewsController() {
+  return MarketNewsController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/api/v1/market/news') {
+          return _jsonEnvelope(_marketNewsJson());
         }
         return http.Response('{}', 404);
       }),
@@ -1538,6 +1628,213 @@ Map<String, Object?> _portfolioJson() {
       },
     ),
     'recentTrades': <Object?>[],
+  };
+}
+
+Map<String, Object?> _notificationInboxJson() {
+  return {
+    'accountId': _testSession.accountId,
+    'unreadCount': 1,
+    'totalCount': 1,
+    'notifications': [
+      {
+        'notificationId': 'LOCAL-NTF-0001',
+        'eventId': 'ALERT-SAMSUNG-1',
+        'subjectType': 'STOCK',
+        'subjectId': '005930',
+        'sourceType': 'DISCLOSURE',
+        'title': 'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+        'summary': 'Dividend payout translated by OmniLens.',
+        'originalUrl': 'https://dart.fss.or.kr/report',
+        'primaryStockCode': '005930',
+        'matchedStockCodes': ['005930'],
+        'matchReasons': ['WATCHLIST'],
+        'glossaryTerms': [
+          _glossaryTerm(
+            sourceTerm: '대장주',
+            englishTerm: 'Daejangju',
+            category: 'MARKET',
+          ),
+        ],
+        'translationQualityFlags': ['GLOSSARY_MATCHED'],
+        'deliveryStatus': 'DELIVERED',
+        'deliveryProvider': 'LOCAL_NOOP_PUSH',
+        'deliveryAttemptCount': 1,
+        'deliveredAt': '2026-06-18T06:00:00Z',
+        'lastDeliveryError': null,
+        'read': false,
+        'createdAt': '2026-06-18T06:00:00Z',
+        'readAt': null,
+      },
+    ],
+    'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _samsungIntelligenceJson() {
+  return {
+    'stockCode': '005930',
+    'dataSource': 'HANA_OMNILENS_AI_ANALYZED_EVENT',
+    'itemCount': 1,
+    'items': [
+      {
+        'eventId': 'ALERT-SAMSUNG-1',
+        'sourceType': 'DISCLOSURE',
+        'title': 'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+        'summary': 'Dividend payout translated by OmniLens.',
+        'summaryLines': {
+          'what': 'Samsung Electronics confirmed its dividend payout.',
+          'why': 'Shareholder returns influence foreign investor interest.',
+          'impact': 'Investors may compare the payout with large-cap peers.',
+        },
+        'translatedSummary': 'Dividend payout translated by OmniLens.',
+        'originalContent': '삼성전자 공시 전문',
+        'translatedContent':
+            'SAMSUNG ELEC: Daejangju for FY2025 disclosure text.',
+        'imageUrls': <Object?>[],
+        'contentAvailability': 'FULL_TEXT',
+        'originalUrl': 'https://dart.fss.or.kr/report',
+        'primaryStockCode': '005930',
+        'relatedStocks': ['005930'],
+        'sentiment': 'POSITIVE',
+        'importance': 'HIGH',
+        'riskLevel': 'LOW',
+        'clusterKey': 'samsung-disclosure',
+        'glossaryTerms': [
+          _glossaryTerm(
+            sourceTerm: '대장주',
+            englishTerm: 'Daejangju',
+            category: 'MARKET',
+          ),
+        ],
+        'translationQualityFlags': ['GLOSSARY_MATCHED'],
+        'watchlistTarget': true,
+        'holderTarget': false,
+        'publishedAt': '2026-06-18T05:55:00Z',
+        'receivedAt': '2026-06-18T06:00:00Z',
+        'targetCount': 1,
+      },
+    ],
+    'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _stockIntelligenceJson() {
+  return {
+    'stockCode': '035720',
+    'dataSource': 'HANA_OMNILENS_AI_ANALYZED_EVENT',
+    'itemCount': 2,
+    'items': [
+      {
+        'eventId': 'NEWS-1',
+        'sourceType': 'NEWS',
+        'title': 'Kakao expands global content partnerships',
+        'summary': 'Kakao signs new content distribution partnerships.',
+        'summaryLines': {
+          'what': 'Kakao signed new content partnerships.',
+          'why': 'The deals expand overseas monetization.',
+          'impact': 'Investors may reassess platform growth.',
+        },
+        'translatedSummary':
+            'Kakao signs new content distribution partnerships.',
+        'originalContent': '카카오 뉴스 전문',
+        'translatedContent': 'Kakao full translated news content.',
+        'imageUrls': ['https://news.example.com/kakao.jpg'],
+        'contentAvailability': 'FULL_TEXT',
+        'originalUrl': 'https://news.example.com/kakao',
+        'primaryStockCode': '035720',
+        'relatedStocks': ['035720'],
+        'sentiment': 'POSITIVE',
+        'importance': 'HIGH',
+        'riskLevel': 'LOW',
+        'clusterKey': 'kakao-news',
+        'glossaryTerms': <Object?>[],
+        'translationQualityFlags': ['GLOSSARY_MATCHED'],
+        'watchlistTarget': true,
+        'holderTarget': false,
+        'publishedAt': '2026-06-18T05:55:00Z',
+        'receivedAt': '2026-06-18T06:00:00Z',
+        'targetCount': 1,
+      },
+      {
+        'eventId': 'DISCLOSURE-1',
+        'sourceType': 'DISCLOSURE',
+        'title': 'Kakao files major shareholding disclosure',
+        'summary': 'Kakao published an English translated disclosure.',
+        'summaryLines': {
+          'what': 'Kakao filed a major shareholding disclosure.',
+          'why': 'Ownership updates can affect governance expectations.',
+          'impact': 'Monitor follow-up investor reaction.',
+        },
+        'translatedSummary':
+            'Kakao published an English translated disclosure.',
+        'originalContent': '카카오 공시 전문',
+        'translatedContent': 'Kakao full translated disclosure content.',
+        'imageUrls': <Object?>[],
+        'contentAvailability': 'FULL_TEXT',
+        'originalUrl': 'https://dart.fss.or.kr/report',
+        'primaryStockCode': '035720',
+        'relatedStocks': ['035720'],
+        'sentiment': 'NEUTRAL',
+        'importance': 'MEDIUM',
+        'riskLevel': 'MEDIUM',
+        'clusterKey': 'kakao-disclosure',
+        'glossaryTerms': <Object?>[],
+        'translationQualityFlags': ['DART_TRANSLATED'],
+        'watchlistTarget': false,
+        'holderTarget': true,
+        'publishedAt': '2026-06-18T05:10:00Z',
+        'receivedAt': '2026-06-18T05:20:00Z',
+        'targetCount': 1,
+      },
+    ],
+    'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _glossaryTerm({
+  required String sourceTerm,
+  required String englishTerm,
+  required String category,
+}) {
+  return {
+    'sourceTerm': sourceTerm,
+    'normalizedTerm': sourceTerm,
+    'englishTerm': englishTerm,
+    'category': category,
+  };
+}
+
+Map<String, Object?> _marketNewsJson() {
+  return {
+    'newsCount': 1,
+    'news': [
+      {
+        'newsId': 'MKT-NEWS-001',
+        'query': 'Korea market',
+        'title': '국내 증시 반등',
+        'translatedTitle': 'Korea market rebounds as chip stocks recover',
+        'summary': '시장 요약',
+        'summaryLines': {
+          'what': 'KOSPI rebounded on semiconductor buying.',
+          'why': 'Foreign inflows returned to large-cap exporters.',
+          'impact': 'Risk appetite may improve for Korean equities.',
+        },
+        'translatedSummary':
+            'KOSPI rebounded as investors bought semiconductor exporters.',
+        'originalContent': '원문 전문',
+        'translatedContent': 'Full translated market news content.',
+        'imageUrls': ['https://news.example.com/market.jpg'],
+        'contentAvailability': 'FULL_TEXT',
+        'originalUrl': 'https://news.example.com/market',
+        'canonicalUrl': 'https://news.example.com/market',
+        'sourceLicensePolicy': 'LINK_ONLY',
+        'glossaryTerms': <Object?>[],
+        'duplicateKey': 'market-news-key',
+        'publishedAt': '2026-06-18T04:00:00Z',
+        'createdAt': '2026-06-18T04:05:00Z',
+      },
+    ],
   };
 }
 

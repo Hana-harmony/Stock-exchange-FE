@@ -52,13 +52,16 @@ class _MostSearchedRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 10),
         child: Row(
           children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.surface,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColors.gray200),
+            SizedBox.square(
+              dimension: 44,
+              child: Center(
+                child: Transform.scale(
+                  scale: 44 / 34,
+                  child: _SearchResultAvatar(
+                    stockCode: item.symbol,
+                    stockName: item.name,
+                  ),
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -214,7 +217,10 @@ class _SearchResultTile extends StatelessWidget {
             children: [
               _MarketBadge(assetPath: countryBadgeAsset),
               const SizedBox(width: 8),
-              const _SearchResultAvatar(),
+              _SearchResultAvatar(
+                stockCode: item.stockCode,
+                stockName: item.stockName,
+              ),
               const SizedBox(width: 8),
               Expanded(
                 child: Column(

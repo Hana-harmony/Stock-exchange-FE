@@ -9,6 +9,7 @@ import '../../core/currency_format.dart';
 import '../../core/exchange_session_controller.dart';
 import '../../core/market_detail_controller.dart';
 import '../../core/market_index_controller.dart';
+import '../../core/market_news_controller.dart';
 import '../../core/market_quote_controller.dart';
 import '../../core/notification_controller.dart';
 import '../../core/trade_controller.dart';
@@ -20,6 +21,7 @@ import '../../ui/components/app_underline_tab.dart';
 import '../../ui/theme/app_tokens.dart';
 
 part 'market/market_screen.dart';
+part 'market_news/market_news_screen.dart';
 part 'notifications/notification_article_detail_screen.dart';
 part 'notifications/notification_inbox_screen.dart';
 part 'accounts/accounts_screen.dart';
