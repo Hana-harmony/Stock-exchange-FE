@@ -170,6 +170,14 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
   }
 
   Future<void> signOut() async {
+    final refreshToken = session?.refreshToken;
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      try {
+        await _apiClient.logout(refreshToken);
+      } on Object {
+        // 로그아웃은 로컬 세션 제거가 우선이다.
+      }
+    }
     await _sessionStore.clear();
     value = const ExchangeSessionState.signedOut();
   }

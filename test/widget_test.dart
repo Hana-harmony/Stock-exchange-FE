@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:stock_exchange_fe/src/app.dart';
+import 'package:stock_exchange_fe/src/core/account_controller.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
@@ -16,8 +17,10 @@ import 'package:stock_exchange_fe/src/core/market_news_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
 import 'package:stock_exchange_fe/src/core/notification_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
+import 'package:stock_exchange_fe/src/core/watchlist_controller.dart';
 import 'package:stock_exchange_fe/src/ui/assets/app_assets.dart';
 import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
+import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -92,8 +95,8 @@ void main() {
     expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
     expect(find.byKey(const ValueKey('accounts-page-title')), findsOneWidget);
     expect(find.text('Total Assets'), findsOneWidget);
-    expect(find.text(r'$50,000.000'), findsOneWidget);
-    expect(find.text('0.000(0.00%)'), findsOneWidget);
+    expect(find.text('USD 50,000.00'), findsOneWidget);
+    expect(find.text('USD 0.00 (0.00%)'), findsOneWidget);
     expect(find.text('Portfolio'), findsOneWidget);
     expect(find.text('${_testSession.accountId} [ISA(Brokerage)]'),
         findsOneWidget);
@@ -127,8 +130,11 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-WatchLists')));
     await tester.pumpAndSettle();
-    expect(find.text('WatchLists tab'), findsOneWidget);
     expect(find.widgetWithText(AppBar, 'WatchLists'), findsOneWidget);
+    expect(find.byKey(const ValueKey('watchlist-screen')), findsOneWidget);
+    expect(find.text('Watchlist'), findsOneWidget);
+    expect(find.byKey(const ValueKey('watchlist-item-005930')), findsOneWidget);
+    expect(find.text('Samsung Electronics'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Discover')));
     await tester.pumpAndSettle();
@@ -172,8 +178,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-MY')));
     await tester.pumpAndSettle();
-    expect(find.text('MY tab'), findsOneWidget);
-    expect(find.text('알림보내기'), findsOneWidget);
+    expect(find.byKey(const ValueKey('my-screen')), findsOneWidget);
+    expect(find.text('Profile'), findsOneWidget);
+    expect(find.text(_testSession.accountId), findsOneWidget);
+    expect(find.byKey(const ValueKey('my-logout-button')), findsOneWidget);
 
     AssetImage notificationAsset() {
       final container =
@@ -189,9 +197,7 @@ void main() {
       return image.image as AssetImage;
     }
 
-    expect(notificationAsset().assetName, AppAssets.headerNotifications);
-
-    await tester.tap(find.text('알림보내기'));
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-Markets')));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
     expect(notificationAsset().assetName, AppAssets.headerNotificationsNew);
@@ -329,6 +335,92 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const PageStorageKey<String>('stock-chart-tab')),
         findsOneWidget);
+  });
+
+  testWidgets('opens the original market news URL from detail button',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final previousLauncher = UrlLauncherPlatform.instance;
+    final launcher = _RecordingUrlLauncher();
+    UrlLauncherPlatform.instance = launcher;
+    addTearDown(() {
+      UrlLauncherPlatform.instance = previousLauncher;
+    });
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-Discover')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('market-news-card-MKT-NEWS-001')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('notification-article-view-original')),
+    );
+    await tester.pump();
+
+    expect(launcher.launchedUrls, ['https://news.example.com/market']);
+    expect(
+      launcher.lastOptions?.mode,
+      PreferredLaunchMode.externalApplication,
+    );
+    expect(launcher.lastOptions?.webOnlyWindowName, '_blank');
+  });
+
+  testWidgets('adds a stock to backend watchlist from detail heart',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-detail-favorite-button')),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-WatchLists')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('watchlist-screen')), findsOneWidget);
+    expect(find.byKey(const ValueKey('watchlist-item-035720')), findsOneWidget);
+    expect(find.text('Kakao'), findsWidgets);
   });
 
   testWidgets('pins detail tabs and reveals compact header on scroll',
@@ -858,30 +950,34 @@ void main() {
       const Rect.fromLTWH(63, 352, 93, 34),
     );
     _expectRect(
+      tester.getRect(find.byKey(const ValueKey('portfolio-allocation-chart'))),
+      const Rect.fromLTWH(0, 402, 402, 96),
+    );
+    _expectRect(
       tester
           .getRect(find.byKey(const ValueKey('accounts-holdings-filter-row'))),
-      const Rect.fromLTWH(0, 402, 402, 56),
+      const Rect.fromLTWH(0, 498, 402, 56),
     );
     _expectRect(
       tester
           .getRect(find.byKey(const ValueKey('accounts-market-scope-segment'))),
-      const Rect.fromLTWH(269, 412, 121, 36),
+      const Rect.fromLTWH(269, 508, 121, 36),
     );
     _expectRect(
       tester.getRect(find.byKey(const ValueKey('accounts-table-header'))),
-      const Rect.fromLTWH(0, 458, 402, 48),
+      const Rect.fromLTWH(0, 554, 402, 48),
     );
     _expectRect(
       tester.getRect(find.byKey(const ValueKey('accounts-holding-row-0'))),
-      const Rect.fromLTWH(0, 506, 402, 62),
+      const Rect.fromLTWH(0, 602, 402, 62),
     );
 
     final totalPositions = tester.widget<RichText>(
       find.byKey(const ValueKey('accounts-total-positions')),
     );
     expect(totalPositions.text.toPlainText(), 'Total 60 Positions');
-    expect(find.text(r'$50,000.000'), findsOneWidget);
-    expect(find.text('0.000(0.00%)'), findsOneWidget);
+    expect(find.text('USD 50,000.00'), findsOneWidget);
+    expect(find.text('USD 0.00 (0.00%)'), findsOneWidget);
     expect(
       tester
           .widget<Text>(find.text('Foreign Currency (Cash Balance)'))
@@ -1038,7 +1134,7 @@ void main() {
 
     expect(find.byKey(const ValueKey('stock-chart-content')), findsOneWidget);
     expect(find.text('1D price chart'), findsOneWidget);
-    expect(find.text('USD 35.50'), findsOneWidget);
+    expect(find.text('USD 35.50'), findsWidgets);
     expect(find.text('KRW 54,800'), findsOneWidget);
     expect(find.text('KRW 53,200'), findsOneWidget);
 
@@ -1235,20 +1331,59 @@ Future<void> _loadPretendardFont() async {
   await regular.load();
 }
 
+class _RecordingUrlLauncher extends UrlLauncherPlatform {
+  final List<String> launchedUrls = [];
+  LaunchOptions? lastOptions;
+
+  @override
+  Null get linkDelegate => null;
+
+  @override
+  Future<bool> canLaunch(String url) async => true;
+
+  @override
+  Future<bool> launchUrl(String url, LaunchOptions options) async {
+    launchedUrls.add(url);
+    lastOptions = options;
+    return true;
+  }
+
+  @override
+  Future<bool> launch(
+    String url, {
+    required bool useSafariVC,
+    required bool useWebView,
+    required bool enableJavaScript,
+    required bool enableDomStorage,
+    required bool universalLinksOnly,
+    required Map<String, String> headers,
+    String? webOnlyWindowName,
+  }) async {
+    launchedUrls.add(url);
+    return true;
+  }
+}
+
 StockExchangeApp _stockExchangeTestApp({
   required MarketQuoteController marketQuoteController,
+  MarketQuoteController? watchlistQuoteController,
   MarketDetailController? marketDetailController,
   MarketNewsController? marketNewsController,
   NotificationController? notificationController,
+  WatchlistController? watchlistController,
 }) {
   return StockExchangeApp(
     sessionController: _sessionController(),
+    accountController: _accountController(),
     tradeController: _tradeController(),
     marketDetailController: marketDetailController ?? _marketDetailController(),
     marketIndexController: _marketIndexController(),
     marketNewsController: marketNewsController ?? _marketNewsController(),
     marketQuoteController: marketQuoteController,
+    watchlistQuoteController:
+        watchlistQuoteController ?? _accountMarketQuoteController(),
     notificationController: notificationController ?? _notificationController(),
+    watchlistController: watchlistController ?? _watchlistController(),
   );
 }
 
@@ -1269,6 +1404,21 @@ ExchangeSessionController _sessionController() {
       httpClient: MockClient((request) async => http.Response('{}', 404)),
     ),
     sessionStore: store,
+  );
+}
+
+AccountController _accountController() {
+  return AccountController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/api/v1/accounts/${_testSession.accountId}') {
+          return _jsonEnvelope(_accountJson());
+        }
+        return http.Response('{}', 404);
+      }),
+      sessionProvider: () => _testSession,
+    ),
   );
 }
 
@@ -1336,6 +1486,35 @@ TradeController _tradeController() {
             'orderabilitySource': 'Hana-OmniLens-API',
             'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
           });
+        }
+        return http.Response('{}', 404);
+      }),
+      sessionProvider: () => _testSession,
+    ),
+  );
+}
+
+WatchlistController _watchlistController() {
+  return WatchlistController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        final path = request.url.path;
+        if (path == '/api/v1/accounts/${_testSession.accountId}/watchlist') {
+          if (request.method == 'POST') {
+            final body = jsonDecode(request.body) as Map<String, dynamic>;
+            return _jsonEnvelope(
+              _watchlistJson(
+                extraStockCode: body['stockCode'] as String?,
+              ),
+            );
+          }
+          return _jsonEnvelope(_watchlistJson());
+        }
+        if (path.startsWith(
+          '/api/v1/accounts/${_testSession.accountId}/watchlist/',
+        )) {
+          return _jsonEnvelope(_watchlistJson(includeSamsung: false));
         }
         return http.Response('{}', 404);
       }),
@@ -1629,6 +1808,56 @@ MarketQuoteController _marketQuoteController() {
   );
 }
 
+MarketQuoteController _accountMarketQuoteController() {
+  return MarketQuoteController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        if (request.url.path ==
+            '/api/v1/accounts/${_testSession.accountId}/market/quotes/watchlist') {
+          return _jsonEnvelope({
+            'dataSource': 'Stock-exchange-BE',
+            'marketCoverage': 'KOREA',
+            'displayCurrency': 'USD',
+            'transport': {
+              'snapshot': 'REST',
+              'realtime': 'WebSocket',
+            },
+            'cache': {'status': 'HIT'},
+            'quoteCount': 1,
+            'quotes': [
+              _quoteJson(
+                seedMarketQuotes.firstWhere(
+                  (quote) => quote.stockCode == '005930',
+                ),
+              ),
+            ],
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }
+        if (request.url.path ==
+            '/api/v1/accounts/${_testSession.accountId}/market/quotes/portfolio') {
+          return _jsonEnvelope({
+            'dataSource': 'Stock-exchange-BE',
+            'marketCoverage': 'KOREA',
+            'displayCurrency': 'USD',
+            'transport': {
+              'snapshot': 'REST',
+              'realtime': 'WebSocket',
+            },
+            'cache': {'status': 'HIT'},
+            'quoteCount': seedMarketQuotes.length,
+            'quotes': seedMarketQuotes.map(_quoteJson).toList(),
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }
+        return http.Response('{}', 404);
+      }),
+      sessionProvider: () => _testSession,
+    ),
+  );
+}
+
 Map<String, Object?> _indexJson(
   String indexCode,
   String indexName,
@@ -1665,6 +1894,48 @@ Map<String, Object?> _quoteJson(MarketQuote quote) {
     'fxRateSource': quote.fxRateSource,
     'fxStale': quote.fxStale,
     'badge': quote.badge,
+  };
+}
+
+Map<String, Object?> _accountJson() {
+  return {
+    'accountId': _testSession.accountId,
+    'currency': 'USD',
+    'cashBalanceUsd': '50000.00',
+    'lastLedgerEntryId': 'LEDGER-1',
+    'updatedAt': '2026-06-18T06:00:00Z',
+  };
+}
+
+Map<String, Object?> _watchlistJson({
+  bool includeSamsung = true,
+  String? extraStockCode,
+}) {
+  final items = <Map<String, Object?>>[
+    if (includeSamsung)
+      {
+        'stockCode': '005930',
+        'stockName': 'Samsung Electronics',
+        'market': 'KOSPI',
+        'targetingMode': 'WATCHLIST',
+        'addedAt': '2026-06-18T06:00:00Z',
+      },
+    if (extraStockCode != null && extraStockCode != '005930')
+      {
+        'stockCode': extraStockCode,
+        'stockName': extraStockCode == '035720' ? 'Kakao' : 'Unknown stock',
+        'market': 'KOSPI',
+        'targetingMode': 'WATCHLIST',
+        'addedAt': '2026-06-18T06:01:00Z',
+      },
+  ];
+  return {
+    'userId': 'hana',
+    'accountId': _testSession.accountId,
+    'itemCount': items.length,
+    'targetingMode': 'WATCHLIST',
+    'items': items,
+    'servedAt': '2026-06-18T06:01:00Z',
   };
 }
 

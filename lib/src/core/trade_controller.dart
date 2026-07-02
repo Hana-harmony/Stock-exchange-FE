@@ -414,10 +414,14 @@ class TradeController extends ValueNotifier<TradeState> {
 
   final ExchangeApiClient _apiClient;
 
+  void clear() {
+    value = const TradeState.idle();
+  }
+
   Future<void> loadPortfolio(String? accountId) async {
     if (accountId == null || accountId.isEmpty) {
       value = TradeState.failure(
-        errorMessage: 'Sign in to load mock portfolio.',
+        errorMessage: 'Sign in to load your portfolio.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
         orderHistory: value.orderHistory,

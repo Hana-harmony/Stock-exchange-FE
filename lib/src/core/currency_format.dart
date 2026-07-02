@@ -3,10 +3,14 @@ String formatCurrencyDisplay(String currency, String amount) {
 }
 
 String formatCurrencyAmount(String currency, String amount) {
-  if (currency.trim().toUpperCase() != 'USD') {
-    return amount;
+  final normalizedCurrency = currency.trim().toUpperCase();
+  if (normalizedCurrency == 'USD') {
+    return formatUsdAmount(amount);
   }
-  return formatUsdAmount(amount);
+  if (normalizedCurrency == 'KRW') {
+    return formatKrwAmount(amount);
+  }
+  return _formatGenericAmount(amount);
 }
 
 String formatUsdAmount(String amount) {
@@ -45,4 +49,45 @@ String _formatThousands(String digits) {
   }
 
   return buffer.toString();
+}
+
+String formatKrwAmount(String amount) {
+  final trimmed = amount.trim();
+  if (trimmed.isEmpty) {
+    return amount;
+  }
+
+  final sign = switch (trimmed[0]) {
+    '+' => '+',
+    '-' => '-',
+    _ => '',
+  };
+  final unsigned = sign.isEmpty ? trimmed : trimmed.substring(1);
+  final normalized = unsigned.replaceAll(',', '');
+  if (!RegExp(r'^\d+(\.\d+)?$').hasMatch(normalized)) {
+    return amount;
+  }
+
+  final whole = normalized.split('.').first;
+  return '$sign${_formatThousands(whole)}';
+}
+
+String _formatGenericAmount(String amount) {
+  final trimmed = amount.trim();
+  if (trimmed.isEmpty) {
+    return amount;
+  }
+  final normalized = trimmed.replaceAll(',', '');
+  if (!RegExp(r'^[+-]?\d+(\.\d+)?$').hasMatch(normalized)) {
+    return amount;
+  }
+  final sign = normalized.startsWith('-')
+      ? '-'
+      : normalized.startsWith('+')
+          ? '+'
+          : '';
+  final unsigned = sign.isEmpty ? normalized : normalized.substring(1);
+  final parts = unsigned.split('.');
+  final fraction = parts.length > 1 ? '.${parts.last}' : '';
+  return '$sign${_formatThousands(parts.first)}$fraction';
 }

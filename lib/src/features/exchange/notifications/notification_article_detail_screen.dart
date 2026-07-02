@@ -121,8 +121,11 @@ class _NotificationArticleDetailScreenState
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: _NotificationArticleBottomActionBar(
-                        onPressed: () =>
-                            _showOriginalLinkMessage(context, detail),
+                        onPressed: () {
+                          unawaited(
+                            _openOriginalArticleUrl(context, detail),
+                          );
+                        },
                       ),
                     ),
                   ],
@@ -179,22 +182,37 @@ class _NotificationArticleDetailScreenState
     }
     _dismissGlossaryTooltip();
   }
+}
 
-  void _showOriginalLinkMessage(
-    BuildContext context,
-    _NotificationArticleDetailData detail,
-  ) {
-    final message = detail.originalUrl.isEmpty
-        ? 'Original article link is unavailable.'
-        : 'Original article: ${detail.originalUrl}';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
+Future<void> _openOriginalArticleUrl(
+  BuildContext context,
+  _NotificationArticleDetailData detail,
+) async {
+  final uri = Uri.tryParse(detail.originalUrl.trim());
+  if (uri == null || (uri.scheme != 'https' && uri.scheme != 'http')) {
+    _showOriginalArticleError(context, 'Original article link is unavailable.');
+    return;
   }
+
+  final opened = await launchUrl(
+    uri,
+    mode: LaunchMode.externalApplication,
+    webOnlyWindowName: '_blank',
+  );
+  if (!opened && context.mounted) {
+    _showOriginalArticleError(context, 'Unable to open original article.');
+  }
+}
+
+void _showOriginalArticleError(BuildContext context, String message) {
+  if (!context.mounted) {
+    return;
+  }
+  ScaffoldMessenger.of(context)
+    ..hideCurrentSnackBar()
+    ..showSnackBar(
+      SnackBar(content: Text(message)),
+    );
 }
 
 class _NotificationArticleBottomActionBar extends StatelessWidget {

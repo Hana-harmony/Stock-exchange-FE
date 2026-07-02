@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
@@ -13,6 +15,7 @@ import 'core/notification_controller.dart';
 import 'core/secure_exchange_session_store.dart';
 import 'core/tax_controller.dart';
 import 'core/trade_controller.dart';
+import 'core/watchlist_controller.dart';
 import 'ui/components/app_bottom_navigation.dart';
 import 'ui/components/app_header.dart';
 import 'ui/components/app_scaffold.dart';
@@ -36,6 +39,7 @@ class StockExchangeApp extends StatelessWidget {
     this.portfolioQuoteController,
     this.notificationController,
     this.taxController,
+    this.watchlistController,
     this.sessionStore,
   });
 
@@ -50,6 +54,7 @@ class StockExchangeApp extends StatelessWidget {
   final MarketQuoteController? portfolioQuoteController;
   final NotificationController? notificationController;
   final TaxController? taxController;
+  final WatchlistController? watchlistController;
   final ExchangeSessionStore? sessionStore;
 
   @override
@@ -70,6 +75,7 @@ class StockExchangeApp extends StatelessWidget {
         portfolioQuoteController: portfolioQuoteController,
         notificationController: notificationController,
         taxController: taxController,
+        watchlistController: watchlistController,
         sessionStore: sessionStore,
       ),
     );
@@ -90,6 +96,7 @@ class ExchangeShell extends StatefulWidget {
     this.portfolioQuoteController,
     this.notificationController,
     this.taxController,
+    this.watchlistController,
     this.sessionStore,
   });
 
@@ -104,6 +111,7 @@ class ExchangeShell extends StatefulWidget {
   final MarketQuoteController? portfolioQuoteController;
   final NotificationController? notificationController;
   final TaxController? taxController;
+  final WatchlistController? watchlistController;
   final ExchangeSessionStore? sessionStore;
 
   @override
@@ -133,6 +141,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final MarketQuoteController _portfolioQuoteController;
   late final NotificationController _notificationController;
   late final TaxController _taxController;
+  late final WatchlistController _watchlistController;
   List<String> _recentSearches = List<String>.from(_initialRecentSearches);
   final Set<String> _favoriteStockCodes = <String>{};
 
@@ -159,7 +168,11 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _notificationController =
         widget.notificationController ?? _createNotificationController();
     _taxController = widget.taxController ?? _createTaxController();
+    _watchlistController =
+        widget.watchlistController ?? _createWatchlistController();
     _notificationController.addListener(_handleNotificationStateChanged);
+    _watchlistController.addListener(_handleWatchlistStateChanged);
+    _sessionController.addListener(_handleSessionStateChanged);
     _sessionController.restore();
   }
 
@@ -236,6 +249,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return NotificationController(apiClient: _apiClient);
   }
 
+  WatchlistController _createWatchlistController() {
+    return WatchlistController(apiClient: _apiClient);
+  }
+
   @override
   void dispose() {
     if (widget.sessionController == null) {
@@ -268,6 +285,11 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _notificationController.removeListener(_handleNotificationStateChanged);
     if (widget.notificationController == null) {
       _notificationController.dispose();
+    }
+    _watchlistController.removeListener(_handleWatchlistStateChanged);
+    _sessionController.removeListener(_handleSessionStateChanged);
+    if (widget.watchlistController == null) {
+      _watchlistController.dispose();
     }
     if (widget.taxController == null) {
       _taxController.dispose();
@@ -306,14 +328,98 @@ class _ExchangeShellState extends State<ExchangeShell> {
     });
   }
 
-  void _toggleFavoriteStock(String stockCode) {
-    setState(() {
-      if (_favoriteStockCodes.contains(stockCode)) {
-        _favoriteStockCodes.remove(stockCode);
+  void _handleSessionStateChanged() {
+    final session = _sessionController.session;
+    if (session == null) {
+      if (mounted) {
+        setState(() {
+          _favoriteStockCodes.clear();
+        });
       } else {
+        _favoriteStockCodes.clear();
+      }
+      _accountController.clear();
+      _tradeController.clear();
+      _watchlistController.clear();
+      unawaited(_marketQuoteController.unsubscribeLive());
+      return;
+    }
+    unawaited(_accountController.loadAccount(session.accountId));
+    unawaited(_tradeController.loadPortfolio(session.accountId));
+    unawaited(_watchlistController.load(session.accountId));
+    unawaited(_notificationController.loadAlerts(accountId: session.accountId));
+  }
+
+  void _handleWatchlistStateChanged() {
+    if (!mounted) {
+      return;
+    }
+    final codes = _watchlistController.value.stockCodes;
+    setState(() {
+      _favoriteStockCodes
+        ..clear()
+        ..addAll(codes);
+    });
+  }
+
+  Future<bool> _setFavoriteStock(String stockCode, bool nextIsFavorite) async {
+    final session = _sessionController.session;
+    if (session == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Sign in before changing watchlist.')),
+      );
+      return false;
+    }
+
+    final wasFavorite = _favoriteStockCodes.contains(stockCode);
+    setState(() {
+      if (nextIsFavorite) {
         _favoriteStockCodes.add(stockCode);
+      } else {
+        _favoriteStockCodes.remove(stockCode);
       }
     });
+
+    if (nextIsFavorite) {
+      await _watchlistController.add(
+        accountId: session.accountId,
+        stockCode: stockCode,
+      );
+    } else {
+      await _watchlistController.remove(
+        accountId: session.accountId,
+        stockCode: stockCode,
+      );
+    }
+
+    final errorMessage = _watchlistController.value.errorMessage;
+    if (errorMessage != null) {
+      setState(() {
+        if (wasFavorite) {
+          _favoriteStockCodes.add(stockCode);
+        } else {
+          _favoriteStockCodes.remove(stockCode);
+        }
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      }
+      return false;
+    }
+
+    unawaited(
+      _watchlistQuoteController.loadWatchlistSnapshot(
+        accountId: session.accountId,
+      ),
+    );
+    return true;
+  }
+
+  void _toggleFavoriteStock(String stockCode) {
+    final nextIsFavorite = !_favoriteStockCodes.contains(stockCode);
+    unawaited(_setFavoriteStock(stockCode, nextIsFavorite));
   }
 
   Future<void> _showNotificationPlaceholder() {
@@ -372,17 +478,17 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
-  void _showMyNotificationPlaceholder() {
-    _notificationController.markTopNotificationUnread();
-    setState(() {
-      _selectedIndex = 1;
-    });
-  }
-
   void _openAccountsTabFromNestedFlow() {
     Navigator.of(context).popUntil((route) => route.isFirst);
     setState(() {
       _selectedIndex = 2;
+    });
+  }
+
+  void _openMyTabFromNestedFlow() {
+    Navigator.of(context).popUntil((route) => route.isFirst);
+    setState(() {
+      _selectedIndex = 4;
     });
   }
 
@@ -401,6 +507,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           onRemoveRecentSearch: _removeRecentSearch,
           onClearRecentSearches: _clearRecentSearches,
           onToggleFavoriteStock: _toggleFavoriteStock,
+          onFavoriteChanged: _setFavoriteStock,
           onNavigateToAccounts: _openAccountsTabFromNestedFlow,
         ),
       ),
@@ -428,10 +535,16 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return IndexedStack(
       index: _selectedIndex,
       children: [
-        const ShellPlaceholderScreen(
-          title: 'WatchLists',
-          description:
-              'This tab is intentionally left as a placeholder while the Markets flow is implemented.',
+        WatchlistScreen(
+          sessionController: _sessionController,
+          watchlistController: _watchlistController,
+          marketDetailController: _marketDetailController,
+          marketQuoteController: _watchlistQuoteController,
+          tradeController: _tradeController,
+          notificationController: _notificationController,
+          onFavoriteChanged: _setFavoriteStock,
+          onNavigateToAccounts: _openAccountsTabFromNestedFlow,
+          onSignInTap: _openMyTabFromNestedFlow,
         ),
         MarketScreen(
           sessionController: _sessionController,
@@ -440,22 +553,29 @@ class _ExchangeShellState extends State<ExchangeShell> {
           marketIndexController: _marketIndexController,
           marketQuoteController: _marketQuoteController,
           notificationController: _notificationController,
+          favoriteStockCodes: _favoriteStockCodes,
+          onFavoriteChanged: _setFavoriteStock,
           onNavigateToAccounts: _openAccountsTabFromNestedFlow,
         ),
         AccountsScreen(
           sessionController: _sessionController,
           accountController: _accountController,
           tradeController: _tradeController,
+          onSignInTap: _openMyTabFromNestedFlow,
         ),
         MarketNewsScreen(
           marketNewsController: _marketNewsController,
         ),
-        ShellPlaceholderScreen(
-          title: 'MY',
-          description:
-              'MY remains a placeholder until the account and settings pages are specified.',
-          actionLabel: '알림보내기',
-          onActionTap: _showMyNotificationPlaceholder,
+        MyScreen(
+          sessionController: _sessionController,
+          accountController: _accountController,
+          tradeController: _tradeController,
+          watchlistController: _watchlistController,
+          onSignedOut: () {
+            setState(() {
+              _selectedIndex = 1;
+            });
+          },
         ),
       ],
     );

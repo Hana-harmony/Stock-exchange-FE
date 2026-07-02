@@ -14,6 +14,7 @@ class StockDetailScreen extends StatefulWidget {
     this.sector = '',
     this.isFavorite = false,
     this.onFavoriteToggle,
+    this.onFavoriteChanged,
     this.onNavigateToAccounts,
   });
 
@@ -28,6 +29,8 @@ class StockDetailScreen extends StatefulWidget {
   final String sector;
   final bool isFavorite;
   final VoidCallback? onFavoriteToggle;
+  final Future<bool> Function(String stockCode, bool nextIsFavorite)?
+      onFavoriteChanged;
   final VoidCallback? onNavigateToAccounts;
 
   @override
@@ -122,11 +125,27 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
-  void _toggleFavorite() {
+  Future<void> _toggleFavorite() async {
+    final wasFavorite = _isFavorite;
+    final nextIsFavorite = !wasFavorite;
     setState(() {
-      _isFavorite = !_isFavorite;
+      _isFavorite = nextIsFavorite;
     });
-    widget.onFavoriteToggle?.call();
+    final changed = widget.onFavoriteChanged == null
+        ? true
+        : await widget.onFavoriteChanged!(
+            widget.stockCode,
+            nextIsFavorite,
+          );
+    if (!changed && mounted) {
+      setState(() {
+        _isFavorite = wasFavorite;
+      });
+      return;
+    }
+    if (widget.onFavoriteChanged == null) {
+      widget.onFavoriteToggle?.call();
+    }
   }
 
   void _handleScroll() {
@@ -297,6 +316,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           onRemoveRecentSearch: (_) {},
           onClearRecentSearches: () {},
           onToggleFavoriteStock: (_) {},
+          onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts ?? () {},
         ),
       ),
@@ -306,7 +326,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   void _showTradePlaceholder(String side) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$side order flow is not included in this page scope.'),
+        content: Text('$side orders are being prepared.'),
       ),
     );
   }

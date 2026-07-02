@@ -150,8 +150,11 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
                         Align(
                           alignment: Alignment.bottomCenter,
                           child: _NotificationArticleBottomActionBar(
-                            onPressed: () =>
-                                _showOriginalLinkMessage(context, detail),
+                            onPressed: () {
+                              unawaited(
+                                _openOriginalArticleUrl(context, detail),
+                              );
+                            },
                           ),
                         ),
                       ],
@@ -209,21 +212,5 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
       return;
     }
     _dismissGlossaryTooltip();
-  }
-
-  void _showOriginalLinkMessage(
-    BuildContext context,
-    _NotificationArticleDetailData detail,
-  ) {
-    final message = detail.originalUrl.isEmpty
-        ? 'Original article link is unavailable.'
-        : 'Original article: ${detail.originalUrl}';
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text(message),
-        ),
-      );
   }
 }

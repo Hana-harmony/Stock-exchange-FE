@@ -82,7 +82,7 @@ class AccountController extends ValueNotifier<AccountState> {
   Future<void> loadAccount(String? accountId) async {
     if (accountId == null || accountId.isEmpty) {
       value = AccountState.failure(
-        errorMessage: 'Sign in to load mock USD account.',
+        errorMessage: 'Sign in to load your USD account.',
         account: value.account,
       );
       return;
@@ -101,7 +101,7 @@ class AccountController extends ValueNotifier<AccountState> {
       );
     } on Object {
       value = AccountState.failure(
-        errorMessage: 'Unable to load mock USD account.',
+        errorMessage: 'Unable to load your USD account.',
         account: value.account,
       );
     }
@@ -113,7 +113,7 @@ class AccountController extends ValueNotifier<AccountState> {
   }) async {
     if (accountId == null || accountId.isEmpty) {
       value = AccountState.failure(
-        errorMessage: 'Sign in before depositing mock USD.',
+        errorMessage: 'Sign in before depositing USD.',
         account: value.account,
       );
       return;
@@ -142,7 +142,7 @@ class AccountController extends ValueNotifier<AccountState> {
       );
     } on Object {
       value = AccountState.failure(
-        errorMessage: 'Unable to deposit mock USD.',
+        errorMessage: 'Unable to deposit USD.',
         account: value.account,
       );
     }

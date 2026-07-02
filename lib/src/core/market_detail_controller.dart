@@ -107,7 +107,7 @@ class StockDetail {
   final String dataSource;
   final DateTime? servedAt;
 
-  String get krwDisplay => '$baseCurrency $currentPriceKrw';
+  String get krwDisplay => formatCurrencyDisplay(baseCurrency, currentPriceKrw);
 
   String get localCurrencyDisplay =>
       formatCurrencyDisplay(displayCurrency, localCurrencyPrice);
@@ -302,7 +302,7 @@ class MarketChartPoint {
   final int volume;
   final bool adjusted;
 
-  String get closeKrwDisplay => 'KRW $closePriceKrw';
+  String get closeKrwDisplay => formatCurrencyDisplay('KRW', closePriceKrw);
 
   String get closeLocalDisplay =>
       formatCurrencyDisplay(localCurrency, closeLocalCurrencyPrice);
@@ -404,7 +404,7 @@ class OrderBookLevel {
   final int orderCount;
 
   String displayPrice(String baseCurrency, String displayCurrency) {
-    return '$baseCurrency $priceKrw / '
+    return '${formatCurrencyDisplay(baseCurrency, priceKrw)} / '
         '${formatCurrencyDisplay(displayCurrency, localCurrencyPrice)}';
   }
 

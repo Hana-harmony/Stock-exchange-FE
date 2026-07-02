@@ -2,6 +2,7 @@ part of '../exchange_pages.dart';
 
 class _FavoriteButton extends StatelessWidget {
   const _FavoriteButton({
+    super.key,
     required this.isFavorite,
     required this.onTap,
     this.inactiveAssetPath = AppAssets.favoriteIcon,
@@ -287,6 +288,29 @@ class _MutedInfoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _showComingSoonDialog(
+  BuildContext context, {
+  required String featureName,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        key: ValueKey('coming-soon-dialog-$featureName'),
+        title: const Text('Coming soon'),
+        content: Text('$featureName is being prepared.'),
+        actions: [
+          TextButton(
+            key: const ValueKey('coming-soon-confirm'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 class _ErrorStateCard extends StatelessWidget {

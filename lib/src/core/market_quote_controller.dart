@@ -201,10 +201,24 @@ class MarketQuote {
   final DateTime? publishedAt;
   final String badge;
 
-  String get krwDisplay => 'KRW $currentPriceKrw';
+  String get krwDisplay => formatCurrencyDisplay('KRW', currentPriceKrw);
 
   String get localCurrencyDisplay =>
-      formatCurrencyDisplay(localCurrency, localCurrencyPrice);
+      formatCurrencyDisplay(localCurrency, effectiveLocalCurrencyPrice);
+
+  String get effectiveLocalCurrencyPrice {
+    final parsedLocal = _positiveDouble(localCurrencyPrice);
+    if (parsedLocal != null) {
+      return parsedLocal.toStringAsFixed(2);
+    }
+
+    final parsedKrw = _positiveDouble(currentPriceKrw);
+    final parsedFx = _positiveDouble(fxRate);
+    if (parsedKrw == null || parsedFx == null) {
+      return localCurrencyPrice;
+    }
+    return (parsedKrw / parsedFx).toStringAsFixed(2);
+  }
 
   bool get isAfterHours => marketSession.toUpperCase() == 'AFTER_HOURS';
 
@@ -693,4 +707,12 @@ DateTime? _dateTime(Object? value) {
     return null;
   }
   return DateTime.tryParse(value);
+}
+
+double? _positiveDouble(String value) {
+  final parsed = double.tryParse(value.replaceAll(',', '').trim());
+  if (parsed == null || parsed <= 0) {
+    return null;
+  }
+  return parsed;
 }

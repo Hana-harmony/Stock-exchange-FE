@@ -10,6 +10,8 @@ class MarketScreen extends StatefulWidget {
     required this.marketQuoteController,
     required this.notificationController,
     required this.onNavigateToAccounts,
+    required this.favoriteStockCodes,
+    required this.onFavoriteChanged,
   });
 
   final ExchangeSessionController sessionController;
@@ -19,6 +21,9 @@ class MarketScreen extends StatefulWidget {
   final MarketQuoteController marketQuoteController;
   final NotificationController notificationController;
   final VoidCallback onNavigateToAccounts;
+  final Set<String> favoriteStockCodes;
+  final Future<bool> Function(String stockCode, bool nextIsFavorite)
+      onFavoriteChanged;
 
   @override
   State<MarketScreen> createState() => _MarketScreenState();
@@ -27,7 +32,7 @@ class MarketScreen extends StatefulWidget {
 class _MarketScreenState extends State<MarketScreen> {
   static const _marketCategories = <({String label, double width})>[
     (label: 'Stocks', width: 58),
-    (label: 'Cryto', width: 46),
+    (label: 'Crypto', width: 58),
     (label: 'Options', width: 65),
     (label: 'ETFs', width: 41),
     (label: 'Overview', width: 78),
@@ -103,6 +108,15 @@ class _MarketScreenState extends State<MarketScreen> {
                       width: category.width,
                       isSelected: isSelected,
                       onTap: () {
+                        if (index != 0) {
+                          unawaited(
+                            _showComingSoonDialog(
+                              context,
+                              featureName: category.label,
+                            ),
+                          );
+                          return;
+                        }
                         setState(() {
                           _selectedCategoryIndex = index;
                         });
@@ -199,8 +213,8 @@ class _MarketScreenState extends State<MarketScreen> {
           title: stock.name,
           market: stock.market,
           sector: '',
-          isFavorite: false,
-          onFavoriteToggle: () {},
+          isFavorite: widget.favoriteStockCodes.contains(stock.symbol),
+          onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: () {
             Navigator.of(context).pop();
             widget.onNavigateToAccounts();
@@ -237,6 +251,7 @@ class _MarketScreenState extends State<MarketScreen> {
         name: quote.stockName,
         market: quote.market,
         priceDisplay: quote.localCurrencyDisplay,
+        secondaryPriceDisplay: quote.krwDisplay,
         changeDisplay: _signedPercent(changeRate),
         isPositive: changeRate >= 0,
       );
@@ -559,143 +574,140 @@ class _TrendingStockTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final changeColor =
         stock.isPositive ? AppColors.green500 : AppColors.red500;
-    final leadingWidth = stock.isPositive ? 277.0 : 280.0;
-    final symbolWidth = stock.isPositive ? 215.0 : 218.0;
-    final trailingWidth = stock.isPositive ? 73.0 : 70.0;
-
     return InkWell(
       key: ValueKey('trending-stock-${stock.symbol}'),
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: SizedBox(
-        height: 65,
+        height: 72,
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: 10),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               SizedBox(
-                width: leadingWidth,
-                height: 45,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 12,
-                      height: 45,
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: SizedBox(
-                          height: 25,
-                          child: Text(
-                            '$rank',
-                            style: Theme.of(context)
-                                .textTheme
-                                .titleMedium
-                                ?.copyWith(
-                                  fontSize: 18,
-                                  height: 25 / 18,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.gray1000,
-                                ),
+                height: 52,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: SizedBox(
+                    width: 12,
+                    child: Text(
+                      '$rank',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontSize: 18,
+                            height: 25 / 18,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.gray1000,
                           ),
-                        ),
-                      ),
                     ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: 34,
-                      height: 45,
-                      child: Align(
-                        alignment: Alignment.center,
-                        child: _SearchResultAvatar(
-                          stockCode: stock.symbol,
-                          stockName: stock.name,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    SizedBox(
-                      width: symbolWidth,
-                      height: 45,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SizedBox(
-                            height: 25,
-                            child: Text(
-                              stock.symbol,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .titleMedium
-                                  ?.copyWith(
-                                    fontSize: 18,
-                                    height: 25 / 18,
-                                    fontWeight: FontWeight.w500,
-                                    color: AppColors.gray750,
-                                  ),
-                            ),
-                          ),
-                          SizedBox(
-                            height: 20,
-                            child: Text(
-                              stock.name,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    fontSize: 14,
-                                    height: 20 / 14,
-                                    fontWeight: FontWeight.w400,
-                                    letterSpacing: -0.28,
-                                    color: AppColors.gray600,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
-              const SizedBox(width: 20),
+              const SizedBox(width: 8),
               SizedBox(
-                width: trailingWidth,
-                height: 45,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    SizedBox(
-                      height: 25,
-                      child: Text(
-                        stock.changeDisplay,
+                width: 34,
+                height: 52,
+                child: Align(
+                  alignment: Alignment.center,
+                  child: _SearchResultAvatar(
+                    stockCode: stock.symbol,
+                    stockName: stock.name,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: SizedBox(
+                  height: 52,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        stock.symbol,
                         maxLines: 1,
-                        textAlign: TextAlign.end,
+                        overflow: TextOverflow.ellipsis,
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontSize: 18,
                                   height: 25 / 18,
                                   fontWeight: FontWeight.w500,
-                                  color: changeColor,
+                                  color: AppColors.gray750,
                                 ),
                       ),
-                    ),
-                    SizedBox(
-                      height: 20,
-                      child: Text(
-                        stock.priceDisplay,
-                        textAlign: TextAlign.end,
+                      Text(
+                        stock.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                               fontSize: 14,
                               height: 20 / 14,
                               fontWeight: FontWeight.w400,
                               letterSpacing: -0.28,
-                              color: AppColors.gray900,
+                              color: AppColors.gray600,
                             ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 12),
+              SizedBox(
+                width: 112,
+                height: 52,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    Flexible(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Text(
+                            stock.changeDisplay,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                                  fontSize: 16,
+                                  height: 20 / 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: changeColor,
+                                ),
+                          ),
+                          Text(
+                            stock.priceDisplay,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(
+                                  fontSize: 14,
+                                  height: 18 / 14,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.gray900,
+                                ),
+                          ),
+                          Text(
+                            stock.secondaryPriceDisplay,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                            style: Theme.of(context)
+                                .textTheme
+                                .labelMedium
+                                ?.copyWith(
+                                  fontSize: 11,
+                                  height: 14 / 11,
+                                  color: AppColors.gray500,
+                                ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -747,6 +759,7 @@ class _TrendingStock {
     required this.name,
     required this.market,
     required this.priceDisplay,
+    required this.secondaryPriceDisplay,
     required this.changeDisplay,
     required this.isPositive,
   });
@@ -755,6 +768,7 @@ class _TrendingStock {
   final String name;
   final String market;
   final String priceDisplay;
+  final String secondaryPriceDisplay;
   final String changeDisplay;
   final bool isPositive;
 }
