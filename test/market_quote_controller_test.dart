@@ -39,6 +39,24 @@ void main() {
         controller.value.quotes.single.fxMeta, contains('Hana-OmniLens-API'));
   });
 
+  test('fills missing USD price from KRW and FX direction', () {
+    final usdPerKrwQuote = MarketQuote.fromJson({
+      ..._tickJson(),
+      'currentPriceKrw': '100000',
+      'localCurrencyPrice': '0',
+      'fxRate': '0.0007',
+    });
+    final krwPerUsdQuote = MarketQuote.fromJson({
+      ..._tickJson(),
+      'currentPriceKrw': '100000',
+      'localCurrencyPrice': '0',
+      'fxRate': '1400',
+    });
+
+    expect(usdPerKrwQuote.localCurrencyDisplay, 'USD 70.00');
+    expect(krwPerUsdQuote.localCurrencyDisplay, 'USD 71.43');
+  });
+
   test('keeps visible quotes when snapshot request fails', () async {
     final controller = MarketQuoteController(
       apiClient: _client((request) async {

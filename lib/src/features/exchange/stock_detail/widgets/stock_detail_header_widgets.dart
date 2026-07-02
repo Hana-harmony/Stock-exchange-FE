@@ -122,6 +122,7 @@ class _StockDetailHeader extends StatelessWidget {
               ),
               const SizedBox(width: 4),
               _FavoriteButton(
+                key: const ValueKey('stock-detail-favorite-button'),
                 isFavorite: isFavorite,
                 inactiveAssetPath: AppAssets.headerFavoriteIcon,
                 onTap: onFavorite,
@@ -173,7 +174,7 @@ class _StockOverviewSection extends StatelessWidget {
     required this.onQuestionTap,
   });
 
-  static const double height = 198;
+  static const double height = 214;
 
   final _StockDetailSnapshot snapshot;
   final VoidCallback onQuestionTap;
@@ -290,7 +291,7 @@ class _StockOverviewSection extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             SizedBox(
-              height: 74,
+              height: 90,
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -334,37 +335,28 @@ class _StockOverviewSection extends StatelessWidget {
                             ],
                           ),
                         ),
-                        Expanded(
-                          child: Text.rich(
-                            TextSpan(
-                              children: [
-                                TextSpan(
-                                  text: snapshot.changeAmount,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w400,
-                                        color: priceColor,
-                                      ),
-                                ),
-                                TextSpan(
-                                  text: ' ${snapshot.changeRate}',
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        fontSize: 18,
-                                        fontWeight: FontWeight.w400,
-                                        color: priceColor,
-                                      ),
-                                ),
-                              ],
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                        Text(
+                          snapshot.currentPriceKrwDisplay,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 12,
+                                    height: 16 / 12,
+                                    color: AppColors.gray500,
+                                  ),
+                        ),
+                        Text(
+                          '${snapshot.changeAmount} ${snapshot.changeRate}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontSize: 18,
+                                    height: 20 / 18,
+                                    fontWeight: FontWeight.w400,
+                                    color: priceColor,
+                                  ),
                         ),
                       ],
                     ),

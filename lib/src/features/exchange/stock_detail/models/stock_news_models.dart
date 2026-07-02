@@ -37,6 +37,7 @@ class _StockNewsSummaryRowData {
 
 class _StockNewsItemViewModel {
   const _StockNewsItemViewModel({
+    required this.sourceItem,
     required this.title,
     required this.imageUrl,
     required this.sentiment,
@@ -47,6 +48,7 @@ class _StockNewsItemViewModel {
     required this.summaryRows,
   });
 
+  final StockIntelligenceItem sourceItem;
   final String title;
   final String? imageUrl;
   final _StockNewsSentiment sentiment;
@@ -79,6 +81,7 @@ class _StockNewsItemViewModel {
     ];
 
     return _StockNewsItemViewModel(
+      sourceItem: item,
       title: item.title,
       imageUrl: item.imageUrls.isEmpty ? null : item.imageUrls.first,
       sentiment: _sentimentFromString(item.sentiment),

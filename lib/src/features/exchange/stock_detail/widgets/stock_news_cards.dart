@@ -70,63 +70,72 @@ class _StockNewsListTile extends StatelessWidget {
   const _StockNewsListTile({
     required this.item,
     required this.companyLabel,
+    required this.onTap,
   });
 
   final _StockNewsItemViewModel item;
   final String companyLabel;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    return Material(
+      key: ValueKey('stock-news-list-tile-${item.sourceItem.eventId}'),
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _StockNewsSentimentBadge(sentiment: item.sentiment),
-                    const SizedBox(width: 6),
-                    _StockNewsPriorityBadge(priority: item.priority),
+                    Row(
+                      children: [
+                        _StockNewsSentimentBadge(sentiment: item.sentiment),
+                        const SizedBox(width: 6),
+                        _StockNewsPriorityBadge(priority: item.priority),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      item.title,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontSize: 16,
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.gray800,
+                          ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '$companyLabel · ${item.relativeTimeLabel}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                            height: 1.4,
+                            fontWeight: FontWeight.w400,
+                            color: AppColors.gray600,
+                          ),
+                    ),
                   ],
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  item.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 16,
-                        height: 1.4,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.gray800,
-                      ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '$companyLabel · ${item.relativeTimeLabel}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        fontSize: 12,
-                        height: 1.4,
-                        fontWeight: FontWeight.w400,
-                        color: AppColors.gray600,
-                      ),
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 20),
+              _StockNewsImage(
+                imageUrl: item.imageUrl,
+                width: 85,
+                height: 85,
+              ),
+            ],
           ),
-          const SizedBox(width: 20),
-          _StockNewsImage(
-            imageUrl: item.imageUrl,
-            width: 85,
-            height: 85,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -135,64 +144,73 @@ class _StockNewsListTile extends StatelessWidget {
 class _StockNewsCard extends StatelessWidget {
   const _StockNewsCard({
     required this.item,
+    required this.onTap,
   });
 
   final _StockNewsItemViewModel item;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _StockNewsImage(
-            imageUrl: item.imageUrl,
-            width: double.infinity,
-            height: 160,
-          ),
-          const SizedBox(height: 16),
-          Row(
+    return Material(
+      key: ValueKey('stock-news-card-${item.sourceItem.eventId}'),
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    if (item.showTargetBadge)
-                      _StockNewsTargetBadge(label: item.targetLabel),
-                    _StockNewsSentimentBadge(sentiment: item.sentiment),
-                    _StockNewsPriorityBadge(priority: item.priority),
-                  ],
-                ),
+              _StockNewsImage(
+                imageUrl: item.imageUrl,
+                width: double.infinity,
+                height: 160,
               ),
-              const SizedBox(width: 12),
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        if (item.showTargetBadge)
+                          _StockNewsTargetBadge(label: item.targetLabel),
+                        _StockNewsSentimentBadge(sentiment: item.sentiment),
+                        _StockNewsPriorityBadge(priority: item.priority),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Text(
+                    item.relativeTimeLabel,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 12,
+                          height: 1.4,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.gray600,
+                        ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
               Text(
-                item.relativeTimeLabel,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      fontSize: 12,
+                item.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 16,
                       height: 1.4,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.gray600,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.gray800,
                     ),
               ),
+              const SizedBox(height: 8),
+              ...item.summaryRows.map(_StockNewsSummaryRow.new),
             ],
           ),
-          const SizedBox(height: 8),
-          Text(
-            item.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontSize: 16,
-                  height: 1.4,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.gray800,
-                ),
-          ),
-          const SizedBox(height: 8),
-          ...item.summaryRows.map(_StockNewsSummaryRow.new),
-        ],
+        ),
       ),
     );
   }

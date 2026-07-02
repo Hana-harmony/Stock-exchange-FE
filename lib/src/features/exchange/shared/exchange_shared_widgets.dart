@@ -2,6 +2,7 @@ part of '../exchange_pages.dart';
 
 class _FavoriteButton extends StatelessWidget {
   const _FavoriteButton({
+    super.key,
     required this.isFavorite,
     required this.onTap,
     this.inactiveAssetPath = AppAssets.favoriteIcon,
@@ -135,43 +136,96 @@ class _AnimatedFavoriteIconButtonState
 }
 
 class _SearchResultAvatar extends StatelessWidget {
-  const _SearchResultAvatar();
+  const _SearchResultAvatar({
+    this.stockCode = '',
+    this.stockName = '',
+  });
+
+  final String stockCode;
+  final String stockName;
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      size: const Size.square(34),
-      painter: _SearchResultAvatarPainter(),
+    final color = _stockLogoColor(stockCode, stockName);
+    final label = _stockLogoLabel(stockCode, stockName);
+    return Semantics(
+      label: stockName.isEmpty ? 'Stock logo' : '$stockName logo',
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color,
+              Color.lerp(color, AppColors.gray1000, 0.28)!,
+            ],
+          ),
+          border: Border.all(color: AppColors.white, width: 1.5),
+          boxShadow: const [
+            BoxShadow(
+              color: Color.fromRGBO(0, 0, 0, 0.08),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ],
+        ),
+        child: SizedBox.square(
+          dimension: 34,
+          child: Center(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.clip,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    color: AppColors.white,
+                    fontSize: label.length > 2 ? 10 : 11,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
 
-class _SearchResultAvatarPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final circleRect = Offset.zero & size;
-    final clipPath = Path()..addOval(circleRect);
-    canvas.save();
-    canvas.clipPath(clipPath);
-
-    final backgroundPaint = Paint()
-      ..color = AppColors.gray200.withValues(alpha: 0.45);
-    canvas.drawOval(circleRect, backgroundPaint);
-
-    final dotPaint = Paint()..color = AppColors.gray300.withValues(alpha: 0.9);
-    const spacing = 4.0;
-    const radius = 0.9;
-    for (var x = 1.5; x < size.width; x += spacing) {
-      for (var y = 1.5; y < size.height; y += spacing) {
-        canvas.drawCircle(Offset(x, y), radius, dotPaint);
-      }
+String _stockLogoLabel(String stockCode, String stockName) {
+  final normalizedName = stockName.trim();
+  if (normalizedName.isNotEmpty) {
+    final tokens = normalizedName
+        .replaceAll(RegExp(r'\([^)]*\)'), ' ')
+        .split(RegExp(r'[\s._-]+'))
+        .map((token) => token.trim())
+        .where((token) => RegExp(r'^[A-Za-z0-9]+$').hasMatch(token))
+        .toList(growable: false);
+    if (tokens.length >= 2) {
+      return tokens.take(2).map((token) => token[0]).join().toUpperCase();
     }
-
-    canvas.restore();
+    if (tokens.isNotEmpty) {
+      final token = tokens.first;
+      return token.substring(0, token.length >= 2 ? 2 : 1).toUpperCase();
+    }
   }
+  final digits = stockCode.replaceAll(RegExp(r'\D'), '');
+  return digits.length >= 2 ? digits.substring(digits.length - 2) : 'KR';
+}
 
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+Color _stockLogoColor(String stockCode, String stockName) {
+  const palette = [
+    Color(0xFF006C67),
+    Color(0xFF2E6BFF),
+    Color(0xFF7A4DFF),
+    Color(0xFFD63C6B),
+    Color(0xFF008C45),
+    Color(0xFFB45F06),
+    Color(0xFF0F766E),
+    Color(0xFF4D7C0F),
+  ];
+  final source = '$stockCode$stockName';
+  final seed = source.codeUnits.fold<int>(0, (sum, value) => sum + value);
+  return palette[seed % palette.length];
 }
 
 class _SectionHeader extends StatelessWidget {
@@ -234,6 +288,29 @@ class _MutedInfoCard extends StatelessWidget {
       ),
     );
   }
+}
+
+Future<void> _showComingSoonDialog(
+  BuildContext context, {
+  required String featureName,
+}) {
+  return showDialog<void>(
+    context: context,
+    builder: (context) {
+      return AlertDialog(
+        key: ValueKey('coming-soon-dialog-$featureName'),
+        title: const Text('Coming soon'),
+        content: Text('$featureName is being prepared.'),
+        actions: [
+          TextButton(
+            key: const ValueKey('coming-soon-confirm'),
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      );
+    },
+  );
 }
 
 class _ErrorStateCard extends StatelessWidget {

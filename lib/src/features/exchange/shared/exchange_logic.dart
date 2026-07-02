@@ -100,20 +100,23 @@ String? _formatMarketStatus(DateTime? marketDataTime) {
       '$hour:$minute:$second';
 }
 
-String _formatSignedDifference(String current, String previous) {
-  final currentValue = int.tryParse(current.replaceAll(',', ''));
-  final previousValue = int.tryParse(previous.replaceAll(',', ''));
+String _formatSignedCurrencyDifference(
+  String currency,
+  String current,
+  String previous,
+) {
+  final currentValue = double.tryParse(current.replaceAll(',', '').trim());
+  final previousValue = double.tryParse(previous.replaceAll(',', '').trim());
   if (currentValue == null || previousValue == null) {
-    return '+0';
+    return '--';
   }
-  return _formatSignedNumber(currentValue - previousValue);
-}
-
-String _formatSignedNumber(int value) {
-  if (value == 0) {
-    return '+0';
-  }
-  return '${value > 0 ? '+' : '-'}${value.abs()}';
+  final difference = currentValue - previousValue;
+  final sign = difference > 0
+      ? '+'
+      : difference < 0
+          ? '-'
+          : '';
+  return '$sign${formatCurrencyDisplay(currency, difference.abs().toStringAsFixed(2))}';
 }
 
 String _formatRange(String? min, String? max, String fallback) {

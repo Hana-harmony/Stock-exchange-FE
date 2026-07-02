@@ -74,7 +74,7 @@ void main() {
     );
 
     await controller.loadAccount(null);
-    expect(controller.value.errorMessage, 'Sign in to load mock USD account.');
+    expect(controller.value.errorMessage, 'Sign in to load your USD account.');
 
     await controller.depositUsd(accountId: 'ACC-ABC123456789', amount: 0);
     expect(controller.value.errorMessage,

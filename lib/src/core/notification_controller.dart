@@ -100,6 +100,37 @@ class NotificationController extends ValueNotifier<NotificationState> {
     }
   }
 
+  Future<void> loadStockIntelligenceFeed({
+    required String stockCode,
+  }) async {
+    final normalizedStockCode = stockCode.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(normalizedStockCode)) {
+      _setFailure('Enter a 6 digit Korean stock code.');
+      return;
+    }
+
+    value = NotificationState.loading(
+      inbox: value.inbox,
+      feed: value.feed,
+      devices: value.devices,
+      selectedFilter: value.selectedFilter,
+    );
+
+    try {
+      final response =
+          await _apiClient.getStockIntelligenceFeed(normalizedStockCode);
+      _setLoaded(
+        inbox: value.inbox,
+        feed: StockIntelligenceFeed.fromJson(response.data ?? {}),
+        devices: value.devices,
+      );
+    } on ExchangeApiException catch (error) {
+      _setFailure(error.message);
+    } on Object {
+      _setFailure('Unable to load stock intelligence feed.');
+    }
+  }
+
   Future<void> markRead({
     required String? accountId,
     required String notificationId,

@@ -59,11 +59,11 @@ void main() {
     expect(controller.value.orderBook?.bids.single.quantity, 1200);
     expect(
       controller.value.orderBook?.bestAsk?.displayPrice('KRW', 'USD'),
-      'KRW 82500 / USD 1,024.31',
+      'KRW 82,500 / USD 1,024.31',
     );
     expect(
       controller.value.orderBook?.bestBid?.displayPrice('KRW', 'USD'),
-      'KRW 82400 / USD 1,024.24',
+      'KRW 82,400 / USD 1,024.24',
     );
     expect(paths, [
       '/api/v1/stocks/005930',

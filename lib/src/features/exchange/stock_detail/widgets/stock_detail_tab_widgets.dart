@@ -1,5 +1,27 @@
 part of '../../exchange_pages.dart';
 
+enum _StockChartPeriod {
+  oneDay('1D', '1m', 0),
+  oneWeek('1W', '30m', 7),
+  oneMonth('1M', '1d', 31);
+
+  const _StockChartPeriod(this.label, this.apiInterval, this.lookbackDays);
+
+  final String label;
+  final String apiInterval;
+  final int lookbackDays;
+
+  DateTime toDate(DateTime now) => now.toUtc();
+
+  DateTime fromDate(DateTime now) {
+    final to = toDate(now);
+    if (lookbackDays == 0) {
+      return to;
+    }
+    return to.subtract(Duration(days: lookbackDays));
+  }
+}
+
 class _StockDetailTabs extends StatelessWidget {
   const _StockDetailTabs();
 
@@ -26,8 +48,8 @@ class _StockDetailTabs extends StatelessWidget {
                   alignment: Alignment.topLeft,
                   child: Padding(
                     padding: const EdgeInsets.only(left: 12, top: 10),
-                    child: SizedBox(
-                      width: 330,
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
                           AppUnderlineTab(
@@ -62,6 +84,16 @@ class _StockDetailTabs extends StatelessWidget {
                             width: 65,
                             isSelected: controller.index == 3,
                             onTap: () => controller.animateTo(3),
+                          ),
+                          const SizedBox(width: 18),
+                          AppUnderlineTab(
+                            key: const ValueKey(
+                              'stock-detail-tab-disclosures',
+                            ),
+                            label: 'Disclosures',
+                            width: 93,
+                            isSelected: controller.index == 4,
+                            onTap: () => controller.animateTo(4),
                           ),
                         ],
                       ),
@@ -135,11 +167,15 @@ class _StockChartTab extends StatelessWidget {
     required this.chart,
     required this.status,
     required this.errorMessage,
+    required this.selectedPeriod,
+    required this.onPeriodChanged,
   });
 
   final MarketChart? chart;
   final MarketDetailStatus status;
   final String? errorMessage;
+  final _StockChartPeriod selectedPeriod;
+  final ValueChanged<_StockChartPeriod> onPeriodChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -168,7 +204,16 @@ class _StockChartTab extends StatelessWidget {
       key: const PageStorageKey<String>('stock-chart-tab'),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
       children: [
-        _StockChartCard(chart: chart!, points: points),
+        _StockChartPeriodSelector(
+          selectedPeriod: selectedPeriod,
+          onPeriodChanged: onPeriodChanged,
+        ),
+        const SizedBox(height: 14),
+        _StockChartCard(
+          chart: chart!,
+          points: points,
+          periodLabel: selectedPeriod.label,
+        ),
         const SizedBox(height: 18),
         _StockChartSummary(points: points),
       ],
@@ -180,10 +225,12 @@ class _StockChartCard extends StatelessWidget {
   const _StockChartCard({
     required this.chart,
     required this.points,
+    required this.periodLabel,
   });
 
   final MarketChart chart;
   final List<MarketChartPoint> points;
+  final String periodLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -204,7 +251,7 @@ class _StockChartCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '${chart.interval.toUpperCase()} price chart',
+                    '$periodLabel price chart',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -249,6 +296,88 @@ class _StockChartCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StockChartPeriodSelector extends StatelessWidget {
+  const _StockChartPeriodSelector({
+    required this.selectedPeriod,
+    required this.onPeriodChanged,
+  });
+
+  final _StockChartPeriod selectedPeriod;
+  final ValueChanged<_StockChartPeriod> onPeriodChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(4),
+        child: Row(
+          children: [
+            for (final period in _StockChartPeriod.values)
+              Expanded(
+                child: _StockChartPeriodButton(
+                  period: period,
+                  isSelected: period == selectedPeriod,
+                  onTap: () => onPeriodChanged(period),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StockChartPeriodButton extends StatelessWidget {
+  const _StockChartPeriodButton({
+    required this.period,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final _StockChartPeriod period;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      key: ValueKey('stock-chart-period-${period.label}'),
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(7),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 9),
+        decoration: BoxDecoration(
+          color: isSelected ? AppColors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(7),
+          boxShadow: isSelected
+              ? const [
+                  BoxShadow(
+                    color: Color.fromRGBO(0, 0, 0, 0.04),
+                    blurRadius: 6,
+                    offset: Offset(0, 3),
+                  ),
+                ]
+              : const [],
+        ),
+        child: Text(
+          period.label,
+          textAlign: TextAlign.center,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: isSelected ? AppColors.gray1000 : AppColors.gray600,
+              ),
         ),
       ),
     );
