@@ -38,8 +38,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   late bool _isFavorite;
   late final ScrollController _detailScrollController;
   bool _tabsPinned = false;
-  bool _showViBanner = false;
-  bool _isLowLimitTriggered = false;
+
+  StockDetail? get _currentDetail => widget.marketDetailController.value.detail;
+
+  bool get _showViBanner => _currentDetail?.viActive ?? false;
+
+  bool get _isLowLimitTriggered =>
+      _currentDetail?.normalizedPriceLimitState == 'LOWER';
 
   int get _activeAlertBannerCount {
     var count = 0;
@@ -204,12 +209,15 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                       body: TabBarView(
                         children: [
                           _StockOrderTab(snapshot: snapshot),
-                          const _StockChartTab(),
+                          _StockChartTab(
+                            chart: widget.marketDetailController.value.chart,
+                            status: widget.marketDetailController.value.status,
+                            errorMessage: widget
+                                .marketDetailController.value.errorMessage,
+                          ),
                           _StockFundamentalsTab(
-                            isViTriggered: _showViBanner,
-                            isLowLimitTriggered: _isLowLimitTriggered,
-                            onToggleVi: _toggleViBanner,
-                            onToggleLowLimit: _toggleLowLimitTriggered,
+                            snapshot: snapshot,
+                            detail: _currentDetail,
                           ),
                           _StockNewsTab(
                             notificationController:
@@ -307,20 +315,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     _showTradePlaceholder(side);
   }
 
-  void _toggleViBanner() {
-    final nextValue = !_showViBanner;
-    setState(() {
-      _showViBanner = nextValue;
-    });
-    if (nextValue && _detailScrollController.hasClients) {
-      _detailScrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-      );
-    }
-  }
-
   void _showViInfoPanel() {
     showModalBottomSheet<void>(
       context: context,
@@ -355,20 +349,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         );
       },
     );
-  }
-
-  void _toggleLowLimitTriggered() {
-    final nextValue = !_isLowLimitTriggered;
-    setState(() {
-      _isLowLimitTriggered = nextValue;
-    });
-    if (nextValue && _detailScrollController.hasClients) {
-      _detailScrollController.animateTo(
-        0,
-        duration: const Duration(milliseconds: 240),
-        curve: Curves.easeOutCubic,
-      );
-    }
   }
 
   Future<void> _showViRestrictionDialog() {

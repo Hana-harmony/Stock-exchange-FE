@@ -424,6 +424,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           marketIndexController: _marketIndexController,
           marketQuoteController: _marketQuoteController,
           notificationController: _notificationController,
+          onNavigateToAccounts: _openAccountsTabFromNestedFlow,
         ),
         AccountsScreen(
           sessionController: _sessionController,

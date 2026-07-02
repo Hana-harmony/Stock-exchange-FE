@@ -131,57 +131,191 @@ class _StockOrderTab extends StatelessWidget {
 }
 
 class _StockChartTab extends StatelessWidget {
-  const _StockChartTab();
+  const _StockChartTab({
+    required this.chart,
+    required this.status,
+    required this.errorMessage,
+  });
+
+  final MarketChart? chart;
+  final MarketDetailStatus status;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
+    final points = chart?.points ?? const <MarketChartPoint>[];
+    if (status == MarketDetailStatus.loading && points.isEmpty) {
+      return const Center(
+        key: ValueKey('stock-chart-loading'),
+        child: CircularProgressIndicator(color: AppColors.orange500),
+      );
+    }
+
+    if (points.isEmpty) {
+      return ListView(
+        key: const PageStorageKey<String>('stock-chart-tab'),
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 140),
+        children: [
+          _MutedInfoCard(
+            title: 'Chart unavailable',
+            body: errorMessage ?? 'No chart data is available for this stock.',
+          ),
+        ],
+      );
+    }
+
     return ListView(
       key: const PageStorageKey<String>('stock-chart-tab'),
-      padding: const EdgeInsets.fromLTRB(0, 0, 0, 140),
-      children: const [
-        Column(
-          key: ValueKey('stock-chart-content'),
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _StockChartIllustration(assetPath: AppAssets.chartDetail1),
-            _StockChartIllustration(assetPath: AppAssets.chartDetail2),
-          ],
-        ),
+      padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
+      children: [
+        _StockChartCard(chart: chart!, points: points),
+        const SizedBox(height: 18),
+        _StockChartSummary(points: points),
       ],
     );
   }
 }
 
-class _StockChartIllustration extends StatelessWidget {
-  const _StockChartIllustration({
-    required this.assetPath,
+class _StockChartCard extends StatelessWidget {
+  const _StockChartCard({
+    required this.chart,
+    required this.points,
   });
 
-  final String assetPath;
+  final MarketChart chart;
+  final List<MarketChartPoint> points;
 
   @override
   Widget build(BuildContext context) {
-    return Image.asset(
-      assetPath,
-      width: double.infinity,
-      fit: BoxFit.fitWidth,
-      alignment: Alignment.topCenter,
+    final latest = points.last;
+    return DecoratedBox(
+      key: const ValueKey('stock-chart-content'),
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.gray200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 16, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    '${chart.interval.toUpperCase()} price chart',
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.gray1000,
+                        ),
+                  ),
+                ),
+                Text(
+                  latest.closeLocalDisplay,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.gray700,
+                      ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              height: 280,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _StockDetailChartPainter(
+                  points: points,
+                  lineColor: _chartTrendColor(points),
+                ),
+              ),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    points.first.tradeDate,
+                    style: _chartAxisStyle(context),
+                  ),
+                ),
+                Text(
+                  points.last.tradeDate,
+                  style: _chartAxisStyle(context),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _StockChartSummary extends StatelessWidget {
+  const _StockChartSummary({required this.points});
+
+  final List<MarketChartPoint> points;
+
+  @override
+  Widget build(BuildContext context) {
+    final high = points
+        .map((point) => _parseAmount(point.highPriceKrw))
+        .whereType<double>()
+        .fold<double?>(null,
+            (best, value) => best == null ? value : math.max(best, value));
+    final low = points
+        .map((point) => _parseAmount(point.lowPriceKrw))
+        .whereType<double>()
+        .fold<double?>(null,
+            (best, value) => best == null ? value : math.min(best, value));
+    final totalVolume = points.fold<int>(0, (sum, point) => sum + point.volume);
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.gray50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          children: [
+            _StockInfoRow(
+              label: 'High',
+              value: high == null
+                  ? '-'
+                  : 'KRW ${_formatWholeAmount(high.round().toString())}',
+            ),
+            const SizedBox(height: 12),
+            _StockInfoRow(
+              label: 'Low',
+              value: low == null
+                  ? '-'
+                  : 'KRW ${_formatWholeAmount(low.round().toString())}',
+            ),
+            const SizedBox(height: 12),
+            _StockInfoRow(
+              label: 'Volume',
+              value: _formatCompactNumber(totalVolume),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
 
 class _StockFundamentalsTab extends StatelessWidget {
   const _StockFundamentalsTab({
-    required this.isViTriggered,
-    required this.isLowLimitTriggered,
-    required this.onToggleVi,
-    required this.onToggleLowLimit,
+    required this.snapshot,
+    required this.detail,
   });
 
-  final bool isViTriggered;
-  final bool isLowLimitTriggered;
-  final VoidCallback onToggleVi;
-  final VoidCallback onToggleLowLimit;
+  final _StockDetailSnapshot snapshot;
+  final StockDetail? detail;
 
   @override
   Widget build(BuildContext context) {
@@ -189,34 +323,204 @@ class _StockFundamentalsTab extends StatelessWidget {
       key: const PageStorageKey<String>('stock-fundamentals-tab'),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
       children: [
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            key: const ValueKey('stock-fundamentals-trigger-vi'),
-            onPressed: onToggleVi,
-            style: _exchangePrimaryButtonStyle(
-              backgroundColor:
-                  isViTriggered ? AppColors.gray700 : AppColors.orange500,
-            ),
-            child: Text(isViTriggered ? 'VI발동 끄기' : 'VI발동 시키기'),
-          ),
+        _FundamentalsSection(
+          title: 'Market Status',
+          rows: [
+            _FundamentalsRowData('Market', detail?.market ?? '-'),
+            _FundamentalsRowData('Sector', detail?.sector ?? '-'),
+            _FundamentalsRowData('Status', snapshot.marketStatusLabel),
+            _FundamentalsRowData('Risk', detail?.riskBadge ?? '-'),
+          ],
         ),
-        const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton(
-            key: const ValueKey('stock-fundamentals-trigger-low-limit'),
-            onPressed: onToggleLowLimit,
-            style: _exchangePrimaryButtonStyle(
-              backgroundColor:
-                  isLowLimitTriggered ? AppColors.gray700 : AppColors.orange500,
+        const SizedBox(height: 16),
+        _FundamentalsSection(
+          title: 'Foreign Ownership',
+          rows: [
+            _FundamentalsRowData(
+              'Current ownership',
+              '${detail?.foreignOwnershipRate ?? '-'}%',
             ),
-            child: Text(
-              isLowLimitTriggered ? 'Low limit 발동 끄기' : 'Low limit 발동 시키기',
+            _FundamentalsRowData(
+              'Limit exhaustion',
+              snapshot.previousDayForeignRatio,
             ),
-          ),
+            _FundamentalsRowData(
+              'Estimated exhaustion',
+              snapshot.estimatedRange,
+            ),
+            _FundamentalsRowData(
+              'Model',
+              detail?.predictionModelDisplay ?? '-',
+            ),
+          ],
         ),
       ],
     );
   }
+}
+
+class _FundamentalsSection extends StatelessWidget {
+  const _FundamentalsSection({
+    required this.title,
+    required this.rows,
+  });
+
+  final String title;
+  final List<_FundamentalsRowData> rows;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.gray200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.gray1000,
+                  ),
+            ),
+            const SizedBox(height: 14),
+            for (final row in rows) ...[
+              _StockInfoRow(label: row.label, value: row.value),
+              if (row != rows.last) const SizedBox(height: 12),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FundamentalsRowData {
+  const _FundamentalsRowData(this.label, this.value);
+
+  final String label;
+  final String value;
+}
+
+class _StockDetailChartPainter extends CustomPainter {
+  const _StockDetailChartPainter({
+    required this.points,
+    required this.lineColor,
+  });
+
+  final List<MarketChartPoint> points;
+  final Color lineColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final prices = points
+        .map((point) => _parseAmount(point.closePriceKrw))
+        .whereType<double>()
+        .toList(growable: false);
+    if (prices.isEmpty) {
+      return;
+    }
+
+    final volumes = points.map((point) => point.volume).toList(growable: false);
+    final minPrice = prices.reduce(math.min);
+    final maxPrice = prices.reduce(math.max);
+    final maxVolume = volumes.isEmpty ? 0 : volumes.reduce(math.max);
+    final chartHeight = size.height * 0.72;
+    final volumeTop = chartHeight + 18;
+    final volumeHeight = size.height - volumeTop;
+    final priceRange = math.max(maxPrice - minPrice, 1.0);
+    final stepX = prices.length == 1 ? 0.0 : size.width / (prices.length - 1);
+
+    final gridPaint = Paint()
+      ..color = AppColors.gray200
+      ..strokeWidth = 1;
+    for (final fraction in const [0.0, 0.5, 1.0]) {
+      final y = chartHeight * fraction;
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
+    }
+
+    final path = Path();
+    for (var index = 0; index < prices.length; index++) {
+      final x = stepX * index;
+      final y =
+          chartHeight - ((prices[index] - minPrice) / priceRange * chartHeight);
+      if (index == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    final fillPath = Path.from(path)
+      ..lineTo(size.width, chartHeight)
+      ..lineTo(0, chartHeight)
+      ..close();
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            lineColor.withValues(alpha: 0.18),
+            lineColor.withValues(alpha: 0),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, size.width, chartHeight)),
+    );
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = lineColor
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..strokeWidth = 2.4,
+    );
+
+    final barWidth =
+        math.max(2.0, math.min(8.0, size.width / (volumes.length * 2.2)));
+    final volumePaint = Paint()..color = AppColors.gray300;
+    for (var index = 0; index < volumes.length; index++) {
+      final volumeRatio = maxVolume == 0 ? 0 : volumes[index] / maxVolume;
+      final barHeight = volumeHeight * volumeRatio;
+      final x = stepX * index - (barWidth / 2);
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x.clamp(0, size.width - barWidth),
+            volumeTop + volumeHeight - barHeight, barWidth, barHeight),
+        const Radius.circular(2),
+      );
+      canvas.drawRRect(rect, volumePaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _StockDetailChartPainter oldDelegate) {
+    return oldDelegate.points != points || oldDelegate.lineColor != lineColor;
+  }
+}
+
+Color _chartTrendColor(List<MarketChartPoint> points) {
+  if (points.length < 2) {
+    return AppColors.green500;
+  }
+  final first = _parseAmount(points.first.closePriceKrw);
+  final last = _parseAmount(points.last.closePriceKrw);
+  if (first == null || last == null) {
+    return AppColors.green500;
+  }
+  return last >= first ? AppColors.green500 : AppColors.red500;
+}
+
+TextStyle? _chartAxisStyle(BuildContext context) {
+  return Theme.of(context).textTheme.bodySmall?.copyWith(
+        fontSize: 12,
+        fontWeight: FontWeight.w500,
+        color: AppColors.gray600,
+      );
 }
