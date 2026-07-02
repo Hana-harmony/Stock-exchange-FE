@@ -7,6 +7,7 @@ import '../../core/account_controller.dart';
 import '../../core/currency_format.dart';
 import '../../core/exchange_session_controller.dart';
 import '../../core/market_detail_controller.dart';
+import '../../core/market_index_controller.dart';
 import '../../core/market_quote_controller.dart';
 import '../../core/notification_controller.dart';
 import '../../core/trade_controller.dart';

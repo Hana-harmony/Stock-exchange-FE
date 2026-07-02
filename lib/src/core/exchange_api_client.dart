@@ -72,10 +72,7 @@ class AuthSession {
 }
 
 class SignUpResult {
-  const SignUpResult({
-    required this.username,
-    required this.accountId,
-  });
+  const SignUpResult({required this.username, required this.accountId});
 
   final String username;
   final String accountId;
@@ -160,10 +157,7 @@ class ExchangeApiClient {
   }) async {
     final envelope = await post<SignUpResult>(
       '/api/v1/auth/signup',
-      body: {
-        'username': username,
-        'password': password,
-      },
+      body: {'username': username, 'password': password},
       decodeData: (value) => SignUpResult.fromJson(_asMap(value)),
     );
 
@@ -176,10 +170,7 @@ class ExchangeApiClient {
   }) async {
     final envelope = await post<AuthSession>(
       '/api/v1/auth/login',
-      body: {
-        'username': username,
-        'password': password,
-      },
+      body: {'username': username, 'password': password},
       decodeData: (value) => AuthSession.fromJson(_asMap(value)),
     );
 
@@ -196,9 +187,7 @@ class ExchangeApiClient {
     return envelope.data!;
   }
 
-  Future<ApiEnvelope<Map<String, dynamic>>> verifyToken(
-    String accessToken,
-  ) {
+  Future<ApiEnvelope<Map<String, dynamic>>> verifyToken(String accessToken) {
     return post<Map<String, dynamic>>(
       '/api/v1/auth/token/verify',
       body: {'accessToken': accessToken},
@@ -235,8 +224,32 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketQuote({
+    required String stockCode,
+    String currency = 'USD',
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/market/quotes/$stockCode',
+      query: {'currency': currency},
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getMarketIndices() {
     return get<Map<String, dynamic>>('/api/v1/market/indices');
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketIndexIntraday({
+    required String indexCode,
+    String? date,
+    int limit = 390,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/market/indices/$indexCode/intraday',
+      query: {
+        if (date != null && date.isNotEmpty) 'date': date,
+        'limit': '$limit',
+      },
+    );
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getStockDetail({
@@ -292,6 +305,35 @@ class ExchangeApiClient {
     return get<Map<String, dynamic>>(
       '/api/v1/market/stocks/$stockCode/orderbook',
       query: {'currency': currency},
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getGlobalPeers({
+    required String stockCode,
+  }) {
+    return get<Map<String, dynamic>>('/api/v1/stocks/$stockCode/global-peers');
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> subscribeRealtimeSource({
+    required String stockCode,
+    String session = 'REGULAR',
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/market/stocks/$stockCode/realtime-subscription',
+      query: {'session': session},
+      body: const {},
+      decodeData: (value) => _asMap(value),
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> unsubscribeRealtimeSource({
+    required String stockCode,
+    String session = 'REGULAR',
+  }) {
+    return delete<Map<String, dynamic>>(
+      '/api/v1/market/stocks/$stockCode/realtime-subscription',
+      query: {'session': session},
+      decodeData: (value) => _asMap(value),
     );
   }
 
@@ -357,11 +399,7 @@ class ExchangeApiClient {
   }) {
     return get<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/trades/orderability',
-      query: {
-        'stockCode': stockCode,
-        'side': side,
-        'quantity': '$quantity',
-      },
+      query: {'stockCode': stockCode, 'side': side, 'quantity': '$quantity'},
     );
   }
 
@@ -384,11 +422,10 @@ class ExchangeApiClient {
     );
   }
 
-  Future<ApiEnvelope<Map<String, dynamic>>> getNotifications(
-    String accountId,
-  ) {
+  Future<ApiEnvelope<Map<String, dynamic>>> getNotifications(String accountId) {
     return get<Map<String, dynamic>>(
-        '/api/v1/accounts/$accountId/notifications');
+      '/api/v1/accounts/$accountId/notifications',
+    );
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getNotificationDevices(
@@ -442,6 +479,48 @@ class ExchangeApiClient {
     String stockCode,
   ) {
     return get<Map<String, dynamic>>('/api/v1/stocks/$stockCode/intelligence');
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketNews({int limit = 10}) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/market/news',
+      query: {'limit': '$limit'},
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketNewsDetail(String newsId) {
+    return get<Map<String, dynamic>>('/api/v1/market/news/$newsId');
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> explainFinancialTerm({
+    required String term,
+    required String sourceType,
+    String? title,
+    String? context,
+    String? stockCode,
+    String? stockName,
+    String? articleId,
+    String? articleUrl,
+    String? sessionKey,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/financial-terms/explain',
+      body: {
+        'term': term,
+        'locale': 'en',
+        'sourceType': sourceType,
+        if (title != null && title.isNotEmpty) 'title': title,
+        if (context != null && context.isNotEmpty) 'context': context,
+        if (stockCode != null && stockCode.isNotEmpty) 'stockCode': stockCode,
+        if (stockName != null && stockName.isNotEmpty) 'stockName': stockName,
+        if (articleId != null && articleId.isNotEmpty) 'articleId': articleId,
+        if (articleUrl != null && articleUrl.isNotEmpty)
+          'articleUrl': articleUrl,
+        if (sessionKey != null && sessionKey.isNotEmpty)
+          'sessionKey': sessionKey,
+        'allowWebSearch': true,
+      },
+    );
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getTaxRefundStatus(
@@ -530,12 +609,14 @@ class ExchangeApiClient {
 
   Future<ApiEnvelope<T>> post<T>(
     String path, {
+    Map<String, String>? query,
     Map<String, Object?>? body,
     T Function(Object? value)? decodeData,
   }) {
     return _send<T>(
       method: 'POST',
       path: path,
+      query: query,
       body: body,
       decodeData: decodeData ?? (value) => _asMap(value) as T,
     );
@@ -543,11 +624,13 @@ class ExchangeApiClient {
 
   Future<ApiEnvelope<T>> delete<T>(
     String path, {
+    Map<String, String>? query,
     T Function(Object? value)? decodeData,
   }) {
     return _send<T>(
       method: 'DELETE',
       path: path,
+      query: query,
       decodeData: decodeData ?? (value) => _asMap(value) as T,
     );
   }

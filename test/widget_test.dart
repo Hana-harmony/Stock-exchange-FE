@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -8,7 +9,11 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:stock_exchange_fe/src/app.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
+import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_index_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
+import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 import 'package:stock_exchange_fe/src/ui/assets/app_assets.dart';
 import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
 
@@ -46,12 +51,13 @@ void main() {
       find.byKey(const ValueKey('market-indicator-summary-0')),
       findsOneWidget,
     );
-    expect(find.text('25709.43'), findsNWidgets(2));
-    expect(find.text('51202.26'), findsOneWidget);
+    expect(find.text('KOSPI'), findsWidgets);
+    expect(find.text('KOSDAQ'), findsWidgets);
+    expect(find.text('2570.94'), findsOneWidget);
     expect(find.text('21:30'), findsOneWidget);
     expect(find.text('Retail Sales (MOM)'), findsWidgets);
     expect(find.text('Trending Stocks'), findsOneWidget);
-    expect(find.text('NVDA'), findsWidgets);
+    expect(find.text('Samsung Electronics'), findsWidgets);
     expect(
       _findAssetImage(AppAssets.stockCardRed),
       findsNothing,
@@ -70,10 +76,11 @@ void main() {
     expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
     expect(find.byKey(const ValueKey('accounts-page-title')), findsOneWidget);
     expect(find.text('Total Assets'), findsOneWidget);
-    expect(find.text(r'$5,0000.000'), findsOneWidget);
-    expect(find.text('-10,000,000(-14.48%)'), findsOneWidget);
+    expect(find.text(r'$50,000.000'), findsOneWidget);
+    expect(find.text('0.000(0.00%)'), findsOneWidget);
     expect(find.text('Portfolio'), findsOneWidget);
-    expect(find.text('640-0200-0000-0 [ISA(Brokerage)]'), findsOneWidget);
+    expect(find.text('${_testSession.accountId} [ISA(Brokerage)]'),
+        findsOneWidget);
 
     final moreIcon = tester.widget<Image>(
       find
@@ -257,7 +264,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('카카오'), findsWidgets);
+    expect(find.textContaining('Kakao'), findsWidgets);
     expect(find.textContaining('035720'), findsOneWidget);
     expect(find.text('Order'), findsWidgets);
     expect(find.text('K-News'), findsOneWidget);
@@ -369,7 +376,7 @@ void main() {
     expect(find.textContaining('\$'), findsWidgets);
   });
 
-  testWidgets('opens stock question sheet and snaps through figma stages',
+  testWidgets('opens global peer sheet from stock detail name help icon',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -400,59 +407,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(
-      find.byKey(const ValueKey('stock-question-sheet-preview')),
-      findsOneWidget,
-    );
-    expect(
-      tester
-          .widget<Opacity>(
-            find.byKey(
-                const ValueKey('stock-question-sheet-swipe-hint-opacity')),
-          )
-          .opacity,
-      greaterThan(0.9),
-    );
-
-    await tester.drag(
-      find.byKey(const ValueKey('stock-question-sheet-gesture')),
-      const Offset(0, -200),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('stock-question-sheet-expanded')),
-      findsOneWidget,
-    );
-    expect(
-      tester
-          .widget<Opacity>(
-            find.byKey(
-                const ValueKey('stock-question-sheet-swipe-hint-opacity')),
-          )
-          .opacity,
-      lessThan(0.5),
-    );
-
-    await tester.drag(
-      find.byKey(const ValueKey('stock-question-sheet-gesture')),
-      const Offset(0, -220),
-    );
-    await tester.pumpAndSettle();
-
-    expect(
-      find.byKey(const ValueKey('stock-question-sheet-full')),
-      findsOneWidget,
-    );
-    expect(
-      tester
-          .widget<Opacity>(
-            find.byKey(
-                const ValueKey('stock-question-sheet-swipe-hint-opacity')),
-          )
-          .opacity,
-      lessThan(0.1),
-    );
+    expect(find.textContaining('Kakao is the Block of South Korea'),
+        findsOneWidget);
+    expect(find.textContaining('Revenue model mixes'), findsOneWidget);
+    expect(find.textContaining('Block Inc. (SQ)'), findsOneWidget);
   });
 
   testWidgets('updates quantity, price, and order amount in order entry',
@@ -593,7 +551,7 @@ void main() {
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('stock-order-confirm-dialog')),
-        matching: find.text('카카오'),
+        matching: find.text('Kakao'),
       ),
       findsOneWidget,
     );
@@ -866,8 +824,8 @@ void main() {
       find.byKey(const ValueKey('accounts-total-positions')),
     );
     expect(totalPositions.text.toPlainText(), 'Total 60 Positions');
-    expect(find.text(r'$5,0000.000'), findsOneWidget);
-    expect(find.text('-10,000,000(-14.48%)'), findsOneWidget);
+    expect(find.text(r'$50,000.000'), findsOneWidget);
+    expect(find.text('0.000(0.00%)'), findsOneWidget);
     expect(
       tester
           .widget<Text>(find.text('Foreign Currency (Cash Balance)'))
@@ -1215,7 +1173,273 @@ Future<void> _loadPretendardFont() async {
 StockExchangeApp _stockExchangeTestApp({
   required MarketQuoteController marketQuoteController,
 }) {
-  return StockExchangeApp(marketQuoteController: marketQuoteController);
+  return StockExchangeApp(
+    sessionController: _sessionController(),
+    tradeController: _tradeController(),
+    marketDetailController: _marketDetailController(),
+    marketIndexController: _marketIndexController(),
+    marketQuoteController: marketQuoteController,
+  );
+}
+
+const _testSession = AuthSession(
+  username: 'hana',
+  accountId: 'ACC-ABC123456789',
+  tokenType: 'Bearer',
+  accessToken: 'access-token',
+  refreshToken: 'refresh-token',
+);
+
+ExchangeSessionController _sessionController() {
+  final store = MemoryExchangeSessionStore();
+  unawaited(store.write(_testSession));
+  return ExchangeSessionController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async => http.Response('{}', 404)),
+    ),
+    sessionStore: store,
+  );
+}
+
+TradeController _tradeController() {
+  return TradeController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        final path = request.url.path;
+        if (path == '/api/v1/accounts/${_testSession.accountId}/portfolio') {
+          return _jsonEnvelope(_portfolioJson());
+        }
+        if (path == '/api/v1/accounts/${_testSession.accountId}/trades') {
+          if (request.method == 'GET') {
+            return _jsonEnvelope({
+              'accountId': _testSession.accountId,
+              'tradeCount': 0,
+              'trades': <Object?>[],
+            });
+          }
+          return _jsonEnvelope({
+            'orderId': 'ORD-1',
+            'stockCode': '005930',
+            'stockName': 'Samsung Electronics',
+            'side': 'BUY',
+            'quantity': 3,
+            'orderType': 'LIMIT',
+            'limitPriceUsd': '54.00',
+            'observedPriceUsd': '54.00',
+            'status': 'FILLED',
+            'message': 'Filled',
+            'tradeExecution': {
+              'tradeId': 'TRD-1',
+              'stockCode': '005930',
+              'stockName': 'Samsung Electronics',
+              'side': 'BUY',
+              'quantity': 3,
+              'executionPriceUsd': '54.00',
+              'grossAmountUsd': '162.00',
+              'realizedPnlUsd': '0.00',
+              'remainingQuantity': 3,
+              'cashBalanceUsdAfter': '49838.00',
+              'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+            },
+          });
+        }
+        if (path == '/api/v1/accounts/${_testSession.accountId}/orders') {
+          return _jsonEnvelope({
+            'accountId': _testSession.accountId,
+            'orderCount': 0,
+            'orders': <Object?>[],
+          });
+        }
+        if (path ==
+            '/api/v1/accounts/${_testSession.accountId}/trades/orderability') {
+          return _jsonEnvelope({
+            'stockCode': request.url.queryParameters['stockCode'] ?? '005930',
+            'side': request.url.queryParameters['side'] ?? 'BUY',
+            'quantity':
+                int.tryParse(request.url.queryParameters['quantity'] ?? '1') ??
+                    1,
+            'canPlaceMockOrder': true,
+            'blockingReasons': <Object?>[],
+            'warnings': <Object?>[],
+            'orderabilitySource': 'Hana-OmniLens-API',
+            'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+          });
+        }
+        return http.Response('{}', 404);
+      }),
+      sessionProvider: () => _testSession,
+    ),
+  );
+}
+
+MarketDetailController _marketDetailController() {
+  return MarketDetailController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        final path = request.url.path;
+        if (path == '/api/v1/market/stocks/035720/realtime-subscription') {
+          return _jsonEnvelope({'stockCode': '035720', 'subscribed': true});
+        }
+        if (path == '/api/v1/stocks/035720') {
+          return _jsonEnvelope({
+            'stockCode': '035720',
+            'stockName': 'Kakao',
+            'market': 'KOSPI',
+            'sector': 'IT',
+            'baseCurrency': 'KRW',
+            'displayCurrency': 'USD',
+            'currentPriceKrw': '54200',
+            'localCurrencyPrice': '35.50',
+            'changeRate': '+1.23%',
+            'volume': 1200000,
+            'marketDataTime': '2026-06-18T06:00:00Z',
+            'foreignOwnershipRate': '27.1',
+            'foreignLimitExhaustionRate': '27.1',
+            'predictedForeignOwnershipRateMin': '27.0',
+            'predictedForeignOwnershipRateMax': '27.6',
+            'predictedForeignLimitExhaustionRateMin': '27.0',
+            'predictedForeignLimitExhaustionRateMax': '27.6',
+            'foreignOwnershipPredictionConfidenceLevel': 'HIGH',
+            'foreignOwnershipPredictionConfidenceScore': '0.91',
+            'foreignOwnershipPredictionModelVersion': 'test',
+            'foreignOwnershipBaseDate': '2026-06-17',
+            'viActive': false,
+            'singlePriceTrading': false,
+            'priceLimitState': 'NORMAL',
+            'tradingHalted': false,
+            'orderable': true,
+            'dataSource': 'Stock-exchange-BE',
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }
+        if (path == '/api/v1/market/stocks/035720/chart') {
+          return _jsonEnvelope({
+            'dataSource': 'Stock-exchange-BE',
+            'stockCode': '035720',
+            'interval': '1d',
+            'from': '2026-06-01',
+            'to': '2026-06-18',
+            'baseCurrency': 'KRW',
+            'displayCurrency': 'USD',
+            'pointCount': 1,
+            'points': [
+              {
+                'tradeDate': '2026-06-18',
+                'openPriceKrw': '53600',
+                'highPriceKrw': '54800',
+                'lowPriceKrw': '53200',
+                'closePriceKrw': '54200',
+                'localCurrency': 'USD',
+                'openLocalCurrencyPrice': '35.10',
+                'highLocalCurrencyPrice': '35.90',
+                'lowLocalCurrencyPrice': '34.88',
+                'closeLocalCurrencyPrice': '35.50',
+                'volume': 1200000,
+                'adjusted': false,
+              },
+            ],
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }
+        if (path == '/api/v1/market/stocks/035720/orderbook') {
+          return _jsonEnvelope({
+            'dataSource': 'Stock-exchange-BE',
+            'stockCode': '035720',
+            'market': 'KOSPI',
+            'baseCurrency': 'KRW',
+            'displayCurrency': 'USD',
+            'asks': <Object?>[],
+            'bids': <Object?>[],
+            'marketDataTime': '2026-06-18T06:00:00Z',
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }
+        if (path == '/api/v1/stocks/035720/global-peers') {
+          return _jsonEnvelope({
+            'stockCode': '035720',
+            'stockName': 'Kakao',
+            'headline': 'Kakao is the Block of South Korea',
+            'summary':
+                'Kakao combines messaging, commerce, payments, and financial services into a local platform ecosystem.',
+            'primaryPeer': {
+              'rank': 1,
+              'ticker': 'SQ',
+              'companyName': 'Block Inc.',
+              'exchange': 'NYSE',
+              'country': 'US',
+              'similarityScore': '0.88',
+              'businessTags': ['payments', 'platform'],
+              'sector': 'Technology',
+              'industry': 'Digital payments',
+              'businessModel':
+                  'Digital commerce and payments platform with financial service expansion.',
+              'scaleBucket': 'LARGE_CAP',
+              'fiscalYear': 2025,
+              'marketCapUsd': '42000000000',
+              'revenueUsd': '22000000000',
+              'operatingIncomeUsd': '1200000000',
+              'netIncomeUsd': '900000000',
+              'financialDataSource': 'TEST',
+              'financialSimilarityScore': '0.77',
+              'matchedFactors': [
+                'Sector and industry are both platform-led technology businesses.',
+                'Revenue model mixes payments, commerce, and ecosystem services.',
+              ],
+              'rationale':
+                  'Both companies anchor consumer ecosystems and expand monetization through financial services.',
+            },
+            'peers': <Object?>[],
+            'confidenceScore': '0.88',
+            'confidenceLevel': 'HIGH',
+            'modelVersion': 'test',
+            'dataSource': 'Hana-OmniLens-API',
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }
+        return http.Response('{}', 404);
+      }),
+    ),
+  );
+}
+
+MarketIndexController _marketIndexController() {
+  return MarketIndexController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/api/v1/market/indices') {
+          return _jsonEnvelope({
+            'dataSource': 'Stock-exchange-BE',
+            'indexCount': 3,
+            'indices': [
+              _indexJson('KOSPI', 'KOSPI', '2570.94', '-12.15', '-0.47'),
+              _indexJson('KOSDAQ', 'KOSDAQ', '812.26', '+3.51', '+0.43'),
+              _indexJson('KRX100', 'KRX 100', '5709.43', '-21.53', '-0.38'),
+            ],
+          });
+        }
+        if (request.url.path.startsWith('/api/v1/market/indices/') &&
+            request.url.path.endsWith('/intraday')) {
+          final code = request.url.pathSegments[4];
+          return _jsonEnvelope({
+            'dataSource': 'Stock-exchange-BE',
+            'indexCode': code,
+            'pointCount': 4,
+            'points': [
+              {'bucketStart': '2026-06-18T00:00:00Z', 'closeValue': 100.0},
+              {'bucketStart': '2026-06-18T00:01:00Z', 'closeValue': 101.0},
+              {'bucketStart': '2026-06-18T00:02:00Z', 'closeValue': 99.5},
+              {'bucketStart': '2026-06-18T00:03:00Z', 'closeValue': 102.0},
+            ],
+          });
+        }
+        return http.Response('{}', 404);
+      }),
+    ),
+  );
 }
 
 MarketQuoteController _marketQuoteController() {
@@ -1224,6 +1448,21 @@ MarketQuoteController _marketQuoteController() {
     apiClient: ExchangeApiClient(
       baseUri: Uri.parse('http://localhost:3000'),
       httpClient: MockClient((request) async {
+        if (request.url.path == '/api/v1/market/quotes') {
+          return _jsonEnvelope({
+            'dataSource': 'Stock-exchange-BE',
+            'marketCoverage': 'KOREA',
+            'displayCurrency': 'USD',
+            'transport': {
+              'snapshot': 'REST',
+              'realtime': 'WebSocket',
+            },
+            'cache': {'status': 'HIT'},
+            'quoteCount': seedMarketQuotes.length,
+            'quotes': seedMarketQuotes.map(_quoteJson).toList(),
+            'servedAt': '2026-06-18T06:00:00Z',
+          });
+        }
         if (request.url.path == '/api/v1/stocks/search') {
           expect(request.url.queryParameters['query'], '카카오');
           return _jsonEnvelope({
@@ -1254,6 +1493,72 @@ MarketQuoteController _marketQuoteController() {
       }),
     ),
   );
+}
+
+Map<String, Object?> _indexJson(
+  String indexCode,
+  String indexName,
+  String currentValue,
+  String changeValue,
+  String changeRate,
+) {
+  return {
+    'indexCode': indexCode,
+    'indexName': indexName,
+    'market': 'KOREA',
+    'currentValue': currentValue,
+    'changeSign': changeValue.startsWith('-') ? '-' : '+',
+    'changeValue': changeValue,
+    'changeRate': changeRate,
+    'accumulatedVolume': 1000000,
+    'accumulatedTradingValue': 500000000,
+    'marketDataTime': '2026-06-18T06:00:00Z',
+    'source': 'TEST',
+  };
+}
+
+Map<String, Object?> _quoteJson(MarketQuote quote) {
+  return {
+    'stockCode': quote.stockCode,
+    'stockName': quote.stockName,
+    'market': quote.market,
+    'currentPriceKrw': quote.currentPriceKrw,
+    'changeRate': quote.changeRate,
+    'volume': quote.volume,
+    'localCurrency': quote.localCurrency,
+    'localCurrencyPrice': quote.localCurrencyPrice,
+    'fxRate': quote.fxRate,
+    'fxRateSource': quote.fxRateSource,
+    'fxStale': quote.fxStale,
+    'badge': quote.badge,
+  };
+}
+
+Map<String, Object?> _portfolioJson() {
+  return {
+    'accountId': _testSession.accountId,
+    'currency': 'USD',
+    'cashBalanceUsd': '50000.00',
+    'totalMarketValueUsd': '0.00',
+    'totalAssetValueUsd': '50000.00',
+    'realizedPnlUsd': '0.00',
+    'unrealizedPnlUsd': '0.00',
+    'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
+    'holdings': List<Object?>.generate(
+      60,
+      (index) => {
+        'stockCode': index == 0 ? '005930' : '000${index + 100}',
+        'stockName': index == 0 ? 'Samsung Electronics' : 'Holding $index',
+        'quantity': 100,
+        'averagePriceUsd': '50.00',
+        'currentPriceUsd': '50.00',
+        'marketValueUsd': '5000.00',
+        'unrealizedPnlUsd': '0.00',
+        'unrealizedPnlRate': '+0.00%',
+      },
+    ),
+    'recentTrades': <Object?>[],
+  };
 }
 
 http.Response _jsonEnvelope(Map<String, Object?> data) {
