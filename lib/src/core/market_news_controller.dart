@@ -60,6 +60,17 @@ class MarketNewsController extends ValueNotifier<MarketNewsState> {
     }
   }
 
+  Future<MarketNewsFeed> loadTrending({
+    int windowHours = 24,
+    int limit = 10,
+  }) async {
+    final response = await _apiClient.getTrendingMarketNews(
+      windowHours: windowHours,
+      limit: limit,
+    );
+    return MarketNewsFeed.fromJson(response.data ?? {});
+  }
+
   Future<MarketNewsItem> loadDetail(String newsId) async {
     final response = await _apiClient.getMarketNewsDetail(newsId);
     return MarketNewsItem.fromJson(response.data ?? {});

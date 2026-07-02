@@ -77,27 +77,7 @@ String? _formatMarketStatus(DateTime? marketDataTime) {
   if (marketDataTime == null) {
     return null;
   }
-
-  const months = <String>[
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  final local = marketDataTime.toUtc().add(const Duration(hours: 9));
-  final hour = local.hour.toString().padLeft(2, '0');
-  final minute = local.minute.toString().padLeft(2, '0');
-  final second = local.second.toString().padLeft(2, '0');
-  return 'Market Closed ${months[local.month - 1]} ${local.day} '
-      '$hour:$minute:$second';
+  return formatKoreanMarketClosedLabel(marketDataTime);
 }
 
 String _formatSignedCurrencyDifference(

@@ -83,46 +83,82 @@ class _AccountsScreenState extends State<AccountsScreen> {
           return _AccountsSignedOutState(onSignInTap: widget.onSignInTap);
         }
 
+        final accountState = widget.accountController.value;
+        final tradeState = widget.tradeController.value;
+        final isAccountFailure = accountState.status == AccountStatus.failure &&
+            accountState.account == null;
+        final isPortfolioFailure = tradeState.status == TradeStatus.failure &&
+            tradeState.portfolio == null;
+        if (isAccountFailure || isPortfolioFailure) {
+          return SafeArea(
+            key: const ValueKey('accounts-load-error-state'),
+            bottom: false,
+            child: ListView(
+              padding: AppInsets.compactScreen,
+              children: [
+                _ErrorStateCard(
+                  message: accountState.errorMessage ??
+                      tradeState.errorMessage ??
+                      'Unable to load your account.',
+                  onRetry: () {
+                    _requestedAccountId = null;
+                    _ensureAccountDataLoaded();
+                  },
+                ),
+              ],
+            ),
+          );
+        }
+
+        final isLoadingAccount = accountState.status == AccountStatus.loading ||
+            accountState.account == null;
+        final isLoadingPortfolio = tradeState.status == TradeStatus.loading ||
+            tradeState.portfolio == null;
+        if (isLoadingAccount || isLoadingPortfolio) {
+          return const ColoredBox(
+            key: ValueKey('accounts-loading-state'),
+            color: AppColors.white,
+            child: SafeArea(
+              bottom: false,
+              child: Center(
+                child: CircularProgressIndicator(color: AppColors.orange500),
+              ),
+            ),
+          );
+        }
+
         final snapshot = _AccountsScreenSnapshot.fromControllers(
-          account: widget.accountController.value.account,
-          portfolio: widget.tradeController.value.portfolio,
+          account: accountState.account,
+          portfolio: tradeState.portfolio,
         );
 
         return ColoredBox(
           key: const ValueKey('accounts-screen'),
           color: AppColors.white,
-          child: ClipRect(
-            child: Stack(
+          child: SafeArea(
+            bottom: false,
+            child: Column(
               children: [
-                Positioned(
-                  left: 0,
-                  top: 0,
-                  right: 0,
-                  height: 386,
-                  child: _AccountsHeaderSection(
-                    snapshot: snapshot,
-                    selectedPrimaryTab: _selectedPrimaryTab,
-                    onPrimaryTabSelected: (index) {
-                      if (index > 1) {
-                        unawaited(
-                          _showComingSoonDialog(
-                            context,
-                            featureName:
-                                _AccountsPrimaryTabs.labelForIndex(index),
-                          ),
-                        );
-                        return;
-                      }
-                      setState(() {
-                        _selectedPrimaryTab = index;
-                      });
-                    },
-                  ),
+                _AccountsHeaderSection(
+                  snapshot: snapshot,
+                  selectedPrimaryTab: _selectedPrimaryTab,
+                  onPrimaryTabSelected: (index) {
+                    if (index > 1) {
+                      unawaited(
+                        _showComingSoonDialog(
+                          context,
+                          featureName:
+                              _AccountsPrimaryTabs.labelForIndex(index),
+                        ),
+                      );
+                      return;
+                    }
+                    setState(() {
+                      _selectedPrimaryTab = index;
+                    });
+                  },
                 ),
-                Positioned(
-                  left: 0,
-                  top: 352,
-                  right: 0,
+                SizedBox(
                   height: 34,
                   child: _AccountsAssetFilterTabs(
                     selectedIndex: _selectedAssetFilter,
@@ -133,11 +169,8 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     },
                   ),
                 ),
-                Positioned(
-                  left: 0,
-                  top: 402,
-                  right: 0,
-                  height: 476,
+                const SizedBox(height: 16),
+                Expanded(
                   child: _AccountsHoldingsSection(
                     snapshot: snapshot,
                     showAllocationChart: _selectedPrimaryTab == 1,
@@ -173,7 +206,6 @@ class _AccountsHeaderSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const SizedBox(height: 62),
         _AccountsPageTitle(),
         _AccountsPrimaryTabs(
           selectedIndex: selectedPrimaryTab,
@@ -193,28 +225,31 @@ class _AccountsSignedOutState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return SafeArea(
       key: const ValueKey('accounts-signed-out-state'),
-      padding: AppInsets.compactScreen,
-      children: [
-        const _MutedInfoCard(
-          title: 'Sign in required',
-          body: 'Sign in to view your cash, assets, and portfolio.',
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          height: 48,
-          child: FilledButton(
-            key: const ValueKey('accounts-sign-in-button'),
-            onPressed: onSignInTap,
-            style: _exchangePrimaryButtonStyle(
-              backgroundColor: AppColors.orange500,
-              radius: 8,
-            ),
-            child: const Text('Sign in'),
+      bottom: false,
+      child: ListView(
+        padding: AppInsets.compactScreen,
+        children: [
+          const _MutedInfoCard(
+            title: 'Sign in required',
+            body: 'Sign in to view your cash, assets, and portfolio.',
           ),
-        ),
-      ],
+          const SizedBox(height: 16),
+          SizedBox(
+            height: 48,
+            child: FilledButton(
+              key: const ValueKey('accounts-sign-in-button'),
+              onPressed: onSignInTap,
+              style: _exchangePrimaryButtonStyle(
+                backgroundColor: AppColors.orange500,
+                radius: 8,
+              ),
+              child: const Text('Sign in'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

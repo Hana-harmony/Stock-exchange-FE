@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -143,13 +144,19 @@ class ExchangeApiClient {
     required Uri baseUri,
     required http.Client httpClient,
     AuthSessionProvider? sessionProvider,
+    Duration requestTimeout = const Duration(seconds: 30),
+    Duration uploadTimeout = const Duration(seconds: 60),
   })  : _baseUri = baseUri,
         _httpClient = httpClient,
-        _sessionProvider = sessionProvider ?? (() => null);
+        _sessionProvider = sessionProvider ?? (() => null),
+        _requestTimeout = requestTimeout,
+        _uploadTimeout = uploadTimeout;
 
   final Uri _baseUri;
   final http.Client _httpClient;
   final AuthSessionProvider _sessionProvider;
+  final Duration _requestTimeout;
+  final Duration _uploadTimeout;
 
   Future<SignUpResult> signUp({
     required String username,
@@ -283,6 +290,36 @@ class ExchangeApiClient {
           'market': market,
         'currency': currency,
         'limit': '$limit',
+      },
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> getStockSearchRankings({
+    int windowHours = 24,
+    int limit = 10,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/stocks/search-rankings',
+      query: {
+        'windowHours': '$windowHours',
+        'limit': '$limit',
+      },
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> recordStockSearchEvent({
+    required String stockCode,
+    required String stockName,
+    String? market,
+    String? sector,
+  }) {
+    return post<Map<String, dynamic>>(
+      '/api/v1/stocks/search-events',
+      body: {
+        'stockCode': stockCode,
+        'stockName': stockName,
+        if (market != null && market.isNotEmpty) 'market': market,
+        if (sector != null && sector.isNotEmpty) 'sector': sector,
       },
     );
   }
@@ -518,6 +555,19 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getTrendingMarketNews({
+    int windowHours = 24,
+    int limit = 10,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/market/news/trending',
+      query: {
+        'windowHours': '$windowHours',
+        'limit': '$limit',
+      },
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getMarketNewsDetail(String newsId) {
     return get<Map<String, dynamic>>('/api/v1/market/news/$newsId');
   }
@@ -580,7 +630,10 @@ class ExchangeApiClient {
       http.MultipartFile.fromBytes('file', bytes, filename: fileName),
     );
 
-    final streamedResponse = await _httpClient.send(request);
+    final streamedResponse = await _sendWithTimeout(
+      request,
+      timeout: _uploadTimeout,
+    );
     final response = await http.Response.fromStream(streamedResponse);
     return _decodeEnvelope<Map<String, dynamic>>(
       response,
@@ -682,9 +735,27 @@ class ExchangeApiClient {
       request.body = jsonEncode(body);
     }
 
-    final streamedResponse = await _httpClient.send(request);
+    final streamedResponse = await _sendWithTimeout(
+      request,
+      timeout: _requestTimeout,
+    );
     final response = await http.Response.fromStream(streamedResponse);
     return _decodeEnvelope<T>(response, decodeData);
+  }
+
+  Future<http.StreamedResponse> _sendWithTimeout(
+    http.BaseRequest request, {
+    required Duration timeout,
+  }) async {
+    try {
+      return await _httpClient.send(request).timeout(timeout);
+    } on TimeoutException {
+      throw const ExchangeApiException(
+        status: 408,
+        code: 'EXCHANGE_API_TIMEOUT',
+        message: 'The exchange API request timed out.',
+      );
+    }
   }
 
   ApiEnvelope<T> _decodeEnvelope<T>(
