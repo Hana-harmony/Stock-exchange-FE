@@ -301,20 +301,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   Future<void> _showQuestionInfoSheet() {
-    return showGeneralDialog<void>(
+    return showModalBottomSheet<void>(
       context: context,
-      barrierDismissible: true,
-      barrierLabel: 'Stock question info',
+      isScrollControlled: true,
+      useSafeArea: false,
+      isDismissible: true,
+      enableDrag: false,
+      backgroundColor: Colors.transparent,
       barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
-      transitionDuration: const Duration(milliseconds: 180),
-      pageBuilder: (context, animation, secondaryAnimation) {
+      sheetAnimationStyle: const AnimationStyle(
+        duration: Duration(milliseconds: 320),
+        reverseDuration: Duration(milliseconds: 240),
+      ),
+      builder: (context) {
         return const _StockQuestionInfoSheetDialog();
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        return FadeTransition(
-          opacity: animation,
-          child: child,
-        );
       },
     );
   }
@@ -488,92 +488,75 @@ class _StockQuestionInfoSheetDialogState
             .clamp(0.0, 1.0);
     final hintOpacity = (1 - comparisonProgress).clamp(0.0, 1.0);
 
-    return Material(
-      color: Colors.transparent,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              key: const ValueKey('stock-question-sheet-dim'),
-              onTap: () => Navigator.of(context).pop(),
-              child: const SizedBox.expand(),
+    return NotificationListener<DraggableScrollableNotification>(
+      onNotification: (notification) {
+        final nextExtent = notification.extent;
+        if ((nextExtent - _currentExtent).abs() < 0.0001) {
+          return false;
+        }
+        setState(() {
+          _currentExtent = nextExtent;
+        });
+        return false;
+      },
+      child: DraggableScrollableSheet(
+        controller: _sheetController,
+        expand: false,
+        initialChildSize: _previewExtent,
+        minChildSize: _previewExtent,
+        maxChildSize: _fullExtent,
+        snap: true,
+        snapAnimationDuration: const Duration(milliseconds: 240),
+        snapSizes: [_previewExtent, _expandedExtent, _fullExtent],
+        builder: (context, scrollController) {
+          return DecoratedBox(
+            key: ValueKey('stock-question-sheet-${currentStage.name}'),
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.05),
+                  blurRadius: 20,
+                  offset: Offset(4, 0),
+                ),
+              ],
             ),
-          ),
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: NotificationListener<DraggableScrollableNotification>(
-              onNotification: (notification) {
-                final nextExtent = notification.extent;
-                if ((nextExtent - _currentExtent).abs() < 0.0001) {
-                  return false;
-                }
-                setState(() {
-                  _currentExtent = nextExtent;
-                });
-                return false;
-              },
-              child: DraggableScrollableSheet(
-                controller: _sheetController,
-                expand: false,
-                initialChildSize: _previewExtent,
-                minChildSize: _previewExtent,
-                maxChildSize: _fullExtent,
-                snap: true,
-                snapSizes: [_previewExtent, _expandedExtent, _fullExtent],
-                builder: (context, scrollController) {
-                  return DecoratedBox(
-                    key: ValueKey('stock-question-sheet-${currentStage.name}'),
-                    decoration: const BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Color.fromRGBO(0, 0, 0, 0.05),
-                          blurRadius: 20,
-                          offset: Offset(4, 0),
-                        ),
-                      ],
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(20),
+              ),
+              child: Column(
+                children: [
+                  const SizedBox(height: 12),
+                  GestureDetector(
+                    key: const ValueKey('stock-question-sheet-gesture'),
+                    behavior: HitTestBehavior.opaque,
+                    onVerticalDragUpdate: (details) =>
+                        _handleHeaderDragUpdate(details, viewportHeight),
+                    onVerticalDragEnd: _handleHeaderDragEnd,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 4),
+                      child: _StockQuestionSheetHandle(),
                     ),
-                    child: ClipRRect(
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(20),
-                      ),
-                      child: Column(
-                        children: [
-                          const SizedBox(height: 12),
-                          GestureDetector(
-                            key: const ValueKey('stock-question-sheet-gesture'),
-                            behavior: HitTestBehavior.opaque,
-                            onVerticalDragUpdate: (details) =>
-                                _handleHeaderDragUpdate(
-                                    details, viewportHeight),
-                            onVerticalDragEnd: _handleHeaderDragEnd,
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(vertical: 4),
-                              child: _StockQuestionSheetHandle(),
-                            ),
-                          ),
-                          const SizedBox(height: 16),
-                          Expanded(
-                            child: _StockQuestionSheetBody(
-                              scrollController: scrollController,
-                              hintOpacity: hintOpacity,
-                              comparisonProgress: comparisonProgress,
-                              strengthsProgress: strengthsProgress,
-                            ),
-                          ),
-                          const _StockHomeBar(),
-                        ],
-                      ),
+                  ),
+                  const SizedBox(height: 16),
+                  Expanded(
+                    child: _StockQuestionSheetBody(
+                      scrollController: scrollController,
+                      hintOpacity: hintOpacity,
+                      comparisonProgress: comparisonProgress,
+                      strengthsProgress: strengthsProgress,
                     ),
-                  );
-                },
+                  ),
+                  const _StockHomeBar(),
+                ],
               ),
             ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
