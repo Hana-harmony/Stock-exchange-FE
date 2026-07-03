@@ -1,5 +1,8 @@
 part of '../exchange_pages.dart';
 
+const _koreanRegularOpenMinutes = 9 * 60;
+const _koreanRegularCloseMinutes = 15 * 60 + 30;
+
 String marketQuoteLiveStatusLabel(
   MarketQuoteLiveStatus liveStatus,
   MarketQuote? quote, {
@@ -7,9 +10,10 @@ String marketQuoteLiveStatusLabel(
 }) {
   final now = (nowUtc ?? DateTime.now()).toUtc().add(const Duration(hours: 9));
   final minutes = now.hour * 60 + now.minute;
-  final isWeekday =
-      now.weekday >= DateTime.monday && now.weekday <= DateTime.friday;
-  final isRegularHours = isWeekday && minutes >= 540 && minutes < 930;
+  final isWeekday = _isKoreanRegularSessionWeekday(now);
+  final isRegularHours = isWeekday &&
+      minutes >= _koreanRegularOpenMinutes &&
+      minutes < _koreanRegularCloseMinutes;
   if (!isRegularHours) {
     return 'Closed';
   }
@@ -73,11 +77,11 @@ String _formatNumber(int value) {
   return buffer.toString();
 }
 
-String? _formatMarketStatus(DateTime? marketDataTime) {
+String? _formatMarketStatus(DateTime? marketDataTime, {DateTime? nowUtc}) {
   if (marketDataTime == null) {
     return null;
   }
-  return formatKoreanMarketClosedLabel(marketDataTime);
+  return formatKoreanMarketClosedLabel(marketDataTime, nowUtc: nowUtc);
 }
 
 String _formatSignedCurrencyDifference(
@@ -112,4 +116,28 @@ double _parsePercent(String value) {
 
 String _formatCompactNumber(int value) {
   return _formatNumber(value);
+}
+
+bool _isKoreanRegularSessionWeekday(DateTime kst) {
+  return kst.weekday >= DateTime.monday && kst.weekday <= DateTime.friday;
+}
+
+DateTime _koreanDateOnly(DateTime kst) {
+  return DateTime.utc(kst.year, kst.month, kst.day);
+}
+
+DateTime _lastKoreanRegularSessionDate(DateTime now) {
+  final kst = now.toUtc().add(const Duration(hours: 9));
+  final minutes = kst.hour * 60 + kst.minute;
+  var sessionDate = _koreanDateOnly(kst);
+
+  // 한국장은 KST 날짜와 정규장 시작 시간을 기준으로 마지막 세션을 고정한다.
+  if (!_isKoreanRegularSessionWeekday(kst) ||
+      minutes < _koreanRegularOpenMinutes) {
+    sessionDate = sessionDate.subtract(const Duration(days: 1));
+  }
+  while (!_isKoreanRegularSessionWeekday(sessionDate)) {
+    sessionDate = sessionDate.subtract(const Duration(days: 1));
+  }
+  return sessionDate;
 }
