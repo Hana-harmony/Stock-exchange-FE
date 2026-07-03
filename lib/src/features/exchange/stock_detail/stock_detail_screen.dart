@@ -41,7 +41,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   late bool _isFavorite;
   late final ScrollController _detailScrollController;
   bool _tabsPinned = false;
-  bool _ownsQuoteLiveSubscription = false;
+  bool _hasDemandQuoteLiveSubscription = false;
   _StockChartPeriod _chartPeriod = _StockChartPeriod.oneDay;
 
   StockDetail? get _currentDetail => widget.marketDetailController.value.detail;
@@ -87,6 +87,14 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       widget.marketDetailController.unsubscribeRealtimeSource(
         stockCode: oldWidget.stockCode,
       );
+      if (_hasDemandQuoteLiveSubscription) {
+        unawaited(
+          widget.marketQuoteController.removeDemandLiveStock(
+            oldWidget.stockCode,
+          ),
+        );
+        _hasDemandQuoteLiveSubscription = false;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           unawaited(_loadStockDetail());
@@ -100,8 +108,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     widget.marketDetailController.unsubscribeRealtimeSource(
       stockCode: widget.stockCode,
     );
-    if (_ownsQuoteLiveSubscription) {
-      unawaited(widget.marketQuoteController.unsubscribeLive());
+    if (_hasDemandQuoteLiveSubscription) {
+      final stockCode = widget.stockCode;
+      final marketQuoteController = widget.marketQuoteController;
+      Future<void>.microtask(() {
+        unawaited(marketQuoteController.removeDemandLiveStock(stockCode));
+      });
     }
     _detailScrollController
       ..removeListener(_handleScroll)
@@ -115,16 +127,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         stockCode: widget.stockCode,
       ),
     );
-    if (!widget.marketQuoteController.hasGeneralLiveSubscription) {
-      _ownsQuoteLiveSubscription = true;
-      unawaited(
-        widget.marketQuoteController.subscribeLive(
-          stockCodes: [widget.stockCode],
-        ),
-      );
-    } else {
-      _ownsQuoteLiveSubscription = false;
-    }
+    _hasDemandQuoteLiveSubscription = true;
+    unawaited(
+        widget.marketQuoteController.addDemandLiveStock(widget.stockCode));
     await widget.marketDetailController.loadStock(
       stockCode: widget.stockCode,
       currency: 'USD',
@@ -260,6 +265,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                   chart: detailState.chart,
                                   status: detailState.status,
                                   errorMessage: detailState.errorMessage,
+                                  marketDataTime: liveQuote?.marketDataTime ??
+                                      _currentDetail?.marketDataTime,
                                   selectedPeriod: _chartPeriod,
                                   onPeriodChanged: _handleChartPeriodChanged,
                                 ),

@@ -116,6 +116,35 @@ void main() {
     expect(response.data?['fxRateSource'], 'Hana-OmniLens-API');
   });
 
+  test('market quote snapshot sends repeated stock code parameters', () async {
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(request.url.path, '/api/v1/market/quotes');
+        expect(request.url.queryParametersAll['stockCodes'], [
+          '005930',
+          '000270',
+          '086790',
+        ]);
+        expect(request.url.queryParameters['currency'], 'USD');
+
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {'quotes': <Object?>[]},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await client.getMarketQuotes(
+      stockCodes: ['005930', '000270', '086790'],
+    );
+  });
+
   test('notification APIs use account and stock intelligence paths', () async {
     const session = AuthSession(
       username: 'hana',
