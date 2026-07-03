@@ -1222,6 +1222,59 @@ void main() {
   });
 
   testWidgets(
+      'shows initial loading before quote and detail data are available',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = MarketQuoteController(
+      seedQuotes: const [],
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonEnvelope({
+              'dataSource': 'Stock-exchange-BE',
+              'marketCoverage': 'KOREA',
+              'displayCurrency': 'USD',
+              'quoteCount': 0,
+              'quotes': <Object?>[],
+              'servedAt': '2026-06-18T06:00:00Z',
+            })),
+      ),
+    );
+    final marketDetailController = _loadingMarketDetailController();
+    final sessionController = _sessionController();
+    final tradeController = _tradeController();
+    final notificationController = _notificationController();
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+    addTearDown(sessionController.dispose);
+    addTearDown(tradeController.dispose);
+    addTearDown(notificationController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StockDetailScreen(
+          sessionController: sessionController,
+          marketDetailController: marketDetailController,
+          marketQuoteController: marketQuoteController,
+          tradeController: tradeController,
+          notificationController: notificationController,
+          stockCode: '005930',
+          title: 'Samsung Electronics',
+          market: 'KOSPI',
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('stock-detail-initial-loading')),
+      findsOneWidget,
+    );
+    expect(
+        find.byKey(const ValueKey('stock-detail-initial-error')), findsNothing);
+  });
+
+  testWidgets(
       'renders stock detail from live quote while detail API is pending',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -1259,6 +1312,12 @@ void main() {
       find.byKey(const ValueKey('stock-detail-initial-loading')),
       findsNothing,
     );
+    expect(
+      find.byKey(const ValueKey('stock-detail-partial-loading')),
+      findsOneWidget,
+    );
+    expect(find.text('Loading market data'), findsNothing);
+    expect(find.text('Live quote updating'), findsOneWidget);
     expect(find.text('005930'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(find.text('USD 54.00'), findsOneWidget);

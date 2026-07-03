@@ -157,10 +157,11 @@ class _StockDetailSnapshot {
     return _StockDetailSnapshot(
       stockCode: stockCode,
       stockName: quote?.stockName ?? detail?.stockName ?? fallback.stockName,
-      marketStatusLabel: _formatMarketStatus(
-            quote?.marketDataTime ?? detail?.marketDataTime,
-          ) ??
-          fallback.marketStatus,
+      marketStatusLabel: _marketStatusLabel(
+        quote: quote,
+        detail: detail,
+        fallback: fallback,
+      ),
       currentPrice: currentPrice,
       currentPriceKrwDisplay: currentPriceKrwDisplay,
       currentPriceKrwRaw: currentPriceKrwRaw,
@@ -299,6 +300,27 @@ class _StockChartMetrics {
       totalVolume: points.fold<int>(0, (sum, point) => sum + point.volume),
     );
   }
+}
+
+String _marketStatusLabel({
+  required MarketQuote? quote,
+  required StockDetail? detail,
+  required _StockDetailFallback fallback,
+}) {
+  final timestamp = quote?.marketDataTime ?? detail?.marketDataTime;
+  final formatted = _formatMarketStatus(timestamp);
+  if (formatted != null) {
+    return formatted;
+  }
+  if (quote != null) {
+    return quote.isAfterHours
+        ? 'After-hours quote updating'
+        : 'Live quote updating';
+  }
+  if (detail != null) {
+    return 'Market status updating';
+  }
+  return fallback.marketStatus;
 }
 
 String _foreignLimitCardMessage({
