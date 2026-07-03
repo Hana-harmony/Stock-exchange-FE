@@ -1163,10 +1163,20 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final marketQuoteController = _marketQuoteController();
+    final chartRequests = <Uri>[];
+    final marketDetailController = _marketDetailController(
+      chartRequests: chartRequests,
+      stockMarketDataTime: '2026-07-04T06:30:00Z',
+    );
     addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
-      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketDetailController: marketDetailController,
+        nowProvider: () => DateTime.parse('2026-07-03T15:10:00Z'),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -1182,6 +1192,14 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
     await tester.pumpAndSettle();
+
+    expect(chartRequests, isNotEmpty);
+    expect(chartRequests.first.queryParameters['from'], '2026-07-03');
+    expect(chartRequests.first.queryParameters['to'], '2026-07-03');
+    expect(chartRequests.first.queryParameters['interval'], '1m');
+    expect(find.text('Market Closed Jul 3, 2026 3:30 PM KST'), findsOneWidget);
+    expect(find.textContaining('Jul 4, 2026 3:30 PM KST'), findsNothing);
+    expect(find.text('+USD 0.40 +1.14%'), findsWidgets);
 
     await tester
         .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
@@ -1215,10 +1233,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stock-chart-period-1W')));
     await tester.pumpAndSettle();
     expect(find.text('1W price chart'), findsOneWidget);
+    expect(chartRequests.last.queryParameters['from'], '2026-06-26');
+    expect(chartRequests.last.queryParameters['to'], '2026-07-03');
+    expect(chartRequests.last.queryParameters['interval'], '30m');
+    expect(find.text('+USD 1.50 +4.41%'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('stock-chart-period-1M')));
     await tester.pumpAndSettle();
     expect(find.text('1M price chart'), findsOneWidget);
+    expect(chartRequests.last.queryParameters['from'], '2026-06-02');
+    expect(chartRequests.last.queryParameters['to'], '2026-07-03');
+    expect(chartRequests.last.queryParameters['interval'], '1d');
+    expect(find.text('+USD 5.50 +18.33%'), findsWidgets);
   });
 
   testWidgets(
@@ -1548,6 +1574,7 @@ StockExchangeApp _stockExchangeTestApp({
   MarketNewsController? marketNewsController,
   NotificationController? notificationController,
   WatchlistController? watchlistController,
+  DateTime Function()? nowProvider,
 }) {
   return StockExchangeApp(
     sessionController: _sessionController(),
@@ -1561,6 +1588,7 @@ StockExchangeApp _stockExchangeTestApp({
         watchlistQuoteController ?? _accountMarketQuoteController(),
     notificationController: notificationController ?? _notificationController(),
     watchlistController: watchlistController ?? _watchlistController(),
+    nowProvider: nowProvider,
   );
 }
 
@@ -1703,6 +1731,8 @@ WatchlistController _watchlistController() {
 MarketDetailController _marketDetailController({
   bool viActive = false,
   String priceLimitState = 'NORMAL',
+  List<Uri>? chartRequests,
+  String stockMarketDataTime = '2026-06-18T06:00:00Z',
 }) {
   return MarketDetailController(
     apiClient: ExchangeApiClient(
@@ -1730,7 +1760,7 @@ MarketDetailController _marketDetailController({
             'localCurrencyPrice': isSamsung ? '54.00' : '35.50',
             'changeRate': '+1.23%',
             'volume': isSamsung ? 18300000 : 1200000,
-            'marketDataTime': '2026-06-18T06:00:00Z',
+            'marketDataTime': stockMarketDataTime,
             'foreignOwnershipRate': '27.1',
             'foreignLimitExhaustionRate': '27.1',
             'predictedForeignOwnershipRateMin': '27.0',
@@ -1747,39 +1777,29 @@ MarketDetailController _marketDetailController({
             'tradingHalted': false,
             'orderable': true,
             'dataSource': 'Stock-exchange-BE',
-            'servedAt': '2026-06-18T06:00:00Z',
+            'servedAt': stockMarketDataTime,
           });
         }
         if (path.startsWith('/api/v1/market/stocks/') &&
             path.endsWith('/chart')) {
+          chartRequests?.add(request.url);
           final stockCode = request.url.pathSegments[4];
           final isSamsung = stockCode == '005930';
           final interval = request.url.queryParameters['interval'] ?? '1m';
+          final chartPoints = _chartPointsForInterval(
+            interval: interval,
+            isSamsung: isSamsung,
+          );
           return _jsonEnvelope({
             'dataSource': 'Stock-exchange-BE',
             'stockCode': stockCode,
             'interval': interval,
-            'from': '2026-06-01',
-            'to': '2026-06-18',
+            'from': request.url.queryParameters['from'] ?? '2026-06-01',
+            'to': request.url.queryParameters['to'] ?? '2026-06-18',
             'baseCurrency': 'KRW',
             'displayCurrency': 'USD',
-            'pointCount': 1,
-            'points': [
-              {
-                'tradeDate': '2026-06-18',
-                'openPriceKrw': isSamsung ? '81200' : '53600',
-                'highPriceKrw': isSamsung ? '83600' : '54800',
-                'lowPriceKrw': isSamsung ? '80800' : '53200',
-                'closePriceKrw': isSamsung ? '82400' : '54200',
-                'localCurrency': 'USD',
-                'openLocalCurrencyPrice': isSamsung ? '53.21' : '35.10',
-                'highLocalCurrencyPrice': isSamsung ? '54.79' : '35.90',
-                'lowLocalCurrencyPrice': isSamsung ? '52.95' : '34.88',
-                'closeLocalCurrencyPrice': isSamsung ? '54.00' : '35.50',
-                'volume': isSamsung ? 18300000 : 1200000,
-                'adjusted': false,
-              },
-            ],
+            'pointCount': chartPoints.length,
+            'points': chartPoints,
             'servedAt': '2026-06-18T06:00:00Z',
           });
         }
@@ -1793,8 +1813,8 @@ MarketDetailController _marketDetailController({
             'displayCurrency': 'USD',
             'asks': <Object?>[],
             'bids': <Object?>[],
-            'marketDataTime': '2026-06-18T06:00:00Z',
-            'servedAt': '2026-06-18T06:00:00Z',
+            'marketDataTime': stockMarketDataTime,
+            'servedAt': stockMarketDataTime,
           });
         }
         if (path == '/api/v1/stocks/035720/global-peers' ||
@@ -2046,6 +2066,110 @@ MarketQuoteController _marketQuoteController() {
       }),
     ),
   );
+}
+
+List<Map<String, Object?>> _chartPointsForInterval({
+  required String interval,
+  required bool isSamsung,
+}) {
+  if (interval == '30m') {
+    return [
+      _chartPointJson(
+        tradeDate: '2026-06-26T09:00:00',
+        openPriceKrw: isSamsung ? '79200' : '52000',
+        highPriceKrw: isSamsung ? '80100' : '52500',
+        lowPriceKrw: isSamsung ? '78900' : '51800',
+        closePriceKrw: isSamsung ? '79500' : '52000',
+        openLocalCurrencyPrice: isSamsung ? '51.90' : '34.00',
+        highLocalCurrencyPrice: isSamsung ? '52.49' : '34.33',
+        lowLocalCurrencyPrice: isSamsung ? '51.70' : '33.87',
+        closeLocalCurrencyPrice: isSamsung ? '52.10' : '34.00',
+        volume: isSamsung ? 9100000 : 640000,
+      ),
+      _chartPointJson(
+        tradeDate: '2026-07-03T15:30:00',
+        openPriceKrw: isSamsung ? '81200' : '53600',
+        highPriceKrw: isSamsung ? '83600' : '54800',
+        lowPriceKrw: isSamsung ? '80800' : '53200',
+        closePriceKrw: isSamsung ? '82400' : '54200',
+        openLocalCurrencyPrice: isSamsung ? '53.21' : '35.10',
+        highLocalCurrencyPrice: isSamsung ? '54.79' : '35.90',
+        lowLocalCurrencyPrice: isSamsung ? '52.95' : '34.88',
+        closeLocalCurrencyPrice: isSamsung ? '54.00' : '35.50',
+        volume: isSamsung ? 18300000 : 1200000,
+      ),
+    ];
+  }
+  if (interval == '1d') {
+    return [
+      _chartPointJson(
+        tradeDate: '2026-06-02',
+        openPriceKrw: isSamsung ? '76000' : '45800',
+        highPriceKrw: isSamsung ? '76800' : '46300',
+        lowPriceKrw: isSamsung ? '75500' : '45600',
+        closePriceKrw: isSamsung ? '76200' : '45800',
+        openLocalCurrencyPrice: isSamsung ? '49.81' : '30.00',
+        highLocalCurrencyPrice: isSamsung ? '50.34' : '30.33',
+        lowLocalCurrencyPrice: isSamsung ? '49.48' : '29.87',
+        closeLocalCurrencyPrice: isSamsung ? '49.94' : '30.00',
+        volume: isSamsung ? 7500000 : 410000,
+      ),
+      _chartPointJson(
+        tradeDate: '2026-07-03',
+        openPriceKrw: isSamsung ? '81200' : '53600',
+        highPriceKrw: isSamsung ? '83600' : '54800',
+        lowPriceKrw: isSamsung ? '80800' : '53200',
+        closePriceKrw: isSamsung ? '82400' : '54200',
+        openLocalCurrencyPrice: isSamsung ? '53.21' : '35.10',
+        highLocalCurrencyPrice: isSamsung ? '54.79' : '35.90',
+        lowLocalCurrencyPrice: isSamsung ? '52.95' : '34.88',
+        closeLocalCurrencyPrice: isSamsung ? '54.00' : '35.50',
+        volume: isSamsung ? 18300000 : 1200000,
+      ),
+    ];
+  }
+  return [
+    _chartPointJson(
+      tradeDate: '2026-07-03T15:30:00',
+      openPriceKrw: isSamsung ? '81200' : '53600',
+      highPriceKrw: isSamsung ? '83600' : '54800',
+      lowPriceKrw: isSamsung ? '80800' : '53200',
+      closePriceKrw: isSamsung ? '82400' : '54200',
+      openLocalCurrencyPrice: isSamsung ? '53.21' : '35.10',
+      highLocalCurrencyPrice: isSamsung ? '54.79' : '35.90',
+      lowLocalCurrencyPrice: isSamsung ? '52.95' : '34.88',
+      closeLocalCurrencyPrice: isSamsung ? '54.00' : '35.50',
+      volume: isSamsung ? 18300000 : 1200000,
+    ),
+  ];
+}
+
+Map<String, Object?> _chartPointJson({
+  required String tradeDate,
+  required String openPriceKrw,
+  required String highPriceKrw,
+  required String lowPriceKrw,
+  required String closePriceKrw,
+  required String openLocalCurrencyPrice,
+  required String highLocalCurrencyPrice,
+  required String lowLocalCurrencyPrice,
+  required String closeLocalCurrencyPrice,
+  required int volume,
+}) {
+  return {
+    'tradeDate': tradeDate,
+    'openPriceKrw': openPriceKrw,
+    'highPriceKrw': highPriceKrw,
+    'lowPriceKrw': lowPriceKrw,
+    'closePriceKrw': closePriceKrw,
+    'localCurrency': 'USD',
+    'openLocalCurrencyPrice': openLocalCurrencyPrice,
+    'highLocalCurrencyPrice': highLocalCurrencyPrice,
+    'lowLocalCurrencyPrice': lowLocalCurrencyPrice,
+    'closeLocalCurrencyPrice': closeLocalCurrencyPrice,
+    'volume': volume,
+    'adjusted': false,
+  };
 }
 
 MarketQuoteController _accountMarketQuoteController() {

@@ -41,6 +41,7 @@ class StockExchangeApp extends StatelessWidget {
     this.taxController,
     this.watchlistController,
     this.sessionStore,
+    this.nowProvider,
   });
 
   final ExchangeSessionController? sessionController;
@@ -56,6 +57,7 @@ class StockExchangeApp extends StatelessWidget {
   final TaxController? taxController;
   final WatchlistController? watchlistController;
   final ExchangeSessionStore? sessionStore;
+  final DateTime Function()? nowProvider;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +79,7 @@ class StockExchangeApp extends StatelessWidget {
         taxController: taxController,
         watchlistController: watchlistController,
         sessionStore: sessionStore,
+        nowProvider: nowProvider,
       ),
     );
   }
@@ -98,6 +101,7 @@ class ExchangeShell extends StatefulWidget {
     this.taxController,
     this.watchlistController,
     this.sessionStore,
+    this.nowProvider,
   });
 
   final ExchangeSessionController? sessionController;
@@ -113,6 +117,7 @@ class ExchangeShell extends StatefulWidget {
   final TaxController? taxController;
   final WatchlistController? watchlistController;
   final ExchangeSessionStore? sessionStore;
+  final DateTime Function()? nowProvider;
 
   @override
   State<ExchangeShell> createState() => _ExchangeShellState();
@@ -504,6 +509,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           onToggleFavoriteStock: _toggleFavoriteStock,
           onFavoriteChanged: _setFavoriteStock,
           onNavigateToAccounts: _openAccountsTabFromNestedFlow,
+          nowProvider: widget.nowProvider,
         ),
       ),
     );
@@ -540,6 +546,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           onFavoriteChanged: _setFavoriteStock,
           onNavigateToAccounts: _openAccountsTabFromNestedFlow,
           onSignInTap: _openMyTabFromNestedFlow,
+          nowProvider: widget.nowProvider,
         ),
         MarketScreen(
           sessionController: _sessionController,
@@ -551,6 +558,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           favoriteStockCodes: _favoriteStockCodes,
           onFavoriteChanged: _setFavoriteStock,
           onNavigateToAccounts: _openAccountsTabFromNestedFlow,
+          nowProvider: widget.nowProvider,
         ),
         AccountsScreen(
           sessionController: _sessionController,

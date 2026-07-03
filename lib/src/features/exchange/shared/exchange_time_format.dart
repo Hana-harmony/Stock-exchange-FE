@@ -26,11 +26,17 @@ String formatEtWithKst(DateTime? value) {
       '(${_formatDateTime(kst, 'KST')})';
 }
 
-String formatKoreanMarketClosedLabel(DateTime? marketDataTime) {
+String formatKoreanMarketClosedLabel(
+  DateTime? marketDataTime, {
+  DateTime? nowUtc,
+}) {
   if (marketDataTime == null) {
     return 'Market status loading';
   }
-  final kst = marketDataTime.toUtc().add(const Duration(hours: 9));
+  final kst = _marketClosedSessionDate(
+    marketDataTime: marketDataTime,
+    nowUtc: nowUtc,
+  );
   final closeKst = DateTime.utc(
     kst.year,
     kst.month,
@@ -39,6 +45,22 @@ String formatKoreanMarketClosedLabel(DateTime? marketDataTime) {
     30,
   );
   return 'Market Closed ${formatEtWithKst(closeKst)}';
+}
+
+DateTime _marketClosedSessionDate({
+  required DateTime marketDataTime,
+  DateTime? nowUtc,
+}) {
+  final dataSessionDate = _lastKoreanRegularSessionDate(marketDataTime);
+  final latestSessionDate = _lastKoreanRegularSessionDate(
+    nowUtc ?? DateTime.now().toUtc(),
+  );
+
+  // 서버 시각이 휴일이나 현재보다 미래 세션을 가리키면 표시용 종가일은 낮춘다.
+  if (dataSessionDate.isAfter(latestSessionDate)) {
+    return latestSessionDate;
+  }
+  return dataSessionDate;
 }
 
 _EasternTime _toUsEastern(DateTime utc) {

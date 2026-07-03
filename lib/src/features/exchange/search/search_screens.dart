@@ -17,6 +17,7 @@ class SearchLandingScreen extends StatefulWidget {
     required this.onToggleFavoriteStock,
     this.onFavoriteChanged,
     required this.onNavigateToAccounts,
+    this.nowProvider,
   });
 
   final ExchangeSessionController sessionController;
@@ -34,6 +35,7 @@ class SearchLandingScreen extends StatefulWidget {
   final Future<bool> Function(String stockCode, bool nextIsFavorite)?
       onFavoriteChanged;
   final VoidCallback onNavigateToAccounts;
+  final DateTime Function()? nowProvider;
 
   @override
   State<SearchLandingScreen> createState() => _SearchLandingScreenState();
@@ -93,6 +95,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
           onToggleFavoriteStock: widget.onToggleFavoriteStock,
           onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts,
+          nowProvider: widget.nowProvider,
         ),
       ),
     );
@@ -270,6 +273,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
           onFavoriteToggle: () => _toggleFavorite(item.stockCode),
           onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts,
+          nowProvider: widget.nowProvider,
         ),
       ),
     );
@@ -487,6 +491,7 @@ class SearchResultScreen extends StatefulWidget {
     required this.onToggleFavoriteStock,
     this.onFavoriteChanged,
     required this.onNavigateToAccounts,
+    this.nowProvider,
   });
 
   final String initialQuery;
@@ -501,6 +506,7 @@ class SearchResultScreen extends StatefulWidget {
   final Future<bool> Function(String stockCode, bool nextIsFavorite)?
       onFavoriteChanged;
   final VoidCallback onNavigateToAccounts;
+  final DateTime Function()? nowProvider;
 
   @override
   State<SearchResultScreen> createState() => _SearchResultScreenState();
@@ -601,6 +607,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
           onFavoriteToggle: () => _toggleFavorite(item.stockCode),
           onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts,
+          nowProvider: widget.nowProvider,
         ),
       ),
     );
