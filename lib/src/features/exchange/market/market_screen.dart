@@ -40,6 +40,20 @@ class _MarketScreenState extends State<MarketScreen> {
   ];
 
   int _selectedCategoryIndex = 0;
+  List<String> _marketTrendingStockCodes = _defaultTrendingStockCodes;
+
+  static const _defaultTrendingStockCodes = <String>[
+    '005930',
+    '000660',
+    '005380',
+    '000270',
+    '086790',
+    '035420',
+    '068270',
+    '105560',
+    '055550',
+    '012330',
+  ];
 
   static const _marketIndicators = <_MarketIndicatorData>[
     _MarketIndicatorData(
@@ -70,11 +84,18 @@ class _MarketScreenState extends State<MarketScreen> {
 
   Future<void> _loadLiveMarketData() async {
     unawaited(widget.marketIndexController.subscribeLive());
-    unawaited(widget.marketQuoteController.subscribeLive());
+    final indexSnapshot = widget.marketIndexController.loadSnapshot();
+    final seedStockCodes = await _resolveInitialTrendingStockCodes();
+    _marketTrendingStockCodes = seedStockCodes;
+    unawaited(_subscribeMarketTrendingStocks());
     await Future.wait([
-      widget.marketIndexController.loadSnapshot(),
-      widget.marketQuoteController.loadSnapshot(),
+      indexSnapshot,
+      widget.marketQuoteController.loadSnapshot(stockCodes: seedStockCodes),
     ]);
+    if (!mounted) {
+      return;
+    }
+    await _subscribeMarketTrendingStocks();
   }
 
   @override
@@ -225,9 +246,74 @@ class _MarketScreenState extends State<MarketScreen> {
     )
         .whenComplete(() {
       if (mounted) {
-        unawaited(widget.marketQuoteController.subscribeLive());
+        unawaited(
+          _subscribeMarketTrendingStocks(),
+        );
       }
     });
+  }
+
+  Future<void> _subscribeMarketTrendingStocks() {
+    return widget.marketQuoteController
+        .subscribeMarketLiveStocks(_marketTrendingStockCodes);
+  }
+
+  Future<List<String>> _resolveInitialTrendingStockCodes() async {
+    try {
+      final rankings = await widget.marketQuoteController.loadSearchRankings(
+        limit: 10,
+      );
+      final rankedCodes = _fillTrendingStockCodes(
+        rankings.results.map((item) => item.stockCode),
+      );
+      if (rankedCodes.isNotEmpty) {
+        return rankedCodes;
+      }
+    } on Object {
+      // 랭킹 조회 실패 시 기본 인기 유니버스로 즉시 시세를 띄운다.
+    }
+
+    return _fillTrendingStockCodes(const []);
+  }
+
+  List<String> _fillTrendingStockCodes(Iterable<String> primaryCodes) {
+    final codes = <String>[];
+
+    void addCode(String stockCode) {
+      final normalized = stockCode.trim();
+      if (normalized.isEmpty || codes.contains(normalized)) {
+        return;
+      }
+      codes.add(normalized);
+    }
+
+    for (final stockCode in primaryCodes) {
+      addCode(stockCode);
+      if (codes.length == 10) {
+        return codes;
+      }
+    }
+    for (final stockCode in _defaultTrendingStockCodes) {
+      addCode(stockCode);
+      if (codes.length == 10) {
+        return codes;
+      }
+    }
+    return codes;
+  }
+
+  List<MarketQuote> _marketTrendingQuotes(MarketQuoteState state) {
+    if (_marketTrendingStockCodes.isEmpty) {
+      return List<MarketQuote>.of(state.quotes)
+        ..sort((a, b) => b.volume.compareTo(a.volume));
+    }
+
+    final marketCodes = _marketTrendingStockCodes.toSet();
+    final sorted = state.quotes
+        .where((quote) => marketCodes.contains(quote.stockCode))
+        .toList(growable: false)
+      ..sort((a, b) => b.volume.compareTo(a.volume));
+    return sorted.take(10).toList(growable: false);
   }
 
   List<_MarketStatusCardData> _buildMarketStatusCards(MarketIndexState state) {
@@ -249,8 +335,7 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   List<_TrendingStock> _buildTrendingStocks(MarketQuoteState state) {
-    final sorted = List<MarketQuote>.of(state.quotes)
-      ..sort((a, b) => b.volume.compareTo(a.volume));
+    final sorted = _marketTrendingQuotes(state);
     return sorted.take(10).map((quote) {
       final changeRate = _parsePercent(quote.changeRate);
       return _TrendingStock(
@@ -844,6 +929,13 @@ double _koreanRegularSessionProgress(DateTime? marketDataTime) {
   }
   // 한국 정규장 09:00-15:30 기준으로 오늘 진행된 구간까지만 그린다.
   final kst = marketDataTime.toUtc().add(const Duration(hours: 9));
+  return _koreanRegularSessionProgressFromKst(kst);
+}
+
+double _koreanRegularSessionProgressFromKst(DateTime? kst) {
+  if (kst == null) {
+    return 1;
+  }
   const openMinutes = 9 * 60;
   const closeMinutes = 15 * 60 + 30;
   final currentMinutes = kst.hour * 60 + kst.minute;

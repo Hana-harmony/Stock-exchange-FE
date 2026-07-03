@@ -167,6 +167,7 @@ class _StockChartTab extends StatelessWidget {
     required this.chart,
     required this.status,
     required this.errorMessage,
+    required this.marketDataTime,
     required this.selectedPeriod,
     required this.onPeriodChanged,
   });
@@ -174,12 +175,16 @@ class _StockChartTab extends StatelessWidget {
   final MarketChart? chart;
   final MarketDetailStatus status;
   final String? errorMessage;
+  final DateTime? marketDataTime;
   final _StockChartPeriod selectedPeriod;
   final ValueChanged<_StockChartPeriod> onPeriodChanged;
 
   @override
   Widget build(BuildContext context) {
-    final points = chart?.points ?? const <MarketChartPoint>[];
+    final rawPoints = chart?.points ?? const <MarketChartPoint>[];
+    final points = selectedPeriod == _StockChartPeriod.oneDay
+        ? _visibleOneDayChartPoints(rawPoints, marketDataTime)
+        : rawPoints;
     if (status == MarketDetailStatus.loading) {
       return ListView(
         key: const PageStorageKey<String>('stock-chart-tab-loading'),
@@ -228,9 +233,9 @@ class _StockChartTab extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         _StockChartCard(
-          chart: chart!,
           points: points,
-          periodLabel: selectedPeriod.label,
+          selectedPeriod: selectedPeriod,
+          marketDataTime: marketDataTime,
         ),
         const SizedBox(height: 18),
         _StockChartSummary(points: points),
@@ -241,20 +246,29 @@ class _StockChartTab extends StatelessWidget {
 
 class _StockChartCard extends StatelessWidget {
   const _StockChartCard({
-    required this.chart,
     required this.points,
-    required this.periodLabel,
+    required this.selectedPeriod,
+    required this.marketDataTime,
   });
 
-  final MarketChart chart;
   final List<MarketChartPoint> points;
-  final String periodLabel;
+  final _StockChartPeriod selectedPeriod;
+  final DateTime? marketDataTime;
 
   @override
   Widget build(BuildContext context) {
     final latest = points.last;
-    final firstLabel = _formatChartAxisTime(points.first.tradeDate);
-    final lastLabel = _formatChartAxisTime(points.last.tradeDate);
+    final isOneDay = selectedPeriod == _StockChartPeriod.oneDay;
+    final chartProgress = isOneDay
+        ? _stockOneDayChartProgress(
+            marketDataTime: marketDataTime,
+            points: points,
+          )
+        : 1.0;
+    final firstLabel =
+        isOneDay ? '09:00 KST' : _formatChartAxisTime(points.first.tradeDate);
+    final lastLabel =
+        isOneDay ? '15:30 KST' : _formatChartAxisTime(points.last.tradeDate);
     return DecoratedBox(
       key: const ValueKey('stock-chart-content'),
       decoration: BoxDecoration(
@@ -271,7 +285,7 @@ class _StockChartCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    '$periodLabel price chart',
+                    '${selectedPeriod.label} price chart',
                     style: Theme.of(context).textTheme.titleLarge?.copyWith(
                           fontSize: 18,
                           fontWeight: FontWeight.w700,
@@ -297,6 +311,7 @@ class _StockChartCard extends StatelessWidget {
                 painter: _StockDetailChartPainter(
                   points: points,
                   lineColor: _chartTrendColor(points),
+                  progress: chartProgress,
                 ),
               ),
             ),
@@ -604,10 +619,12 @@ class _StockDetailChartPainter extends CustomPainter {
   const _StockDetailChartPainter({
     required this.points,
     required this.lineColor,
+    required this.progress,
   });
 
   final List<MarketChartPoint> points;
   final Color lineColor;
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -627,7 +644,8 @@ class _StockDetailChartPainter extends CustomPainter {
     final volumeTop = chartHeight + 18;
     final volumeHeight = size.height - volumeTop;
     final priceRange = math.max(maxPrice - minPrice, 1.0);
-    final stepX = prices.length == 1 ? 0.0 : size.width / (prices.length - 1);
+    final drawWidth = size.width * progress.clamp(0.02, 1.0);
+    final stepX = prices.length == 1 ? 0.0 : drawWidth / (prices.length - 1);
 
     final gridPaint = Paint()
       ..color = AppColors.gray200
@@ -650,7 +668,7 @@ class _StockDetailChartPainter extends CustomPainter {
     }
 
     final fillPath = Path.from(path)
-      ..lineTo(size.width, chartHeight)
+      ..lineTo(drawWidth, chartHeight)
       ..lineTo(0, chartHeight)
       ..close();
     canvas.drawPath(
@@ -676,7 +694,7 @@ class _StockDetailChartPainter extends CustomPainter {
     );
 
     final barWidth =
-        math.max(2.0, math.min(8.0, size.width / (volumes.length * 2.2)));
+        math.max(2.0, math.min(8.0, drawWidth / (volumes.length * 2.2)));
     final volumePaint = Paint()..color = AppColors.gray300;
     for (var index = 0; index < volumes.length; index++) {
       final volumeRatio = maxVolume == 0 ? 0 : volumes[index] / maxVolume;
@@ -693,8 +711,60 @@ class _StockDetailChartPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _StockDetailChartPainter oldDelegate) {
-    return oldDelegate.points != points || oldDelegate.lineColor != lineColor;
+    return oldDelegate.points != points ||
+        oldDelegate.lineColor != lineColor ||
+        oldDelegate.progress != progress;
   }
+}
+
+double _stockOneDayChartProgress({
+  required DateTime? marketDataTime,
+  required List<MarketChartPoint> points,
+}) {
+  if (marketDataTime != null) {
+    return _koreanRegularSessionProgress(marketDataTime);
+  }
+  if (points.isEmpty) {
+    return 1;
+  }
+  final latestTradeDate = _parseKoreanChartTradeDate(points.last.tradeDate);
+  return _koreanRegularSessionProgressFromKst(latestTradeDate);
+}
+
+DateTime? _parseKoreanChartTradeDate(String value) {
+  final normalized = value.trim().replaceAll(' ', 'T');
+  if (normalized.isEmpty) {
+    return null;
+  }
+  return DateTime.tryParse(normalized);
+}
+
+List<MarketChartPoint> _visibleOneDayChartPoints(
+  List<MarketChartPoint> points,
+  DateTime? marketDataTime,
+) {
+  if (marketDataTime == null || points.length < 2) {
+    return points;
+  }
+  final cutoffKst = marketDataTime.toUtc().add(const Duration(hours: 9));
+  final cutoffDay = DateTime(cutoffKst.year, cutoffKst.month, cutoffKst.day);
+  final cutoffMinutes = cutoffKst.hour * 60 + cutoffKst.minute;
+  final visible = points.where((point) {
+    final tradeDate = _parseKoreanChartTradeDate(point.tradeDate);
+    if (tradeDate == null) {
+      return true;
+    }
+    final tradeDay = DateTime(tradeDate.year, tradeDate.month, tradeDate.day);
+    if (tradeDay.isBefore(cutoffDay)) {
+      return true;
+    }
+    if (tradeDay.isAfter(cutoffDay)) {
+      return false;
+    }
+    final tradeMinutes = tradeDate.hour * 60 + tradeDate.minute;
+    return tradeMinutes <= cutoffMinutes;
+  }).toList(growable: false);
+  return visible.isEmpty ? points.take(1).toList(growable: false) : visible;
 }
 
 Color _chartTrendColor(List<MarketChartPoint> points) {

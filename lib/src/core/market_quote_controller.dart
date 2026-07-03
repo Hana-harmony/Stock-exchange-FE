@@ -354,6 +354,9 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   StreamSubscription<Map<String, dynamic>>? _liveSubscription;
   Timer? _liveReconnectTimer;
   MarketQuoteLiveSubscription? _activeLiveRequest;
+  Set<String> _marketLiveStockCodes = <String>{};
+  Set<String> _demandLiveStockCodes = <String>{};
+  final Set<String> _requestedRealtimeSourceStockCodes = <String>{};
   int _liveReconnectAttempt = 0;
 
   bool get canSubscribeLive => _liveClient != null;
@@ -364,6 +367,15 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         request.accountId == null &&
         request.accountScope == null &&
         request.stockCodes.isEmpty;
+  }
+
+  bool hasLiveSubscriptionForStock(String stockCode) {
+    final normalized = _normalizeStockCode(stockCode);
+    if (normalized == null) {
+      return false;
+    }
+    return _marketLiveStockCodes.contains(normalized) ||
+        _demandLiveStockCodes.contains(normalized);
   }
 
   MarketQuote? quoteFor(String stockCode) {
@@ -544,6 +556,68 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     String? accountId,
     MarketQuoteAccountScope? accountScope,
   }) async {
+    _marketLiveStockCodes = <String>{};
+    _demandLiveStockCodes = <String>{};
+    await _replaceLiveSubscription(
+      MarketQuoteLiveSubscription(
+        market: market,
+        stockCodes: _normalizeStockCodes(stockCodes).toList(growable: false),
+        accountId: accountId,
+        accountScope: accountScope,
+      ),
+    );
+  }
+
+  Future<void> subscribeMarketLiveStocks(List<String> stockCodes) async {
+    _marketLiveStockCodes = _normalizeStockCodes(stockCodes);
+    unawaited(_ensureRealtimeSourcesFor(_marketLiveStockCodes));
+    await _refreshStockCodeLiveSubscription();
+  }
+
+  Future<void> addDemandLiveStock(String stockCode) async {
+    final normalized = _normalizeStockCode(stockCode);
+    if (normalized == null) {
+      return;
+    }
+    final changed = _demandLiveStockCodes.add(normalized);
+    if (changed || !_activeRequestContainsStock(normalized)) {
+      unawaited(_ensureRealtimeSourcesFor([normalized]));
+      await _refreshStockCodeLiveSubscription();
+    }
+  }
+
+  Future<void> removeDemandLiveStock(String stockCode) async {
+    final normalized = _normalizeStockCode(stockCode);
+    if (normalized == null) {
+      return;
+    }
+    if (_demandLiveStockCodes.remove(normalized)) {
+      await _refreshStockCodeLiveSubscription();
+    }
+  }
+
+  Future<void> _refreshStockCodeLiveSubscription() async {
+    final stockCodes = <String>{
+      ..._marketLiveStockCodes,
+      ..._demandLiveStockCodes,
+    }.toList(growable: false)
+      ..sort();
+
+    if (stockCodes.isEmpty) {
+      if (_isStockCodeRequest(_activeLiveRequest)) {
+        await _disconnectLiveSubscription();
+      }
+      return;
+    }
+
+    await _replaceLiveSubscription(
+      MarketQuoteLiveSubscription(stockCodes: stockCodes),
+    );
+  }
+
+  Future<void> _replaceLiveSubscription(
+    MarketQuoteLiveSubscription liveRequest,
+  ) async {
     final liveClient = _liveClient;
     if (liveClient == null) {
       value = value.copyWith(
@@ -553,13 +627,12 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       return;
     }
 
-    await unsubscribeLive();
-    final liveRequest = MarketQuoteLiveSubscription(
-      market: market,
-      stockCodes: stockCodes,
-      accountId: accountId,
-      accountScope: accountScope,
-    );
+    if (_sameLiveRequest(_activeLiveRequest, liveRequest) &&
+        _liveSubscription != null) {
+      return;
+    }
+
+    await _disconnectLiveSubscription(updateState: false);
     _activeLiveRequest = liveRequest;
     _liveReconnectAttempt = 0;
     value = value.copyWith(
@@ -573,13 +646,20 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   }
 
   Future<void> unsubscribeLive() async {
+    _marketLiveStockCodes = <String>{};
+    _demandLiveStockCodes = <String>{};
+    _requestedRealtimeSourceStockCodes.clear();
+    await _disconnectLiveSubscription();
+  }
+
+  Future<void> _disconnectLiveSubscription({bool updateState = true}) async {
     _activeLiveRequest = null;
     _liveReconnectAttempt = 0;
     _liveReconnectTimer?.cancel();
     _liveReconnectTimer = null;
     await _liveSubscription?.cancel();
     _liveSubscription = null;
-    if (value.liveStatus != MarketQuoteLiveStatus.disconnected) {
+    if (updateState && value.liveStatus != MarketQuoteLiveStatus.disconnected) {
       value = value.copyWith(
         liveStatus: MarketQuoteLiveStatus.disconnected,
         liveMessage: 'Quote WebSocket disconnected.',
@@ -608,6 +688,33 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         reason: 'Quote WebSocket closed.',
       ),
     );
+  }
+
+  bool _activeRequestContainsStock(String stockCode) {
+    final request = _activeLiveRequest;
+    return request != null && request.stockCodes.contains(stockCode);
+  }
+
+  Future<void> _ensureRealtimeSourcesFor(Iterable<String> stockCodes) async {
+    final pending = <Future<void>>[];
+    for (final stockCode in stockCodes) {
+      if (!_isKoreanStockCode(stockCode) ||
+          !_requestedRealtimeSourceStockCodes.add(stockCode)) {
+        continue;
+      }
+      pending.add(_subscribeRealtimeSource(stockCode));
+    }
+    if (pending.isNotEmpty) {
+      await Future.wait(pending);
+    }
+  }
+
+  Future<void> _subscribeRealtimeSource(String stockCode) async {
+    try {
+      await _apiClient.subscribeRealtimeSource(stockCode: stockCode);
+    } on Object {
+      _requestedRealtimeSourceStockCodes.remove(stockCode);
+    }
   }
 
   void _scheduleLiveReconnect(
@@ -861,6 +968,59 @@ const List<MarketQuote> seedMarketQuotes = [
     badge: 'Portfolio',
   ),
 ];
+
+String? _normalizeStockCode(String stockCode) {
+  final normalized = stockCode.trim();
+  return normalized.isEmpty ? null : normalized;
+}
+
+Set<String> _normalizeStockCodes(Iterable<String> stockCodes) {
+  final normalized = <String>{};
+  for (final stockCode in stockCodes) {
+    final code = _normalizeStockCode(stockCode);
+    if (code != null) {
+      normalized.add(code);
+    }
+  }
+  return normalized;
+}
+
+bool _isStockCodeRequest(MarketQuoteLiveSubscription? request) {
+  return request != null &&
+      request.accountId == null &&
+      request.accountScope == null &&
+      request.market == null &&
+      request.stockCodes.isNotEmpty;
+}
+
+bool _sameLiveRequest(
+  MarketQuoteLiveSubscription? current,
+  MarketQuoteLiveSubscription next,
+) {
+  if (current == null) {
+    return false;
+  }
+  return current.market == next.market &&
+      current.accountId == next.accountId &&
+      current.accountScope == next.accountScope &&
+      _sameStockCodeList(current.stockCodes, next.stockCodes);
+}
+
+bool _sameStockCodeList(List<String> left, List<String> right) {
+  if (left.length != right.length) {
+    return false;
+  }
+  for (var index = 0; index < left.length; index += 1) {
+    if (left[index] != right[index]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool _isKoreanStockCode(String stockCode) {
+  return RegExp(r'^\d{6}$').hasMatch(stockCode);
+}
 
 Map<String, dynamic> _map(Object? value) {
   if (value is Map<String, dynamic>) {
