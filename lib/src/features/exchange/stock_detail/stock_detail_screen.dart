@@ -16,6 +16,7 @@ class StockDetailScreen extends StatefulWidget {
     this.onFavoriteToggle,
     this.onFavoriteChanged,
     this.onNavigateToAccounts,
+    this.nowProvider,
   });
 
   final ExchangeSessionController sessionController;
@@ -32,6 +33,7 @@ class StockDetailScreen extends StatefulWidget {
   final Future<bool> Function(String stockCode, bool nextIsFavorite)?
       onFavoriteChanged;
   final VoidCallback? onNavigateToAccounts;
+  final DateTime Function()? nowProvider;
 
   @override
   State<StockDetailScreen> createState() => _StockDetailScreenState();
@@ -130,12 +132,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     _hasDemandQuoteLiveSubscription = true;
     unawaited(
         widget.marketQuoteController.addDemandLiveStock(widget.stockCode));
+    final now = _now();
     await widget.marketDetailController.loadStock(
       stockCode: widget.stockCode,
       currency: 'USD',
       interval: _chartPeriod.apiInterval,
-      from: _chartPeriod.fromDate(DateTime.now()),
-      to: _chartPeriod.toDate(DateTime.now()),
+      from: _chartPeriod.fromDate(now),
+      to: _chartPeriod.toDate(now),
     );
   }
 
@@ -362,15 +365,40 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   _StockDetailSnapshot _buildSnapshot() {
+    final detailState = widget.marketDetailController.value;
+    final liveQuote = widget.marketQuoteController.quoteFor(widget.stockCode);
+    final now = _now();
     return _StockDetailSnapshot.fromControllers(
       stockCode: widget.stockCode,
       fallbackTitle: widget.title,
       fallbackMarket: widget.market,
       fallbackSector: widget.sector,
-      detailState: widget.marketDetailController.value,
-      liveQuote: widget.marketQuoteController.quoteFor(widget.stockCode),
+      detailState: detailState,
+      liveQuote: liveQuote,
+      chartPoints: _chartPointsForSnapshot(
+        chart: detailState.chart,
+        marketDataTime:
+            liveQuote?.marketDataTime ?? _currentDetail?.marketDataTime,
+      ),
+      nowUtc: now.toUtc(),
       tradeState: widget.tradeController.value,
     );
+  }
+
+  DateTime _now() => widget.nowProvider?.call() ?? DateTime.now();
+
+  List<MarketChartPoint>? _chartPointsForSnapshot({
+    required MarketChart? chart,
+    required DateTime? marketDataTime,
+  }) {
+    final points = chart?.points;
+    if (points == null || points.isEmpty) {
+      return null;
+    }
+    if (_chartPeriod == _StockChartPeriod.oneDay) {
+      return _visibleOneDayChartPoints(points, marketDataTime);
+    }
+    return points;
   }
 
   bool _hasRenderableMarketData({
@@ -407,6 +435,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           onToggleFavoriteStock: (_) {},
           onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts ?? () {},
+          nowProvider: widget.nowProvider,
         ),
       ),
     );

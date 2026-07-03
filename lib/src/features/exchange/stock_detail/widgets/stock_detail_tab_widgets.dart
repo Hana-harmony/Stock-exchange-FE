@@ -11,7 +11,7 @@ enum _StockChartPeriod {
   final String apiInterval;
   final int lookbackDays;
 
-  DateTime toDate(DateTime now) => now.toUtc();
+  DateTime toDate(DateTime now) => _lastKoreanRegularSessionDate(now);
 
   DateTime fromDate(DateTime now) {
     final to = toDate(now);
@@ -721,14 +721,14 @@ double _stockOneDayChartProgress({
   required DateTime? marketDataTime,
   required List<MarketChartPoint> points,
 }) {
-  if (marketDataTime != null) {
-    return _koreanRegularSessionProgress(marketDataTime);
-  }
-  if (points.isEmpty) {
+  final cutoffKst = _oneDayChartCutoffKst(
+    marketDataTime: marketDataTime,
+    points: points,
+  );
+  if (cutoffKst == null) {
     return 1;
   }
-  final latestTradeDate = _parseKoreanChartTradeDate(points.last.tradeDate);
-  return _koreanRegularSessionProgressFromKst(latestTradeDate);
+  return _koreanRegularSessionProgressFromKst(cutoffKst);
 }
 
 DateTime? _parseKoreanChartTradeDate(String value) {
@@ -743,11 +743,17 @@ List<MarketChartPoint> _visibleOneDayChartPoints(
   List<MarketChartPoint> points,
   DateTime? marketDataTime,
 ) {
-  if (marketDataTime == null || points.length < 2) {
+  if (points.length < 2) {
     return points;
   }
-  final cutoffKst = marketDataTime.toUtc().add(const Duration(hours: 9));
-  final cutoffDay = DateTime(cutoffKst.year, cutoffKst.month, cutoffKst.day);
+  final cutoffKst = _oneDayChartCutoffKst(
+    marketDataTime: marketDataTime,
+    points: points,
+  );
+  if (cutoffKst == null) {
+    return points;
+  }
+  final cutoffDay = _koreanDateOnly(cutoffKst);
   final cutoffMinutes = cutoffKst.hour * 60 + cutoffKst.minute;
   final visible = points.where((point) {
     final tradeDate = _parseKoreanChartTradeDate(point.tradeDate);
@@ -765,6 +771,38 @@ List<MarketChartPoint> _visibleOneDayChartPoints(
     return tradeMinutes <= cutoffMinutes;
   }).toList(growable: false);
   return visible.isEmpty ? points.take(1).toList(growable: false) : visible;
+}
+
+DateTime? _oneDayChartCutoffKst({
+  required DateTime? marketDataTime,
+  required List<MarketChartPoint> points,
+}) {
+  if (points.isEmpty) {
+    return null;
+  }
+  final sessionDay = _chartSessionDay(points);
+  if (sessionDay == null) {
+    return null;
+  }
+  final referenceKst =
+      (marketDataTime ?? DateTime.now()).toUtc().add(const Duration(hours: 9));
+  final referenceDay = _koreanDateOnly(referenceKst);
+  final referenceMinutes = referenceKst.hour * 60 + referenceKst.minute;
+  if (!_isKoreanRegularSessionWeekday(referenceKst) ||
+      referenceDay != sessionDay ||
+      referenceMinutes < _koreanRegularOpenMinutes ||
+      referenceMinutes >= _koreanRegularCloseMinutes) {
+    return null;
+  }
+  return referenceKst;
+}
+
+DateTime? _chartSessionDay(List<MarketChartPoint> points) {
+  final tradeDate = _parseKoreanChartTradeDate(points.last.tradeDate);
+  if (tradeDate == null) {
+    return null;
+  }
+  return _koreanDateOnly(tradeDate);
 }
 
 Color _chartTrendColor(List<MarketChartPoint> points) {

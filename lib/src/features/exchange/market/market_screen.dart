@@ -12,6 +12,7 @@ class MarketScreen extends StatefulWidget {
     required this.onNavigateToAccounts,
     required this.favoriteStockCodes,
     required this.onFavoriteChanged,
+    this.nowProvider,
   });
 
   final ExchangeSessionController sessionController;
@@ -24,6 +25,7 @@ class MarketScreen extends StatefulWidget {
   final Set<String> favoriteStockCodes;
   final Future<bool> Function(String stockCode, bool nextIsFavorite)
       onFavoriteChanged;
+  final DateTime Function()? nowProvider;
 
   @override
   State<MarketScreen> createState() => _MarketScreenState();
@@ -241,6 +243,7 @@ class _MarketScreenState extends State<MarketScreen> {
             Navigator.of(context).pop();
             widget.onNavigateToAccounts();
           },
+          nowProvider: widget.nowProvider,
         ),
       ),
     )
@@ -936,16 +939,16 @@ double _koreanRegularSessionProgressFromKst(DateTime? kst) {
   if (kst == null) {
     return 1;
   }
-  const openMinutes = 9 * 60;
-  const closeMinutes = 15 * 60 + 30;
   final currentMinutes = kst.hour * 60 + kst.minute;
-  if (currentMinutes <= openMinutes) {
-    return 0;
-  }
-  if (currentMinutes >= closeMinutes) {
+  if (!_isKoreanRegularSessionWeekday(kst) ||
+      currentMinutes < _koreanRegularOpenMinutes) {
     return 1;
   }
-  return (currentMinutes - openMinutes) / (closeMinutes - openMinutes);
+  if (currentMinutes >= _koreanRegularCloseMinutes) {
+    return 1;
+  }
+  return (currentMinutes - _koreanRegularOpenMinutes) /
+      (_koreanRegularCloseMinutes - _koreanRegularOpenMinutes);
 }
 
 String _signedPercent(double value) {

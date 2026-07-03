@@ -82,6 +82,8 @@ class _StockDetailSnapshot {
     required String fallbackSector,
     required MarketDetailState detailState,
     MarketQuote? liveQuote,
+    List<MarketChartPoint>? chartPoints,
+    DateTime? nowUtc,
     required TradeState tradeState,
   }) {
     final detail =
@@ -95,7 +97,8 @@ class _StockDetailSnapshot {
       market: market,
       sector: fallbackSector,
     );
-    final chartMetrics = _StockChartMetrics.fromChart(chart);
+    final chartMetrics =
+        _StockChartMetrics.fromPoints(chartPoints ?? chart?.points);
     final displayCurrency =
         quote?.localCurrency ?? detail?.displayCurrency ?? 'USD';
     final currentLocalRaw = quote?.effectiveLocalCurrencyPrice ??
@@ -124,10 +127,10 @@ class _StockDetailSnapshot {
                 previousCloseRaw,
               )
             : fallback.changeAmount;
-    final changeRate = quote != null
-        ? _formatPercentDisplay(quote.changeRate)
-        : detail != null && chartMetrics != null
-            ? chartMetrics.returnRate(detail.localCurrencyPrice)
+    final changeRate = (detail != null || quote != null) && chartMetrics != null
+        ? chartMetrics.returnRate(currentLocalRaw)
+        : quote != null
+            ? _formatPercentDisplay(quote.changeRate)
             : _formatPercentDisplay(detail?.changeRate ?? fallback.changeRate);
     final maxLimitRate = _parsePercent(
       '${detail?.predictedForeignLimitExhaustionRateMax ?? fallback.estimatedMax}%',
@@ -161,6 +164,7 @@ class _StockDetailSnapshot {
         quote: quote,
         detail: detail,
         fallback: fallback,
+        nowUtc: nowUtc,
       ),
       currentPrice: currentPrice,
       currentPriceKrwDisplay: currentPriceKrwDisplay,
@@ -275,8 +279,8 @@ class _StockChartMetrics {
     return '$sign${rate.toStringAsFixed(2)}%';
   }
 
-  static _StockChartMetrics? fromChart(MarketChart? chart) {
-    final points = chart?.points ?? const <MarketChartPoint>[];
+  static _StockChartMetrics? fromPoints(List<MarketChartPoint>? points) {
+    points ??= const <MarketChartPoint>[];
     if (points.isEmpty) {
       return null;
     }
@@ -306,9 +310,10 @@ String _marketStatusLabel({
   required MarketQuote? quote,
   required StockDetail? detail,
   required _StockDetailFallback fallback,
+  DateTime? nowUtc,
 }) {
   final timestamp = quote?.marketDataTime ?? detail?.marketDataTime;
-  final formatted = _formatMarketStatus(timestamp);
+  final formatted = _formatMarketStatus(timestamp, nowUtc: nowUtc);
   if (formatted != null) {
     return formatted;
   }

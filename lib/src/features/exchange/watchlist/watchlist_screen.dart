@@ -12,6 +12,7 @@ class WatchlistScreen extends StatefulWidget {
     required this.onFavoriteChanged,
     required this.onSignInTap,
     this.onNavigateToAccounts,
+    this.nowProvider,
   });
 
   final ExchangeSessionController sessionController;
@@ -24,6 +25,7 @@ class WatchlistScreen extends StatefulWidget {
       onFavoriteChanged;
   final VoidCallback onSignInTap;
   final VoidCallback? onNavigateToAccounts;
+  final DateTime Function()? nowProvider;
 
   @override
   State<WatchlistScreen> createState() => _WatchlistScreenState();
@@ -170,6 +172,7 @@ class _WatchlistScreenState extends State<WatchlistScreen> {
           isFavorite: true,
           onFavoriteChanged: widget.onFavoriteChanged,
           onNavigateToAccounts: widget.onNavigateToAccounts,
+          nowProvider: widget.nowProvider,
         ),
       ),
     );

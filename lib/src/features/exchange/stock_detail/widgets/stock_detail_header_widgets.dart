@@ -168,6 +168,19 @@ class _HeaderIconButton extends StatelessWidget {
   }
 }
 
+String _compactMarketStatusLabel(String label) {
+  const prefix = 'Market Closed ';
+  if (!label.startsWith(prefix) || !label.endsWith(')')) {
+    return label;
+  }
+  final openParenthesis = label.lastIndexOf('(');
+  if (openParenthesis < 0) {
+    return label;
+  }
+  final kstLabel = label.substring(openParenthesis + 1, label.length - 1);
+  return '$prefix$kstLabel';
+}
+
 class _StockOverviewSection extends StatelessWidget {
   const _StockOverviewSection({
     required this.snapshot,
@@ -271,16 +284,29 @@ class _StockOverviewSection extends StatelessWidget {
                         ),
                         SizedBox(
                           height: 20,
-                          child: Text(
-                            snapshot.marketStatusLabel,
-                            style: Theme.of(context)
-                                .textTheme
-                                .bodyMedium
-                                ?.copyWith(
-                                  fontSize: 14,
-                                  height: 1.2,
-                                  color: AppColors.gray600,
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: FittedBox(
+                              key: const ValueKey(
+                                'stock-detail-market-status-label',
+                              ),
+                              fit: BoxFit.scaleDown,
+                              alignment: Alignment.centerLeft,
+                              child: Text(
+                                _compactMarketStatusLabel(
+                                  snapshot.marketStatusLabel,
                                 ),
+                                maxLines: 1,
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .bodyMedium
+                                    ?.copyWith(
+                                      fontSize: 14,
+                                      height: 1.2,
+                                      color: AppColors.gray600,
+                                    ),
+                              ),
+                            ),
                           ),
                         ),
                       ],
