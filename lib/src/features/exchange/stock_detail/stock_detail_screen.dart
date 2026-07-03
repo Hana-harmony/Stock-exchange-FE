@@ -41,6 +41,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   late bool _isFavorite;
   late final ScrollController _detailScrollController;
   bool _tabsPinned = false;
+  bool _ownsQuoteLiveSubscription = false;
   _StockChartPeriod _chartPeriod = _StockChartPeriod.oneDay;
 
   StockDetail? get _currentDetail => widget.marketDetailController.value.detail;
@@ -99,6 +100,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     widget.marketDetailController.unsubscribeRealtimeSource(
       stockCode: widget.stockCode,
     );
+    if (_ownsQuoteLiveSubscription) {
+      unawaited(widget.marketQuoteController.unsubscribeLive());
+    }
     _detailScrollController
       ..removeListener(_handleScroll)
       ..dispose();
@@ -111,11 +115,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         stockCode: widget.stockCode,
       ),
     );
-    unawaited(
-      widget.marketQuoteController.subscribeLive(
-        stockCodes: [widget.stockCode],
-      ),
-    );
+    if (!widget.marketQuoteController.hasGeneralLiveSubscription) {
+      _ownsQuoteLiveSubscription = true;
+      unawaited(
+        widget.marketQuoteController.subscribeLive(
+          stockCodes: [widget.stockCode],
+        ),
+      );
+    } else {
+      _ownsQuoteLiveSubscription = false;
+    }
     await widget.marketDetailController.loadStock(
       stockCode: widget.stockCode,
       currency: 'USD',
@@ -169,6 +178,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         body: AnimatedBuilder(
           animation: Listenable.merge([
             widget.marketDetailController,
+            widget.marketQuoteController,
             widget.tradeController,
           ]),
           builder: (context, _) {
@@ -308,6 +318,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       fallbackMarket: widget.market,
       fallbackSector: widget.sector,
       detailState: widget.marketDetailController.value,
+      liveQuote: widget.marketQuoteController.quoteFor(widget.stockCode),
       tradeState: widget.tradeController.value,
     );
   }

@@ -336,7 +336,6 @@ class _ExchangeShellState extends State<ExchangeShell> {
       _accountController.clear();
       _tradeController.clear();
       _watchlistController.clear();
-      unawaited(_marketQuoteController.unsubscribeLive());
       return;
     }
     unawaited(_accountController.loadAccount(session.accountId));

@@ -146,15 +146,71 @@ void main() {
 
     connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
     connection.emit('MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
-        '${jsonEncode(_tickJson())}\u0000');
+        '${jsonEncode({
+          ..._tickJson(),
+          'stockName': 'Smoke Test Name',
+          'currentPriceKrw': '83000',
+          'localCurrencyPrice': '53.95',
+        })}\u0000');
     await Future<void>.delayed(Duration.zero);
 
     expect(controller.value.liveStatus, MarketQuoteLiveStatus.live);
     expect(controller.value.quotes.first.stockName, 'Samsung Electronics');
+    expect(controller.value.quotes.first.currentPriceKrw, '83000');
+    expect(controller.value.quotes.first.localCurrencyPrice, '53.95');
     expect(controller.value.liveMessage, 'Live tick 005930 received.');
 
     await controller.unsubscribeLive();
     expect(connection.closed, isTrue);
+  });
+
+  test('keeps newer live quote when REST snapshot returns older price',
+      () async {
+    late _FakeQuoteSocketConnection connection;
+    var snapshotRequestCount = 0;
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async {
+        snapshotRequestCount++;
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _snapshotJson(),
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          connection = _FakeQuoteSocketConnection();
+          return connection;
+        },
+      ),
+      seedQuotes: seedMarketQuotes,
+    );
+
+    await controller.subscribeLive();
+    expect(controller.hasGeneralLiveSubscription, isTrue);
+
+    connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    connection.emit('MESSAGE\ndestination:/topic/market/quotes\n\n'
+        '${jsonEncode({
+          ..._tickJson(),
+          'currentPriceKrw': '90000',
+          'localCurrencyPrice': '58.50',
+          'volume': 19000000,
+        })}\u0000');
+    await Future<void>.delayed(Duration.zero);
+
+    await controller.loadSnapshot(market: 'KOSPI');
+
+    expect(snapshotRequestCount, 1);
+    expect(controller.quoteFor('005930')?.currentPriceKrw, '90000');
+    expect(controller.quoteFor('005930')?.localCurrencyPrice, '58.50');
+    expect(controller.quoteFor('005930')?.volume, 19000000);
+
+    await controller.unsubscribeLive();
   });
 
   test('reconnects live WebSocket with backoff after remote close', () async {
