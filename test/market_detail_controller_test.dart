@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -70,6 +71,101 @@ void main() {
       '/api/v1/market/stocks/005930/chart',
       '/api/v1/market/stocks/005930/orderbook',
     ]);
+  });
+
+  test('keeps partial detail data when a secondary detail API fails', () async {
+    final paths = <String>[];
+    final controller = MarketDetailController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          paths.add(request.url.path);
+
+          if (request.url.path.endsWith('/chart')) {
+            return http.Response(
+              jsonEncode({
+                'success': false,
+                'status': 503,
+                'code': 'MARKET_002',
+                'message': 'Chart provider is temporarily unavailable',
+                'timestamp': '2026-06-18T06:00:00Z',
+              }),
+              503,
+              headers: {'content-type': 'application/json'},
+            );
+          }
+          if (request.url.path.endsWith('/orderbook')) {
+            return _jsonResponse(_orderBookJson());
+          }
+          return _jsonResponse(_detailJson());
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.loadStock(
+      stockCode: '005930',
+      from: DateTime.utc(2026, 6, 1),
+      to: DateTime.utc(2026, 6, 18),
+    );
+
+    expect(controller.value.status, MarketDetailStatus.failure);
+    expect(controller.value.detail?.stockName, 'Samsung Electronics');
+    expect(controller.value.chart, isNull);
+    expect(controller.value.orderBook?.bids.single.quantity, 1200);
+    expect(
+      controller.value.errorMessage,
+      'Market data is temporarily unavailable.',
+    );
+    expect(paths, [
+      '/api/v1/stocks/005930',
+      '/api/v1/market/stocks/005930/chart',
+      '/api/v1/market/stocks/005930/orderbook',
+    ]);
+  });
+
+  test('starts stock detail chart and order book requests together', () async {
+    final startedPaths = <String>[];
+    final detailCompleter = Completer<http.Response>();
+    final chartCompleter = Completer<http.Response>();
+    final orderBookCompleter = Completer<http.Response>();
+    final controller = MarketDetailController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) {
+          startedPaths.add(request.url.path);
+
+          if (request.url.path.endsWith('/chart')) {
+            return chartCompleter.future;
+          }
+          if (request.url.path.endsWith('/orderbook')) {
+            return orderBookCompleter.future;
+          }
+          return detailCompleter.future;
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final loadFuture = controller.loadStock(
+      stockCode: '005930',
+      from: DateTime.utc(2026, 6, 1),
+      to: DateTime.utc(2026, 6, 18),
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(startedPaths, [
+      '/api/v1/stocks/005930',
+      '/api/v1/market/stocks/005930/chart',
+      '/api/v1/market/stocks/005930/orderbook',
+    ]);
+
+    detailCompleter.complete(_jsonResponse(_detailJson()));
+    chartCompleter.complete(_jsonResponse(_chartJson()));
+    orderBookCompleter.complete(_jsonResponse(_orderBookJson()));
+    await loadFuture;
+
+    expect(controller.value.status, MarketDetailStatus.loaded);
   });
 
   test('rejects invalid stock code before calling API', () async {
