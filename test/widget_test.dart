@@ -291,6 +291,78 @@ void main() {
     expect(notificationAsset().assetName, AppAssets.headerNotifications);
   });
 
+  testWidgets(
+      'markets requests ten default trending quotes despite seed quotes',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final requestedStockCodes = <List<String>>[];
+    final marketQuoteController = MarketQuoteController(
+      seedQuotes: seedMarketQuotes,
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/api/v1/stocks/search-rankings') {
+            return http.Response('{}', 500);
+          }
+          if (request.url.path == '/api/v1/market/quotes') {
+            final stockCodes =
+                request.url.queryParametersAll['stockCodes'] ?? const [];
+            requestedStockCodes.add(stockCodes);
+            final quotes = stockCodes
+                .asMap()
+                .entries
+                .map((entry) => _quoteJson(_marketQuoteForCode(
+                      entry.value,
+                      entry.key,
+                    )))
+                .toList(growable: false);
+            return _jsonEnvelope({
+              'dataSource': 'Stock-exchange-BE',
+              'marketCoverage': 'REQUESTED_STOCK_CODES',
+              'displayCurrency': 'USD',
+              'transport': {
+                'snapshot': 'REST',
+                'realtime': 'WebSocket',
+              },
+              'cache': {'status': 'HIT'},
+              'quoteCount': quotes.length,
+              'quotes': quotes,
+              'servedAt': '2026-06-18T06:00:00Z',
+            });
+          }
+          return http.Response('{}', 404);
+        }),
+      ),
+    );
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+    );
+    await tester.pumpAndSettle();
+
+    expect(requestedStockCodes, isNotEmpty);
+    expect(requestedStockCodes.last, hasLength(10));
+    expect(
+      requestedStockCodes.last,
+      containsAll([
+        '005930',
+        '000660',
+        '005380',
+        '000270',
+        '086790',
+        '035420',
+        '068270',
+        '105560',
+        '055550',
+        '012330',
+      ]),
+    );
+    expect(find.byKey(const ValueKey('trending-stock-000660')), findsOneWidget);
+  });
+
   testWidgets('searches stocks and opens the placeholder detail tabs',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -1134,6 +1206,8 @@ void main() {
 
     expect(find.byKey(const ValueKey('stock-chart-content')), findsOneWidget);
     expect(find.text('1D price chart'), findsOneWidget);
+    expect(find.text('09:00 KST'), findsOneWidget);
+    expect(find.text('15:30 KST'), findsOneWidget);
     expect(find.text('USD 35.50'), findsWidgets);
     expect(find.text('KRW 54,800'), findsOneWidget);
     expect(find.text('KRW 53,200'), findsOneWidget);
@@ -2002,6 +2076,24 @@ Map<String, Object?> _quoteJson(MarketQuote quote) {
     'fxStale': quote.fxStale,
     'badge': quote.badge,
   };
+}
+
+MarketQuote _marketQuoteForCode(String stockCode, int index) {
+  return MarketQuote(
+    stockCode: stockCode,
+    stockName: index == 0 ? 'Samsung Electronics' : 'Holding $index',
+    market: 'KOSPI',
+    currentPriceKrw: '${82000 + index * 1000}',
+    changeRate: index.isEven ? '+1.23%' : '-0.38%',
+    volume: 18000000 - index * 100000,
+    localCurrency: 'USD',
+    localCurrencyPrice: '${54 + index}.00',
+    fxRate: '1525.93',
+    fxRateTime: null,
+    fxRateSource: 'Hana-OmniLens-API',
+    fxStale: false,
+    badge: 'Live',
+  );
 }
 
 Map<String, Object?> _accountJson() {

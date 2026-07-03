@@ -213,6 +213,94 @@ void main() {
     await controller.unsubscribeLive();
   });
 
+  test('keeps market quote topics while adding and removing detail demand',
+      () async {
+    final connections = <_FakeQuoteSocketConnection>[];
+    final realtimeSubscriptionPaths = <String>[];
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async {
+        if (request.url.path.endsWith('/realtime-subscription')) {
+          realtimeSubscriptionPaths.add(request.url.path);
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': <String, Object?>{},
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }
+        return _jsonResponse({});
+      }),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          final connection = _FakeQuoteSocketConnection();
+          connections.add(connection);
+          return connection;
+        },
+      ),
+      seedQuotes: seedMarketQuotes,
+    );
+
+    await controller.subscribeMarketLiveStocks(['005930', '000270']);
+    connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(connections.length, 1);
+    expect(connections.last.sent.join('\n'),
+        contains('destination:/topic/market/stocks/005930'));
+    expect(connections.last.sent.join('\n'),
+        contains('destination:/topic/market/stocks/000270'));
+    expect(
+      connections.last.sent.join('\n'),
+      isNot(contains('destination:/topic/market/quotes')),
+    );
+    expect(
+      realtimeSubscriptionPaths,
+      containsAll([
+        '/api/v1/market/stocks/005930/realtime-subscription',
+        '/api/v1/market/stocks/000270/realtime-subscription',
+      ]),
+    );
+
+    await controller.addDemandLiveStock('035720');
+    expect(connections.first.closed, isTrue);
+    connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(connections.length, 2);
+    final demandTopics = connections.last.sent.join('\n');
+    expect(demandTopics, contains('destination:/topic/market/stocks/005930'));
+    expect(demandTopics, contains('destination:/topic/market/stocks/000270'));
+    expect(demandTopics, contains('destination:/topic/market/stocks/035720'));
+    expect(demandTopics, isNot(contains('destination:/topic/market/quotes')));
+    expect(controller.hasLiveSubscriptionForStock('035720'), isTrue);
+    expect(
+      realtimeSubscriptionPaths,
+      contains('/api/v1/market/stocks/035720/realtime-subscription'),
+    );
+
+    await controller.removeDemandLiveStock('035720');
+    expect(connections[1].closed, isTrue);
+    connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    await Future<void>.delayed(Duration.zero);
+
+    expect(connections.length, 3);
+    final marketTopics = connections.last.sent.join('\n');
+    expect(marketTopics, contains('destination:/topic/market/stocks/005930'));
+    expect(marketTopics, contains('destination:/topic/market/stocks/000270'));
+    expect(
+      marketTopics,
+      isNot(contains('destination:/topic/market/stocks/035720')),
+    );
+    expect(controller.hasLiveSubscriptionForStock('035720'), isFalse);
+
+    await controller.unsubscribeLive();
+  });
+
   test('reconnects live WebSocket with backoff after remote close', () async {
     final connections = <_FakeQuoteSocketConnection>[];
     final controller = MarketQuoteController(
@@ -392,13 +480,16 @@ http.Response _jsonResponse(
 class _FakeQuoteSocketConnection implements QuoteSocketConnection {
   final StreamController<dynamic> _streamController =
       StreamController<dynamic>();
+  final List<String> sent = [];
   bool closed = false;
 
   @override
   Stream<dynamic> get stream => _streamController.stream;
 
   @override
-  void add(String message) {}
+  void add(String message) {
+    sent.add(message);
+  }
 
   void emit(String message) {
     _streamController.add(message);

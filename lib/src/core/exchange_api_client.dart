@@ -233,7 +233,7 @@ class ExchangeApiClient {
         if (market != null && market.isNotEmpty && market != 'ALL')
           'market': market,
         'currency': currency,
-        if (stockCodes.isNotEmpty) 'stockCodes': stockCodes.join(','),
+        if (stockCodes.isNotEmpty) 'stockCodes': stockCodes,
       },
     );
   }
@@ -679,7 +679,7 @@ class ExchangeApiClient {
 
   Future<ApiEnvelope<T>> get<T>(
     String path, {
-    Map<String, String>? query,
+    Map<String, Object?>? query,
     T Function(Object? value)? decodeData,
   }) {
     return _send<T>(
@@ -692,7 +692,7 @@ class ExchangeApiClient {
 
   Future<ApiEnvelope<T>> post<T>(
     String path, {
-    Map<String, String>? query,
+    Map<String, Object?>? query,
     Map<String, Object?>? body,
     T Function(Object? value)? decodeData,
   }) {
@@ -707,7 +707,7 @@ class ExchangeApiClient {
 
   Future<ApiEnvelope<T>> delete<T>(
     String path, {
-    Map<String, String>? query,
+    Map<String, Object?>? query,
     T Function(Object? value)? decodeData,
   }) {
     return _send<T>(
@@ -722,7 +722,7 @@ class ExchangeApiClient {
     required String method,
     required String path,
     required T Function(Object? value) decodeData,
-    Map<String, String>? query,
+    Map<String, Object?>? query,
     Map<String, Object?>? body,
   }) async {
     final request = http.Request(method, _uri(path, query));
@@ -776,15 +776,30 @@ class ExchangeApiClient {
     return envelope;
   }
 
-  Uri _uri(String path, Map<String, String>? query) {
+  Uri _uri(String path, Map<String, Object?>? query) {
     final normalizedBasePath = _baseUri.path.endsWith('/')
         ? _baseUri.path.substring(0, _baseUri.path.length - 1)
         : _baseUri.path;
     final normalizedPath = path.startsWith('/') ? path : '/$path';
 
+    final queryParameters = <String, Object>{};
+    query?.forEach((key, value) {
+      if (value == null) {
+        return;
+      }
+      if (value is Iterable) {
+        final values = value.map((item) => '$item').toList(growable: false);
+        if (values.isNotEmpty) {
+          queryParameters[key] = values;
+        }
+        return;
+      }
+      queryParameters[key] = '$value';
+    });
+
     return _baseUri.replace(
       path: '$normalizedBasePath$normalizedPath',
-      queryParameters: query == null || query.isEmpty ? null : query,
+      queryParameters: queryParameters.isEmpty ? null : queryParameters,
     );
   }
 
