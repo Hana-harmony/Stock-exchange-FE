@@ -81,12 +81,14 @@ class _StockDetailSnapshot {
     required String fallbackMarket,
     required String fallbackSector,
     required MarketDetailState detailState,
+    MarketQuote? liveQuote,
     required TradeState tradeState,
   }) {
     final detail =
         detailState.detail?.stockCode == stockCode ? detailState.detail : null;
+    final quote = liveQuote?.stockCode == stockCode ? liveQuote : null;
     final chart = detail != null ? detailState.chart : null;
-    final market = detail?.market ?? fallbackMarket;
+    final market = quote?.market ?? detail?.market ?? fallbackMarket;
     final fallback = _StockDetailFallback.forStock(
       stockCode: stockCode,
       stockName: fallbackTitle,
@@ -94,27 +96,39 @@ class _StockDetailSnapshot {
       sector: fallbackSector,
     );
     final chartMetrics = _StockChartMetrics.fromChart(chart);
-    final currentPrice = detail?.localCurrencyDisplay ?? fallback.currentPrice;
-    final currentPriceKrwDisplay =
-        detail?.krwDisplay ?? fallback.currentPriceKrwDisplay;
-    final currentPriceKrwRaw =
-        detail?.currentPriceKrw ?? fallback.currentPriceKrwRaw;
+    final displayCurrency =
+        quote?.localCurrency ?? detail?.displayCurrency ?? 'USD';
+    final currentLocalRaw = quote?.effectiveLocalCurrencyPrice ??
+        detail?.localCurrencyPrice ??
+        fallback.currentPrice;
+    final currentPrice = quote?.localCurrencyDisplay ??
+        detail?.localCurrencyDisplay ??
+        fallback.currentPrice;
+    final currentPriceKrwDisplay = quote?.krwDisplay ??
+        detail?.krwDisplay ??
+        fallback.currentPriceKrwDisplay;
+    final currentPriceKrwRaw = quote?.currentPriceKrw ??
+        detail?.currentPriceKrw ??
+        fallback.currentPriceKrwRaw;
     final previousCloseKrwRaw =
         chartMetrics?.baselineKrwRaw ?? fallback.previousCloseKrwRaw;
     final previousClose =
         chartMetrics?.baselineLocalDisplay ?? fallback.previousClose;
     final previousCloseRaw =
         chartMetrics?.baselineLocalRaw ?? fallback.previousClose;
-    final changeAmount = detail != null && chartMetrics != null
-        ? _formatSignedCurrencyDifference(
-            detail.displayCurrency,
-            detail.localCurrencyPrice,
-            previousCloseRaw,
-          )
-        : fallback.changeAmount;
-    final changeRate = detail != null && chartMetrics != null
-        ? chartMetrics.returnRate(detail.localCurrencyPrice)
-        : _formatPercentDisplay(detail?.changeRate ?? fallback.changeRate);
+    final changeAmount =
+        (detail != null || quote != null) && chartMetrics != null
+            ? _formatSignedCurrencyDifference(
+                displayCurrency,
+                currentLocalRaw,
+                previousCloseRaw,
+              )
+            : fallback.changeAmount;
+    final changeRate = quote != null
+        ? _formatPercentDisplay(quote.changeRate)
+        : detail != null && chartMetrics != null
+            ? chartMetrics.returnRate(detail.localCurrencyPrice)
+            : _formatPercentDisplay(detail?.changeRate ?? fallback.changeRate);
     final maxLimitRate = _parsePercent(
       '${detail?.predictedForeignLimitExhaustionRateMax ?? fallback.estimatedMax}%',
     );
@@ -142,9 +156,11 @@ class _StockDetailSnapshot {
 
     return _StockDetailSnapshot(
       stockCode: stockCode,
-      stockName: detail?.stockName ?? fallback.stockName,
-      marketStatusLabel:
-          _formatMarketStatus(detail?.marketDataTime) ?? fallback.marketStatus,
+      stockName: quote?.stockName ?? detail?.stockName ?? fallback.stockName,
+      marketStatusLabel: _formatMarketStatus(
+            quote?.marketDataTime ?? detail?.marketDataTime,
+          ) ??
+          fallback.marketStatus,
       currentPrice: currentPrice,
       currentPriceKrwDisplay: currentPriceKrwDisplay,
       currentPriceKrwRaw: currentPriceKrwRaw,
@@ -154,9 +170,11 @@ class _StockDetailSnapshot {
       isPositive: !changeRate.trim().startsWith('-'),
       highPrice: chartMetrics?.highLocalDisplay ?? fallback.highPrice,
       lowPrice: chartMetrics?.lowLocalDisplay ?? fallback.lowPrice,
-      volume: chartMetrics == null
-          ? fallback.volume
-          : _formatCompactNumber(chartMetrics.totalVolume),
+      volume: quote == null
+          ? chartMetrics == null
+              ? fallback.volume
+              : _formatCompactNumber(chartMetrics.totalVolume)
+          : _formatCompactNumber(quote.volume),
       previousClose: previousClose,
       countryBadgeAsset: _isHongKongMarket(market)
           ? AppAssets.countryBadgeHk
