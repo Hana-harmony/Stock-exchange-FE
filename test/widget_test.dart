@@ -1147,6 +1147,50 @@ void main() {
     expect(find.text('1M price chart'), findsOneWidget);
   });
 
+  testWidgets(
+      'renders stock detail from live quote while detail API is pending',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _loadingMarketDetailController();
+    final sessionController = _sessionController();
+    final tradeController = _tradeController();
+    final notificationController = _notificationController();
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+    addTearDown(sessionController.dispose);
+    addTearDown(tradeController.dispose);
+    addTearDown(notificationController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StockDetailScreen(
+          sessionController: sessionController,
+          marketDetailController: marketDetailController,
+          marketQuoteController: marketQuoteController,
+          tradeController: tradeController,
+          notificationController: notificationController,
+          stockCode: '005930',
+          title: 'Samsung Electronics',
+          market: 'KOSPI',
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(
+      find.byKey(const ValueKey('stock-detail-initial-loading')),
+      findsNothing,
+    );
+    expect(find.text('005930'), findsOneWidget);
+    expect(find.text('Samsung Electronics'), findsWidgets);
+    expect(find.text('USD 54.00'), findsOneWidget);
+    expect(find.text('KRW 82,400'), findsOneWidget);
+  });
+
   testWidgets('blocks sell with VI warning modal when VI is triggered',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -1699,6 +1743,43 @@ NotificationController _notificationController() {
       }),
     ),
   );
+}
+
+MarketDetailController _loadingMarketDetailController() {
+  return _LoadingMarketDetailController();
+}
+
+class _LoadingMarketDetailController extends MarketDetailController {
+  _LoadingMarketDetailController()
+      : super(
+          apiClient: ExchangeApiClient(
+            baseUri: Uri.parse('http://localhost:3000'),
+            httpClient: MockClient((request) async => http.Response('{}', 404)),
+          ),
+        );
+
+  @override
+  Future<void> loadStock({
+    required String stockCode,
+    String currency = 'USD',
+    String interval = '1d',
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    value = const MarketDetailState.loading();
+  }
+
+  @override
+  Future<void> subscribeRealtimeSource({
+    required String stockCode,
+    String session = 'REGULAR',
+  }) async {}
+
+  @override
+  Future<void> unsubscribeRealtimeSource({
+    required String stockCode,
+    String session = 'REGULAR',
+  }) async {}
 }
 
 MarketNewsController _marketNewsController() {

@@ -183,10 +183,13 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           ]),
           builder: (context, _) {
             final detailState = widget.marketDetailController.value;
+            final liveQuote =
+                widget.marketQuoteController.quoteFor(widget.stockCode);
             final snapshot = _buildSnapshot();
             final isInitialLoading =
                 detailState.status == MarketDetailStatus.loading &&
-                    detailState.detail == null;
+                    detailState.detail == null &&
+                    liveQuote == null;
 
             return SafeArea(
               bottom: false,
