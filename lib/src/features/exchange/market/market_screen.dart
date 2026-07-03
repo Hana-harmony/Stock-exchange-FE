@@ -69,12 +69,12 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   Future<void> _loadLiveMarketData() async {
+    unawaited(widget.marketIndexController.subscribeLive());
+    unawaited(widget.marketQuoteController.subscribeLive());
     await Future.wait([
       widget.marketIndexController.loadSnapshot(),
       widget.marketQuoteController.loadSnapshot(),
     ]);
-    unawaited(widget.marketIndexController.subscribeLive());
-    unawaited(widget.marketQuoteController.subscribeLive());
   }
 
   @override
@@ -201,7 +201,8 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   void _openTrendingStock(_TrendingStock stock) {
-    Navigator.of(context).push(
+    Navigator.of(context)
+        .push(
       MaterialPageRoute<void>(
         builder: (context) => StockDetailScreen(
           sessionController: widget.sessionController,
@@ -221,7 +222,12 @@ class _MarketScreenState extends State<MarketScreen> {
           },
         ),
       ),
-    );
+    )
+        .whenComplete(() {
+      if (mounted) {
+        unawaited(widget.marketQuoteController.subscribeLive());
+      }
+    });
   }
 
   List<_MarketStatusCardData> _buildMarketStatusCards(MarketIndexState state) {
@@ -237,6 +243,7 @@ class _MarketScreenState extends State<MarketScreen> {
           state.intradaySeriesFor(index.indexCode),
           fallback: double.tryParse(index.currentValue.replaceAll(',', '')),
         ),
+        chartProgress: _koreanRegularSessionProgress(index.marketDataTime),
       );
     }).toList(growable: false);
   }
@@ -406,6 +413,7 @@ class _MarketStatusCard extends StatelessWidget {
                   painter: _MarketStatusSparklinePainter(
                     color: valueColor,
                     points: data.points,
+                    progress: data.chartProgress,
                   ),
                 ),
               ),
@@ -522,10 +530,12 @@ class _MarketStatusSparklinePainter extends CustomPainter {
   const _MarketStatusSparklinePainter({
     required this.color,
     required this.points,
+    required this.progress,
   });
 
   final Color color;
   final List<double> points;
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -534,8 +544,13 @@ class _MarketStatusSparklinePainter extends CustomPainter {
     }
 
     final path = Path();
+    final effectiveWidth = size.width * progress.clamp(0.0, 1.0);
+    if (effectiveWidth <= 0) {
+      return;
+    }
+
     for (var index = 0; index < points.length; index++) {
-      final dx = (size.width / (points.length - 1)) * index;
+      final dx = (effectiveWidth / (points.length - 1)) * index;
       final dy = size.height * (1 - points[index]);
       if (index == 0) {
         path.moveTo(dx, dy);
@@ -555,7 +570,9 @@ class _MarketStatusSparklinePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _MarketStatusSparklinePainter oldDelegate) {
-    return oldDelegate.color != color || oldDelegate.points != points;
+    return oldDelegate.color != color ||
+        oldDelegate.points != points ||
+        oldDelegate.progress != progress;
   }
 }
 
@@ -780,6 +797,7 @@ class _MarketStatusCardData {
     required this.change,
     required this.isPositive,
     required this.points,
+    required this.chartProgress,
   });
 
   final String title;
@@ -787,6 +805,7 @@ class _MarketStatusCardData {
   final String change;
   final bool isPositive;
   final List<double> points;
+  final double chartProgress;
 }
 
 class _MarketIndicatorData {
@@ -817,6 +836,24 @@ List<double> _normalizeSparkline(List<double> values, {double? fallback}) {
   return source
       .map((value) => ((value - minValue) / spread).clamp(0.0, 1.0))
       .toList(growable: false);
+}
+
+double _koreanRegularSessionProgress(DateTime? marketDataTime) {
+  if (marketDataTime == null) {
+    return 1;
+  }
+  // 한국 정규장 09:00-15:30 기준으로 오늘 진행된 구간까지만 그린다.
+  final kst = marketDataTime.toUtc().add(const Duration(hours: 9));
+  const openMinutes = 9 * 60;
+  const closeMinutes = 15 * 60 + 30;
+  final currentMinutes = kst.hour * 60 + kst.minute;
+  if (currentMinutes <= openMinutes) {
+    return 0;
+  }
+  if (currentMinutes >= closeMinutes) {
+    return 1;
+  }
+  return (currentMinutes - openMinutes) / (closeMinutes - openMinutes);
 }
 
 String _signedPercent(double value) {

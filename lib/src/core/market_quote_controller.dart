@@ -249,6 +249,32 @@ class MarketQuote {
     return 'FX $fxRate / $fxTimeDisplay / source $fxRateSource$stale';
   }
 
+  MarketQuote mergeRegularTick(MarketQuote tick) {
+    return MarketQuote(
+      stockCode: stockCode,
+      stockName: stockName.trim().isEmpty ? tick.stockName : stockName,
+      market: market.trim().isEmpty ? tick.market : market,
+      currentPriceKrw: tick.currentPriceKrw,
+      changeRate: tick.changeRate,
+      volume: tick.volume,
+      marketSession: tick.marketSession,
+      afterHoursPriceKrw: tick.afterHoursPriceKrw,
+      afterHoursLocalCurrencyPrice: tick.afterHoursLocalCurrencyPrice,
+      afterHoursChangeRate: tick.afterHoursChangeRate,
+      afterHoursVolume: tick.afterHoursVolume,
+      afterHoursMarketDataTime: tick.afterHoursMarketDataTime,
+      localCurrency: tick.localCurrency,
+      localCurrencyPrice: tick.localCurrencyPrice,
+      fxRate: tick.fxRate,
+      fxRateTime: tick.fxRateTime,
+      fxRateSource: tick.fxRateSource,
+      fxStale: tick.fxStale,
+      marketDataTime: tick.marketDataTime,
+      publishedAt: tick.publishedAt,
+      badge: tick.badge,
+    );
+  }
+
   static MarketQuote fromJson(Map<String, dynamic> json) {
     return MarketQuote(
       stockCode: _string(json['stockCode'], fallback: ''),
@@ -331,6 +357,27 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   int _liveReconnectAttempt = 0;
 
   bool get canSubscribeLive => _liveClient != null;
+
+  bool get hasGeneralLiveSubscription {
+    final request = _activeLiveRequest;
+    return request != null &&
+        request.accountId == null &&
+        request.accountScope == null &&
+        request.stockCodes.isEmpty;
+  }
+
+  MarketQuote? quoteFor(String stockCode) {
+    final normalized = stockCode.trim();
+    if (normalized.isEmpty) {
+      return null;
+    }
+    for (final quote in value.quotes) {
+      if (quote.stockCode == normalized) {
+        return quote;
+      }
+    }
+    return null;
+  }
 
   Future<StockSearchResponse> searchStocks({
     required String query,
@@ -447,7 +494,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       final response = await _loadWithTimeoutRetry(loader);
       final snapshot = MarketQuoteSnapshot.fromJson(response.data ?? {});
       value = MarketQuoteState.loaded(
-        snapshot,
+        _snapshotWithVisibleLiveQuotes(snapshot, value.quotes),
         liveStatus: value.liveStatus,
         liveMessage: value.liveMessage,
         lastTickAt: value.lastTickAt,
@@ -604,7 +651,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     if (index >= 0) {
       nextQuotes[index] = tick.isAfterHours
           ? nextQuotes[index].mergeAfterHoursTick(tick)
-          : tick;
+          : nextQuotes[index].mergeRegularTick(tick);
     } else {
       nextQuotes.insert(0, tick);
     }
@@ -616,6 +663,34 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       lastTickAt: DateTime.now().toUtc(),
       liveStale: false,
       clearErrorMessage: true,
+    );
+  }
+
+  MarketQuoteSnapshot _snapshotWithVisibleLiveQuotes(
+    MarketQuoteSnapshot snapshot,
+    List<MarketQuote> visibleQuotes,
+  ) {
+    if (value.liveStatus != MarketQuoteLiveStatus.live ||
+        visibleQuotes.isEmpty ||
+        snapshot.quotes.isEmpty) {
+      return snapshot;
+    }
+    final liveByCode = {
+      for (final quote in visibleQuotes) quote.stockCode: quote,
+    };
+    final mergedQuotes = snapshot.quotes
+        .map((quote) => liveByCode[quote.stockCode] ?? quote)
+        .toList(growable: false);
+    return MarketQuoteSnapshot(
+      dataSource: snapshot.dataSource,
+      marketCoverage: snapshot.marketCoverage,
+      displayCurrency: snapshot.displayCurrency,
+      transportSnapshot: snapshot.transportSnapshot,
+      transportRealtime: snapshot.transportRealtime,
+      cacheStatus: snapshot.cacheStatus,
+      quoteCount: snapshot.quoteCount,
+      quotes: mergedQuotes,
+      servedAt: snapshot.servedAt,
     );
   }
 
