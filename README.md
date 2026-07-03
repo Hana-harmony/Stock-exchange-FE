@@ -1,93 +1,40 @@
 # Stock-exchange-FE
 
-현지 거래소·브로커 MTS 프론트엔드 예시 서비스다. Flutter 기반 iOS/Android 영어 모바일 앱으로 구현하며, Stock-exchange-BE가 제공하는 사용자별 모든 한국 상장주식 데이터, 매매제한 신호, 뉴스·공시 인텔리전스, 세무 환급 상태를 USD 기준 화면으로 제공한다.
+Flutter 기반 iOS/Android MTS 프론트엔드다. 사용자는 한국 상장주식의 실시간 시세, 종목 상세, 뉴스·공시 인텔리전스, 외국인 한도 신호, 모의 원장 기반 주문/자산, 세무 환급 상태를 영어 UI와 USD 환산 기준으로 확인한다.
 
-## 플랫폼
-- Flutter
-- iOS 앱
-- Android 앱
-- Web은 운영 대상이 아니라 내부 QA 또는 데모가 필요한 경우에만 별도 검토한다.
+## 핵심 기능
+- Markets: KOSPI/KOSDAQ/KOSPI 200 지수, 인기 종목, 검색, 시장별 시세
+- 실시간 시세: Stock-exchange-BE WebSocket 구독, 재연결, stale 상태 표시
+- 종목 상세: 1D/1W/1M 차트, KRW/USD 가격, 외국인 보유 제한, VI/상·하한가, 호가, K-News, 공시
+- Watchlist/Portfolio: 관심종목, 보유종목, 계좌별 quote snapshot과 WebSocket tick 반영
+- 주문 화면: 실제 주문이 아닌 mock ledger 주문, orderability 경고/차단 표시
+- 알림함: 뉴스·공시·세무 리스크 알림, 읽음 처리, push device 등록 상태
+- 세무 화면: 서류 업로드, 환급 신청 상태, 매도 실현손익 기반 입력, 사후 환수 리스크 안내
 
-## 반응형
-우선적으로 IOS 17기준으로 제작했습니다.
-
-## 빠른 시작
+## 실행
 ```bash
 flutter pub get
-dart format lib test
 flutter test
+flutter run --dart-define=EXCHANGE_API_BASE_URL=http://localhost:13001
 ```
 
-## 개발 도구 설정
-한 번만 `pre-commit` 훅을 설치하면 커밋 시 변경된 Dart 파일에 `dart format`이 적용되고, 푸시 시 `flutter analyze`, `flutter test`가 실행된다.
+로컬 앱 검증 절차는 [docs/LOCAL_APP_TESTING.md](docs/LOCAL_APP_TESTING.md)를 따른다. 백엔드는 `Hannah-Montana-AI -> Hana-OmniLens-API -> Stock-exchange-BE` 순서로 먼저 띄운다.
 
+## 검증
 ```bash
-python3 -m pip install --user pre-commit
-python3 -m pre_commit install --hook-type pre-commit --hook-type pre-push
-python3 -m pre_commit run --all-files
+dart format lib test
+flutter analyze
+flutter test
+flutter build ios --simulator --dart-define=EXCHANGE_API_BASE_URL=http://localhost:13001
 ```
-
-로컬 앱 실행과 검증은 [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)를 따른다. `Stock-exchange-FE`는 iOS/Android 앱이므로 Docker로 앱을 띄우는 방식을 표준으로 두지 않으며, 백엔드는 Hannah-Montana-AI, Hana-OmniLens-API, Stock-exchange-BE 순서로 띄운 뒤 앱을 연결한다.
-
-## 현재 구현 상태
-- Material 3 앱 shell과 Market, Portfolio, Alerts, Tax 하단 탭이 구현되어 있다.
-- Market 화면은 종목명/종목코드 검색, All/KOSPI/KOSDAQ 필터, KRW/USD 시세, WebSocket live 상태, REST snapshot 복구 상태, 환율 기준시각/출처 표시 영역을 가진다.
-- Portfolio 화면은 mock USD cash와 실제 주문이 아닌 자체 ledger 기반 거래 영역을 가진다.
-- Alerts 화면은 Stock-exchange-BE 알림함과 종목별 K-News feed REST 응답을 표시하고 All/My Portfolio/Watchlist 필터, What/Why/Impact 요약, 이미지 썸네일, AI 번역 glossary/quality flag, 읽음 처리, push device 등록/비활성화 액션, push delivery/retry timeline을 제공한다.
-- Tax 화면은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 완료 영수증, 선지급 후 환수 리스크 고지 영역을 가진다.
-- `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope와 bearer auth session header를 처리한다.
-- `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이와 session store 경계를 제공한다.
-- `AccountController`는 mock USD account REST 조회와 실제 결제 없는 deposit API 호출 상태를 관리한다.
-- `TradeController`는 orderability 확인, 자체 mock ledger 주문 실행, portfolio/holding/recent trade 조회 상태를 관리한다.
-- `NotificationController`는 로그인된 accountId의 통합 알림함, 종목별 K-News feed, 읽음 처리, push device 등록 상태, delivery provider/status/attempt/read 상태를 관리한다.
-- Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 연결한다.
-- Portfolio 화면은 로그인된 accountId로 mock USD cash balance를 조회하고, 입력한 금액으로 실제 결제 없는 mock USD deposit을 실행한다.
-- Portfolio 화면은 KIS 주문을 보내지 않는 자체 mock order pad와 orderability 경고/차단 표시를 영어 사용자 문구로 제공하고, 최근 매도 내역의 realized PnL을 세무 환급 입력으로 확인할 수 있게 표시한다.
-- `MarketQuoteController`는 Stock-exchange-BE REST snapshot을 조회해 Market 화면의 All/KOSPI/KOSDAQ quote, 환율 기준시각/출처, stale 상태를 갱신한다.
-- `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결해 market quote topic tick을 구독하고 Market 화면의 quote list와 live status에 병합한다.
-- `MarketQuoteController`는 WebSocket이 예기치 않게 닫히면 backoff 후 마지막 market/watchlist/portfolio topic을 재구독하고, 마지막 tick 이후 끊긴 feed를 stale로 표시해 REST snapshot refresh를 유도한다.
-- Portfolio 화면은 bearer auth session의 accountId로 watchlist/portfolio quote REST snapshot을 갱신하고 account-scoped WebSocket topic tick을 화면 quote list에 병합한다.
-- Market 화면은 Stock-exchange-BE REST로 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 조회해 현재가 KRW/USD, best ask/bid, 환율 meta/stale 상태, 과거 시세 라인 차트, KIS REST snapshot/cache 기반 외국인 보유율/한도소진율 게이지와 snapshot/orderability 기반 당일 예상 boundary, VI/단일가/상·하한가 상태를 표시한다.
-- Tax 화면은 bearer auth session의 accountId로 세무 서류를 multipart upload하고, 환급 신청과 Hana status sync를 호출하며, 정부 검증 상태/참조번호, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세·환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
-- 앱 기본 session 저장소는 `flutter_secure_storage` 기반 token secure storage를 사용한다.
-- 실제 iOS/Android 플랫폼 target 디렉터리와 앱 ID, 권한, display name 기본 설정이 존재한다.
-
-## 범위
-- 한국 주식 종목 검색과 종목 상세 화면
-- 전체 종목, 시장별 종목, watchlist, 보유종목의 실시간 시세 조회 화면
-- 실시간 시세 WebSocket 구독과 재연결/복구 처리
-- 원화 가격과 실시간 환율 적용 USD 가격 동시 표시
-- 과거 시세 차트 화면
-- KIS REST snapshot/cache 기반 외국인 보유율/한도소진율 게이지
-- snapshot/orderability 기반 당일 예측 지분율 boundary 표시
-- VI 발동, 단일가 매매, 상·하한가 상태 배지
-- 아이디/비밀번호 회원가입, 로그인, mock USD 계좌 잔고 화면
-- 실제 결제 없는 달러 충전 화면
-- KIS 모의투자 API가 아닌 Stock-exchange-BE 자체 mock ledger 기반 주문 패드와 주문 제한/주의 팝업
-- 매도 내역과 실현손익 표시
-- 종목별 K-News 인텔리전스 피드, 기사 이미지, 원문/번역 전문, AI 번역 품질 표시
-- 보유종목/watchlist 기반 통합 알림함과 번역 glossary chip
-- 세무 서류 업로드, 환급 상태, 환급 신청, 선지급 완료/리스크 고지 화면
 
 ## 책임 경계
-- Hana-OmniLens-API를 직접 호출하지 않고 Stock-exchange-BE를 통해 데이터를 받는다.
-- API key, 외부 API credential, push provider token은 프론트엔드에 두지 않는다.
-- 실제 주문 체결, 정산, 환전, 실제 결제, 세무 지급/환수 실행은 화면에서 직접 처리하지 않고 백엔드 상태를 표시한다.
-
-## 주요 화면
-- 종목 상세: 현재가 KRW, USD 환산 가격, 적용 환율 기준시각, KIS REST snapshot/cache 기반 외국인 투자한도 게이지, snapshot/orderability 기반 당일 예상 범위, VI/단일가/상·하한가 배지
-- 주문/자산: mock USD 잔고, 모의 매수·매도 기준 가격, 평가금액, 매도 실현손익, 외국인 한도 도달 주의
-- 주문 패드: VI 발동, 단일가 매매 또는 상·하한가 도달 시 즉시 체결 불가능 안내
-- K-News: 번역 제목, What/Why/Impact 3줄 요약, 이미지 썸네일, 원문/번역 전문, 감성, 중요도, 리스크, 이벤트 태그, 원문 링크, glossary/quality flag
-- 알림함: All, My Portfolio, Watchlist 필터, push device registration, delivery/retry/read timeline
-- 세무: 서류 등록, 정부 검증 상태, 정산 상세, 환급 신청, 선지급 완료/사후 환수 리스크 고지
+- FE는 Stock-exchange-BE만 호출한다.
+- Hana-OmniLens-API, Hannah-Montana-AI, 외부 provider key는 앱에 노출하지 않는다.
+- 실제 주문 체결, 정산, 환전, 세무 지급/환수 실행은 FE 책임이 아니다.
 
 ## 문서
 - [아키텍처](docs/ARCHITECTURE.md)
 - [기능 분류와 레포 책임](docs/FEATURE_CLASSIFICATION.md)
 - [로컬 앱 테스트](docs/LOCAL_APP_TESTING.md)
 - [로드맵](docs/ROADMAP.md)
-
-
-## 현재 기능 인벤토리
-- `./current-feature-inventory.md`
