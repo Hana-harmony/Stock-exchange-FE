@@ -694,7 +694,43 @@ void main() {
     expect(find.textContaining('Kakao is the Block of South Korea'),
         findsOneWidget);
     expect(find.textContaining('Revenue model mixes'), findsOneWidget);
-    expect(find.textContaining('Block Inc. (SQ)'), findsOneWidget);
+    expect(find.text('Global Comparison'), findsOneWidget);
+    expect(find.textContaining('Overall Business'), findsOneWidget);
+    expect(find.textContaining('Block'), findsWidgets);
+    expect(find.text('Key Strengths'), findsOneWidget);
+    expect(find.textContaining('Payments'), findsWidgets);
+    expect(
+      find.textContaining('Kakao is tagged for payments exposure'),
+      findsOneWidget,
+    );
+
+    await tester.drag(
+      find.byKey(const ValueKey('global-peer-bottom-sheet')),
+      const Offset(0, -500),
+    );
+    await tester.pumpAndSettle();
+
+    final headlineText = tester.widget<Text>(
+      find.byKey(const ValueKey('global-peer-sheet-headline')),
+    );
+    expect(headlineText.maxLines, isNull);
+    expect(headlineText.overflow, TextOverflow.visible);
+
+    final peerSummaryText = tester.widget<Text>(
+      find.textContaining('PayPal provides a global payments benchmark').first,
+    );
+    expect(peerSummaryText.maxLines, isNull);
+    expect(peerSummaryText.overflow, TextOverflow.visible);
+
+    final strengthDescriptionText = tester.widget<Text>(
+      find
+          .textContaining(
+            'Kakao is tagged for payments exposure',
+          )
+          .first,
+    );
+    expect(strengthDescriptionText.maxLines, isNull);
+    expect(strengthDescriptionText.overflow, TextOverflow.visible);
   });
 
   testWidgets('updates quantity, price, and order amount in order entry',
@@ -1975,7 +2011,60 @@ MarketDetailController _marketDetailController({
               'rationale':
                   'Both companies anchor consumer ecosystems and expand monetization through financial services.',
             },
-            'peers': <Object?>[],
+            'peers': [
+              {
+                'rank': 2,
+                'ticker': 'PYPL',
+                'companyName': 'PayPal Holdings Inc.',
+                'exchange': 'NASDAQ',
+                'country': 'US',
+                'similarityScore': '0.81',
+                'businessTags': ['digital payments'],
+                'sector': 'Financial Technology',
+                'industry': 'Payments',
+                'businessModel':
+                    'Global checkout and wallet network monetized by payment processing.',
+                'scaleBucket': 'LARGE_CAP',
+                'fiscalYear': 2025,
+                'marketCapUsd': '72000000000',
+                'revenueUsd': '31000000000',
+                'operatingIncomeUsd': '5700000000',
+                'netIncomeUsd': '4200000000',
+                'financialDataSource': 'TEST',
+                'financialSimilarityScore': '0.71',
+                'matchedFactors': [
+                  'Both companies monetize consumer payment rails and merchant services.',
+                ],
+                'rationale':
+                    'PayPal provides a global payments benchmark for Kakao Pay-style financial services.',
+              },
+              {
+                'rank': 3,
+                'ticker': 'SHOP',
+                'companyName': 'Shopify Inc.',
+                'exchange': 'NYSE',
+                'country': 'CA',
+                'similarityScore': '0.76',
+                'businessTags': ['commerce platform'],
+                'sector': 'Technology',
+                'industry': 'E-commerce software',
+                'businessModel':
+                    'Merchant operating system with payments and commerce monetization.',
+                'scaleBucket': 'LARGE_CAP',
+                'fiscalYear': 2025,
+                'marketCapUsd': '105000000000',
+                'revenueUsd': '9200000000',
+                'operatingIncomeUsd': '1100000000',
+                'netIncomeUsd': '850000000',
+                'financialDataSource': 'TEST',
+                'financialSimilarityScore': '0.69',
+                'matchedFactors': [
+                  'Commerce platform revenue connects merchants, payments, and ecosystem tools.',
+                ],
+                'rationale':
+                    'Shopify gives a commerce ecosystem comparison for Kakao merchant services.',
+              },
+            ],
             'confidenceScore': '0.88',
             'confidenceLevel': 'HIGH',
             'modelVersion': 'test',
