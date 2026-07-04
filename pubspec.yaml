@@ -27,6 +27,8 @@ flutter:
     - assets/icons/
     - assets/icons/bottom_nav/
     - assets/illustrations/
+    - assets/stock_logos/kr/
+    - assets/stock_logos/us/
   fonts:
     - family: Pretendard
       fonts:

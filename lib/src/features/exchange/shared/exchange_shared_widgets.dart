@@ -139,17 +139,15 @@ class _SearchResultAvatar extends StatelessWidget {
   const _SearchResultAvatar({
     this.stockCode = '',
     this.stockName = '',
-    this.logoUrl = '',
   });
 
   final String stockCode;
   final String stockName;
-  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
-    final normalizedLogoUrl = logoUrl.trim();
-    if (normalizedLogoUrl.isNotEmpty) {
+    final logoAssetPath = _koreanStockLogoAssetPath(stockCode);
+    if (logoAssetPath != null) {
       return Semantics(
         label: stockName.isEmpty ? 'Stock logo' : '$stockName logo',
         child: Container(
@@ -168,12 +166,9 @@ class _SearchResultAvatar extends StatelessWidget {
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: Image.network(
-            normalizedLogoUrl,
+          child: Image.asset(
+            logoAssetPath,
             fit: BoxFit.cover,
-            loadingBuilder: (context, child, loadingProgress) {
-              return loadingProgress == null ? child : _fallbackAvatar(context);
-            },
             errorBuilder: (context, error, stackTrace) {
               return _fallbackAvatar(context);
             },

@@ -64,6 +64,10 @@ void main() {
     expect(find.text('Trending Stocks'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(
+      _findAssetImage('assets/stock_logos/kr/005930.png'),
+      findsWidgets,
+    );
+    expect(
       _findAssetImage(AppAssets.stockCardRed),
       findsNothing,
     );
@@ -699,6 +703,8 @@ void main() {
         findsOneWidget);
     expect(find.textContaining('Revenue model mixes'), findsOneWidget);
     expect(find.text('Global Comparison'), findsOneWidget);
+    expect(_findAssetImage('assets/stock_logos/us/SQ.png'), findsOneWidget);
+    expect(_findAssetImage('assets/stock_logos/us/PYPL.png'), findsOneWidget);
     expect(find.textContaining('Overall Business'), findsOneWidget);
     expect(find.textContaining('Block'), findsWidgets);
     expect(find.text('Key Strengths'), findsOneWidget);

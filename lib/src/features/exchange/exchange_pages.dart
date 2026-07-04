@@ -35,6 +35,7 @@ part 'accounts/accounts_screen.dart';
 part 'search/search_screens.dart';
 part 'search/search_widgets.dart';
 part 'shared/exchange_logic.dart';
+part 'shared/stock_logo_assets.dart';
 part 'shared/exchange_time_format.dart';
 part 'shared/exchange_shared_widgets.dart';
 part 'shared/exchange_styles.dart';
