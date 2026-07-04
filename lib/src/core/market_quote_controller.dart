@@ -493,10 +493,14 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   Future<void> _load({
     required Future<ApiEnvelope<Map<String, dynamic>>> Function() loader,
   }) async {
+    final hasRealVisibleQuotes = _hasLoadedSnapshot || _hasLiveTick;
+    final previousQuotes =
+        hasRealVisibleQuotes ? value.quotes : const <MarketQuote>[];
+    final previousSnapshot = _hasLoadedSnapshot ? value.snapshot : null;
     value = MarketQuoteState.loading(
-      quotes: value.quotes,
+      quotes: previousQuotes,
       liveStatus: value.liveStatus,
-      snapshot: value.snapshot,
+      snapshot: previousSnapshot,
       liveMessage: value.liveMessage,
       lastTickAt: value.lastTickAt,
       liveStale: value.liveStale,
@@ -515,9 +519,9 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     } on ExchangeApiException catch (error) {
       value = MarketQuoteState.failure(
         errorMessage: error.message,
-        quotes: value.quotes,
+        quotes: previousQuotes,
         liveStatus: value.liveStatus,
-        snapshot: value.snapshot,
+        snapshot: previousSnapshot,
         liveMessage: value.liveMessage,
         lastTickAt: value.lastTickAt,
         liveStale: value.liveStale,
@@ -525,15 +529,20 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     } on Object {
       value = MarketQuoteState.failure(
         errorMessage: 'Unable to load market quotes.',
-        quotes: value.quotes,
+        quotes: previousQuotes,
         liveStatus: value.liveStatus,
-        snapshot: value.snapshot,
+        snapshot: previousSnapshot,
         liveMessage: value.liveMessage,
         lastTickAt: value.lastTickAt,
         liveStale: value.liveStale,
       );
     }
   }
+
+  bool get _hasLoadedSnapshot =>
+      value.status == MarketQuoteStatus.loaded || value.snapshot != null;
+
+  bool get _hasLiveTick => value.lastTickAt != null;
 
   Future<ApiEnvelope<Map<String, dynamic>>> _loadWithTimeoutRetry(
     Future<ApiEnvelope<Map<String, dynamic>>> Function() loader,
@@ -844,6 +853,7 @@ class StockSearchItem {
   const StockSearchItem({
     required this.stockCode,
     required this.stockName,
+    required this.logoUrl,
     required this.market,
     required this.sector,
     required this.dataSource,
@@ -851,6 +861,7 @@ class StockSearchItem {
 
   final String stockCode;
   final String stockName;
+  final String logoUrl;
   final String market;
   final String sector;
   final String dataSource;
@@ -859,6 +870,7 @@ class StockSearchItem {
     return StockSearchItem(
       stockCode: _string(json['stockCode'], fallback: ''),
       stockName: _string(json['stockName'], fallback: 'Unknown stock'),
+      logoUrl: _string(json['logoUrl'], fallback: ''),
       market: _string(json['market'], fallback: 'UNKNOWN'),
       sector: _string(json['sector'], fallback: ''),
       dataSource: _string(json['dataSource'], fallback: ''),
@@ -899,6 +911,7 @@ class StockSearchRankingItem {
     required this.rank,
     required this.stockCode,
     required this.stockName,
+    required this.logoUrl,
     required this.market,
     required this.sector,
     required this.searchCount,
@@ -908,6 +921,7 @@ class StockSearchRankingItem {
   final int rank;
   final String stockCode;
   final String stockName;
+  final String logoUrl;
   final String market;
   final String sector;
   final int searchCount;
@@ -917,6 +931,7 @@ class StockSearchRankingItem {
     return StockSearchItem(
       stockCode: stockCode,
       stockName: stockName,
+      logoUrl: logoUrl,
       market: market,
       sector: sector,
       dataSource: 'Search analytics',
@@ -928,6 +943,7 @@ class StockSearchRankingItem {
       rank: json['rank'] is int ? json['rank'] as int : 0,
       stockCode: _string(json['stockCode'], fallback: ''),
       stockName: _string(json['stockName'], fallback: 'Unknown stock'),
+      logoUrl: _string(json['logoUrl'], fallback: ''),
       market: _string(json['market'], fallback: ''),
       sector: _string(json['sector'], fallback: ''),
       searchCount: json['searchCount'] is int ? json['searchCount'] as int : 0,

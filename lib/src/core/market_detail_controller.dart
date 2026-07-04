@@ -50,6 +50,7 @@ class StockDetail {
   const StockDetail({
     required this.stockCode,
     required this.stockName,
+    required this.logoUrl,
     required this.market,
     required this.sector,
     required this.baseCurrency,
@@ -80,6 +81,7 @@ class StockDetail {
 
   final String stockCode;
   final String stockName;
+  final String logoUrl;
   final String market;
   final String sector;
   final String baseCurrency;
@@ -169,6 +171,7 @@ class StockDetail {
     return StockDetail(
       stockCode: _string(json['stockCode'], fallback: ''),
       stockName: _string(json['stockName'], fallback: 'Unknown stock'),
+      logoUrl: _string(json['logoUrl'], fallback: ''),
       market: _string(json['market'], fallback: 'UNKNOWN'),
       sector: _string(json['sector'], fallback: 'UNKNOWN'),
       baseCurrency: _string(json['baseCurrency'], fallback: 'KRW'),
@@ -422,6 +425,7 @@ class GlobalPeerMatch {
   const GlobalPeerMatch({
     required this.stockCode,
     required this.stockName,
+    required this.logoUrl,
     required this.headline,
     required this.summary,
     required this.peers,
@@ -434,6 +438,7 @@ class GlobalPeerMatch {
 
   final String stockCode;
   final String stockName;
+  final String logoUrl;
   final String headline;
   final String summary;
   final List<GlobalPeerMatchPeer> peers;
@@ -466,6 +471,7 @@ class GlobalPeerMatch {
     return GlobalPeerMatch(
       stockCode: _string(json['stockCode'], fallback: ''),
       stockName: _string(json['stockName'], fallback: 'Unknown stock'),
+      logoUrl: _string(json['logoUrl'], fallback: ''),
       headline: _string(json['headline'], fallback: ''),
       summary: _string(json['summary'], fallback: ''),
       peers: peers,
@@ -483,6 +489,7 @@ class GlobalPeerMatchPeer {
     required this.rank,
     required this.ticker,
     required this.companyName,
+    required this.logoUrl,
     required this.exchange,
     required this.country,
     required this.similarityScore,
@@ -505,6 +512,7 @@ class GlobalPeerMatchPeer {
   final int rank;
   final String ticker;
   final String companyName;
+  final String logoUrl;
   final String exchange;
   final String country;
   final String similarityScore;
@@ -531,6 +539,7 @@ class GlobalPeerMatchPeer {
       rank: _int(json['rank']),
       ticker: _string(json['ticker'], fallback: ''),
       companyName: _string(json['companyName'], fallback: 'Unknown peer'),
+      logoUrl: _string(json['logoUrl'], fallback: ''),
       exchange: _string(json['exchange'], fallback: ''),
       country: _string(json['country'], fallback: ''),
       similarityScore: _string(json['similarityScore'], fallback: '0'),

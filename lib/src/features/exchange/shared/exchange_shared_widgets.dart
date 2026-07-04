@@ -139,13 +139,52 @@ class _SearchResultAvatar extends StatelessWidget {
   const _SearchResultAvatar({
     this.stockCode = '',
     this.stockName = '',
+    this.logoUrl = '',
   });
 
   final String stockCode;
   final String stockName;
+  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
+    final normalizedLogoUrl = logoUrl.trim();
+    if (normalizedLogoUrl.isNotEmpty) {
+      return Semantics(
+        label: stockName.isEmpty ? 'Stock logo' : '$stockName logo',
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.white, width: 1.5),
+            boxShadow: const [
+              BoxShadow(
+                color: Color.fromRGBO(0, 0, 0, 0.08),
+                blurRadius: 4,
+                offset: Offset(0, 2),
+              ),
+            ],
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Image.network(
+            normalizedLogoUrl,
+            fit: BoxFit.cover,
+            loadingBuilder: (context, child, loadingProgress) {
+              return loadingProgress == null ? child : _fallbackAvatar(context);
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return _fallbackAvatar(context);
+            },
+          ),
+        ),
+      );
+    }
+    return _fallbackAvatar(context);
+  }
+
+  Widget _fallbackAvatar(BuildContext context) {
     final color = _stockLogoColor(stockCode, stockName);
     final label = _stockLogoLabel(stockCode, stockName);
     return Semantics(
