@@ -793,7 +793,7 @@ class _GlobalPeerStockLogo extends StatelessWidget {
   Widget build(BuildContext context) {
     return _GlobalPeerLogoMark(
       label: _globalPeerLogoLabel(match),
-      logoUrl: match.logoUrl,
+      logoAssetPath: _koreanStockLogoAssetPath(match.stockCode),
       size: 50,
       backgroundColor: AppColors.blue500,
       foregroundColor: AppColors.white,
@@ -924,7 +924,6 @@ class _GlobalPeerComparisonCard extends StatelessWidget {
           children: [
             _GlobalPeerCompanyMark(
               label: item.peer.ticker,
-              logoUrl: item.peer.logoUrl,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -996,17 +995,15 @@ class _GlobalPeerComparisonTitle extends StatelessWidget {
 class _GlobalPeerCompanyMark extends StatelessWidget {
   const _GlobalPeerCompanyMark({
     required this.label,
-    required this.logoUrl,
   });
 
   final String label;
-  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
     return _GlobalPeerLogoMark(
       label: label,
-      logoUrl: logoUrl,
+      logoAssetPath: _usStockLogoAssetPath(label),
       size: 48,
       backgroundColor: AppColors.gray100,
       foregroundColor: AppColors.orange500,
@@ -1017,34 +1014,31 @@ class _GlobalPeerCompanyMark extends StatelessWidget {
 class _GlobalPeerLogoMark extends StatelessWidget {
   const _GlobalPeerLogoMark({
     required this.label,
-    required this.logoUrl,
+    required this.logoAssetPath,
     required this.size,
     required this.backgroundColor,
     required this.foregroundColor,
   });
 
   final String label;
-  final String logoUrl;
+  final String? logoAssetPath;
   final double size;
   final Color backgroundColor;
   final Color foregroundColor;
 
   @override
   Widget build(BuildContext context) {
-    final normalizedLogoUrl = logoUrl.trim();
-    if (normalizedLogoUrl.isNotEmpty) {
+    final normalizedAssetPath = logoAssetPath?.trim() ?? '';
+    if (normalizedAssetPath.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
         child: Container(
           width: size,
           height: size,
           color: AppColors.white,
-          child: Image.network(
-            normalizedLogoUrl,
+          child: Image.asset(
+            normalizedAssetPath,
             fit: BoxFit.contain,
-            loadingBuilder: (context, child, loadingProgress) {
-              return loadingProgress == null ? child : _fallbackMark(context);
-            },
             errorBuilder: (context, error, stackTrace) {
               return _fallbackMark(context);
             },

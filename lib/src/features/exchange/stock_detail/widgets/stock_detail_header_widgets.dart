@@ -320,20 +320,6 @@ class _StockOverviewSection extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  SizedBox.square(
-                    dimension: 44,
-                    child: Center(
-                      child: Transform.scale(
-                        scale: 44 / 34,
-                        child: _SearchResultAvatar(
-                          stockCode: snapshot.stockCode,
-                          stockName: snapshot.stockName,
-                          logoUrl: snapshot.logoUrl,
-                        ),
-                      ),
-                    ),
-                  ),
                 ],
               ),
             ),
