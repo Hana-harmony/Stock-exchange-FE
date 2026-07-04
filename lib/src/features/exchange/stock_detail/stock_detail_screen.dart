@@ -791,38 +791,12 @@ class _GlobalPeerStockLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (match.stockCode == '005930') {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: Image.asset(
-          AppAssets.stockQuestionSamsung,
-          width: 50,
-          height: 50,
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    final label = _globalPeerLogoLabel(match);
-    return Container(
-      width: 50,
-      height: 50,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: AppColors.blue500,
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: AppColors.white,
-              fontSize: label.length > 2 ? 12 : 15,
-              height: 1,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
+    return _GlobalPeerLogoMark(
+      label: _globalPeerLogoLabel(match),
+      logoUrl: match.logoUrl,
+      size: 50,
+      backgroundColor: AppColors.blue500,
+      foregroundColor: AppColors.white,
     );
   }
 }
@@ -950,7 +924,7 @@ class _GlobalPeerComparisonCard extends StatelessWidget {
           children: [
             _GlobalPeerCompanyMark(
               label: item.peer.ticker,
-              asset: item.asset,
+              logoUrl: item.peer.logoUrl,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1022,44 +996,85 @@ class _GlobalPeerComparisonTitle extends StatelessWidget {
 class _GlobalPeerCompanyMark extends StatelessWidget {
   const _GlobalPeerCompanyMark({
     required this.label,
-    required this.asset,
+    required this.logoUrl,
   });
 
   final String label;
-  final String? asset;
+  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
-    if (asset != null) {
+    return _GlobalPeerLogoMark(
+      label: label,
+      logoUrl: logoUrl,
+      size: 48,
+      backgroundColor: AppColors.gray100,
+      foregroundColor: AppColors.orange500,
+    );
+  }
+}
+
+class _GlobalPeerLogoMark extends StatelessWidget {
+  const _GlobalPeerLogoMark({
+    required this.label,
+    required this.logoUrl,
+    required this.size,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final String label;
+  final String logoUrl;
+  final double size;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final normalizedLogoUrl = logoUrl.trim();
+    if (normalizedLogoUrl.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
-        child: Image.asset(
-          asset!,
-          width: 48,
-          height: 48,
-          fit: BoxFit.contain,
+        child: Container(
+          width: size,
+          height: size,
+          color: AppColors.white,
+          child: Image.network(
+            normalizedLogoUrl,
+            fit: BoxFit.contain,
+            loadingBuilder: (context, child, loadingProgress) {
+              return loadingProgress == null ? child : _fallbackMark(context);
+            },
+            errorBuilder: (context, error, stackTrace) {
+              return _fallbackMark(context);
+            },
+          ),
         ),
       );
     }
+    return _fallbackMark(context);
+  }
 
+  Widget _fallbackMark(BuildContext context) {
     final normalized = label.trim().isEmpty ? '?' : label.trim().toUpperCase();
+    final visibleLabel = normalized.characters.take(4).join();
     return Container(
-      width: 48,
-      height: 48,
+      width: size,
+      height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: AppColors.gray100,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        normalized.characters.take(4).join(),
+        visibleLabel,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelMedium?.copyWith(
-              fontSize: normalized.length > 3 ? 11 : 13,
+              fontSize: visibleLabel.length > 3 ? 11 : 13,
               height: 1,
               fontWeight: FontWeight.w700,
-              color: AppColors.orange500,
+              color: foregroundColor,
             ),
       ),
     );
@@ -1186,14 +1201,12 @@ class _GlobalPeerComparisonItem {
     required this.peerLabel,
     required this.summary,
     required this.peer,
-    required this.asset,
   });
 
   final String title;
   final String peerLabel;
   final String summary;
   final GlobalPeerMatchPeer peer;
-  final String? asset;
 }
 
 class _GlobalPeerStrengthItem {
@@ -1219,7 +1232,6 @@ List<_GlobalPeerComparisonItem> _globalPeerComparisonItems(
         peerLabel: _globalPeerShortPeerLabel(peers[index]),
         summary: _globalPeerComparisonSummary(peers[index]),
         peer: peers[index],
-        asset: _globalPeerComparisonAsset(peers[index]),
       ),
   ];
 }
@@ -1287,20 +1299,6 @@ String _globalPeerComparisonSummary(GlobalPeerMatchPeer peer) {
   return descriptionParts.isEmpty
       ? 'Peer similarity is derived from the latest global comparison model.'
       : '${descriptionParts.join(' · ')} peer selected by the global comparison model.';
-}
-
-String? _globalPeerComparisonAsset(GlobalPeerMatchPeer peer) {
-  final haystack = '${peer.ticker} ${peer.companyName}'.toLowerCase();
-  if (haystack.contains('aapl') || haystack.contains('apple')) {
-    return AppAssets.stockQuestionComparisonApple;
-  }
-  if (haystack.contains('intc') || haystack.contains('intel')) {
-    return AppAssets.stockQuestionComparisonIntel;
-  }
-  if (haystack.contains('tsm') || haystack.contains('taiwan semiconductor')) {
-    return AppAssets.stockQuestionComparisonTsmc;
-  }
-  return null;
 }
 
 List<_GlobalPeerStrengthItem> _globalPeerStrengthItems(GlobalPeerMatch match) {

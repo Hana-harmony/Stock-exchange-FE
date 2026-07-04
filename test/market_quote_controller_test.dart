@@ -57,7 +57,7 @@ void main() {
     expect(krwPerUsdQuote.localCurrencyDisplay, 'USD 71.43');
   });
 
-  test('keeps visible quotes when snapshot request fails', () async {
+  test('hides seed quotes when initial snapshot request fails', () async {
     final controller = MarketQuoteController(
       apiClient: _client((request) async {
         return _jsonResponse(
@@ -81,7 +81,7 @@ void main() {
       controller.value.errorMessage,
       'Hana OmniLens market upstream unavailable',
     );
-    expect(controller.value.quotes, seedMarketQuotes);
+    expect(controller.value.quotes, isEmpty);
   });
 
   test('requires sign in before account scoped snapshots', () async {

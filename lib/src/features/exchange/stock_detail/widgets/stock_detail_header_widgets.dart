@@ -205,111 +205,133 @@ class _StockOverviewSection extends StatelessWidget {
           children: [
             SizedBox(
               height: 74,
-              child: Column(
+              child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
-                    height: 21,
-                    child: Row(
-                      children: [
-                        _MarketBadge(assetPath: snapshot.countryBadgeAsset),
-                        if (snapshot.showKoreaFlag) ...[
-                          const SizedBox(width: 6),
-                          Image.asset(
-                            AppAssets.koreaFlagIcon,
-                            width: 28,
-                            height: 21,
-                            fit: BoxFit.contain,
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 45,
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
-                          height: 25,
+                          height: 21,
                           child: Row(
                             children: [
-                              Text(
-                                snapshot.stockCode,
-                                maxLines: 1,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontSize: 18,
-                                      height: 1,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                              ),
-                              const SizedBox(width: 6),
-                              Flexible(
-                                child: Text(
-                                  snapshot.stockName,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .titleLarge
-                                      ?.copyWith(
-                                        fontSize: 18,
-                                        height: 1,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              GestureDetector(
-                                key: const ValueKey(
-                                  'stock-detail-name-help-icon-button',
-                                ),
-                                onTap: onQuestionTap,
-                                child: Image.asset(
-                                  AppAssets.questionIcon,
-                                  key: const ValueKey(
-                                    'stock-detail-name-help-icon',
-                                  ),
-                                  width: 24,
-                                  height: 24,
+                              _MarketBadge(
+                                  assetPath: snapshot.countryBadgeAsset),
+                              if (snapshot.showKoreaFlag) ...[
+                                const SizedBox(width: 6),
+                                Image.asset(
+                                  AppAssets.koreaFlagIcon,
+                                  width: 28,
+                                  height: 21,
                                   fit: BoxFit.contain,
+                                ),
+                              ],
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          height: 45,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              SizedBox(
+                                height: 25,
+                                child: Row(
+                                  children: [
+                                    Text(
+                                      snapshot.stockCode,
+                                      maxLines: 1,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .titleLarge
+                                          ?.copyWith(
+                                            fontSize: 18,
+                                            height: 1,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    Flexible(
+                                      child: Text(
+                                        snapshot.stockName,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: Theme.of(context)
+                                            .textTheme
+                                            .titleLarge
+                                            ?.copyWith(
+                                              fontSize: 18,
+                                              height: 1,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 6),
+                                    GestureDetector(
+                                      key: const ValueKey(
+                                        'stock-detail-name-help-icon-button',
+                                      ),
+                                      onTap: onQuestionTap,
+                                      child: Image.asset(
+                                        AppAssets.questionIcon,
+                                        key: const ValueKey(
+                                          'stock-detail-name-help-icon',
+                                        ),
+                                        width: 24,
+                                        height: 24,
+                                        fit: BoxFit.contain,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              SizedBox(
+                                height: 20,
+                                child: Align(
+                                  alignment: Alignment.centerLeft,
+                                  child: FittedBox(
+                                    key: const ValueKey(
+                                      'stock-detail-market-status-label',
+                                    ),
+                                    fit: BoxFit.scaleDown,
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      _compactMarketStatusLabel(
+                                        snapshot.marketStatusLabel,
+                                      ),
+                                      maxLines: 1,
+                                      style: Theme.of(context)
+                                          .textTheme
+                                          .bodyMedium
+                                          ?.copyWith(
+                                            fontSize: 14,
+                                            height: 1.2,
+                                            color: AppColors.gray600,
+                                          ),
+                                    ),
+                                  ),
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        SizedBox(
-                          height: 20,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: FittedBox(
-                              key: const ValueKey(
-                                'stock-detail-market-status-label',
-                              ),
-                              fit: BoxFit.scaleDown,
-                              alignment: Alignment.centerLeft,
-                              child: Text(
-                                _compactMarketStatusLabel(
-                                  snapshot.marketStatusLabel,
-                                ),
-                                maxLines: 1,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .bodyMedium
-                                    ?.copyWith(
-                                      fontSize: 14,
-                                      height: 1.2,
-                                      color: AppColors.gray600,
-                                    ),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  SizedBox.square(
+                    dimension: 44,
+                    child: Center(
+                      child: Transform.scale(
+                        scale: 44 / 34,
+                        child: _SearchResultAvatar(
+                          stockCode: snapshot.stockCode,
+                          stockName: snapshot.stockName,
+                          logoUrl: snapshot.logoUrl,
+                        ),
+                      ),
                     ),
                   ),
                 ],
