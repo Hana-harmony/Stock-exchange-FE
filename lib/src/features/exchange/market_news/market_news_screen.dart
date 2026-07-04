@@ -127,50 +127,67 @@ class _MarketNewsCard extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Row(
-                  children: [
-                    _StockNewsTargetBadge(
-                      label: item.displayQuery,
-                    ),
-                    const Spacer(),
-                    Text(
-                      _relativeTimeLabel(
-                        item.publishedAt ?? item.createdAt,
-                      ),
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontSize: 12,
-                            color: AppColors.gray600,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: _StockNewsTargetBadge(
+                              label: item.displayQuery,
+                            ),
                           ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  item.displayTitle,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 16,
-                        height: 1.35,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.gray1000,
+                          const Spacer(),
+                          Text(
+                            _relativeTimeLabel(
+                              item.publishedAt ?? item.createdAt,
+                            ),
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontSize: 12,
+                                      color: AppColors.gray600,
+                                    ),
+                          ),
+                        ],
                       ),
+                      const SizedBox(height: 8),
+                      Text(
+                        item.displayTitle,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 16,
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.gray1000,
+                                ),
+                      ),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _StockNewsSentimentBadge(
+                            sentiment: _sentimentFromString(item.sentiment),
+                          ),
+                          _StockNewsPriorityBadge(
+                            priority: _priorityFromStrings(item.importance, ''),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    _StockNewsSentimentBadge(
-                      sentiment: _sentimentFromString(item.sentiment),
-                    ),
-                    _StockNewsPriorityBadge(
-                      priority: _priorityFromStrings(item.importance, ''),
-                    ),
-                  ],
+                const SizedBox(width: 12),
+                _StockNewsImage(
+                  imageUrl: item.imageUrl,
+                  width: 88,
+                  height: 88,
                 ),
               ],
             ),
