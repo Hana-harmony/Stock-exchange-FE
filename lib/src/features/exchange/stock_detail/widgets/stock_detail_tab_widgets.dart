@@ -147,8 +147,10 @@ class _StockOrderTab extends StatelessWidget {
       key: const PageStorageKey<String>('stock-order-tab'),
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 140),
       children: [
-        _ForeignOwnershipAlertCard(snapshot: snapshot),
-        const SizedBox(height: 24),
+        if (snapshot.showsForeignOwnershipEstimate) ...[
+          _ForeignOwnershipAlertCard(snapshot: snapshot),
+          const SizedBox(height: 24),
+        ],
         _InvestmentInfoSection(snapshot: snapshot),
         const SizedBox(height: 24),
         Container(
@@ -539,28 +541,30 @@ class _StockFundamentalsTab extends StatelessWidget {
             _FundamentalsRowData('Risk', detail?.riskBadge ?? '-'),
           ],
         ),
-        const SizedBox(height: 16),
-        _FundamentalsSection(
-          title: 'Foreign Ownership',
-          rows: [
-            _FundamentalsRowData(
-              'Current ownership',
-              '${detail?.foreignOwnershipRate ?? '-'}%',
-            ),
-            _FundamentalsRowData(
-              'Limit exhaustion',
-              snapshot.previousDayForeignRatio,
-            ),
-            _FundamentalsRowData(
-              'Estimated exhaustion',
-              snapshot.estimatedRange,
-            ),
-            _FundamentalsRowData(
-              'Model',
-              detail?.predictionModelDisplay ?? '-',
-            ),
-          ],
-        ),
+        if (snapshot.showsForeignOwnershipEstimate) ...[
+          const SizedBox(height: 16),
+          _FundamentalsSection(
+            title: 'Foreign Ownership',
+            rows: [
+              _FundamentalsRowData(
+                'Current ownership',
+                '${detail?.foreignOwnershipRate ?? '-'}%',
+              ),
+              _FundamentalsRowData(
+                'Limit exhaustion',
+                snapshot.previousDayForeignRatio,
+              ),
+              _FundamentalsRowData(
+                'Estimated exhaustion',
+                snapshot.estimatedRange,
+              ),
+              _FundamentalsRowData(
+                'Model',
+                detail?.predictionModelDisplay ?? '-',
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
