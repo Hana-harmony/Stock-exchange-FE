@@ -89,18 +89,6 @@ class _NotificationArticleDetailScreenState
                                         detail: detail,
                                       ),
                                     ),
-                                    if (detail.glossaryEntries.isNotEmpty) ...[
-                                      const SizedBox(height: 20),
-                                      Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                        ),
-                                        child:
-                                            _NotificationArticleGlossarySection(
-                                          entries: detail.glossaryEntries,
-                                        ),
-                                      ),
-                                    ],
                                     const SizedBox(height: 20),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
@@ -498,9 +486,9 @@ class _NotificationArticleAnalysisCard extends StatelessWidget {
                     ),
                     const Spacer(),
                     Image.asset(
-                      AppAssets.headerAiIcon,
-                      width: 36,
-                      height: 36,
+                      AppAssets.hanaMontanaAnalysisCharacter,
+                      width: 73,
+                      height: 54,
                       fit: BoxFit.contain,
                     ),
                   ],
@@ -602,90 +590,6 @@ double _analysisLabelVisualWidth(String label) {
   };
 }
 
-class _NotificationArticleGlossarySection extends StatelessWidget {
-  const _NotificationArticleGlossarySection({
-    required this.entries,
-  });
-
-  final List<_NotificationArticleGlossaryEntry> entries;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.gray200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Glossary',
-              style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontSize: 14,
-                    height: 1.4,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.gray1000,
-                  ),
-            ),
-            const SizedBox(height: 10),
-            for (var index = 0; index < entries.length; index++) ...[
-              _NotificationArticleGlossaryListItem(entry: entries[index]),
-              if (index != entries.length - 1)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 10),
-                  child: Divider(height: 1, color: AppColors.gray200),
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NotificationArticleGlossaryListItem extends StatelessWidget {
-  const _NotificationArticleGlossaryListItem({
-    required this.entry,
-  });
-
-  final _NotificationArticleGlossaryEntry entry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          entry.title,
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                fontSize: 13,
-                height: 1.4,
-                fontWeight: FontWeight.w700,
-                color: AppColors.gray1000,
-              ),
-        ),
-        if (entry.description.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(
-            entry.description,
-            softWrap: true,
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  fontSize: 12,
-                  height: 1.45,
-                  fontWeight: FontWeight.w400,
-                  color: AppColors.gray700,
-                ),
-          ),
-        ],
-      ],
-    );
-  }
-}
-
 class _NotificationArticleBody extends StatelessWidget {
   const _NotificationArticleBody({
     required this.detail,
@@ -772,35 +676,25 @@ class _NotificationArticleDetailData {
     NotificationItem item, {
     StockIntelligenceItem? intelligenceItem,
   }) {
-    final useFigmaAnalysisMock = _shouldUseFigmaAnalysisMock(
-      item,
-      intelligenceItem: intelligenceItem,
+    final resolvedBodyText = intelligenceItem != null
+        ? intelligenceItem.translatedContent.isNotEmpty
+            ? intelligenceItem.translatedContent
+            : intelligenceItem.translatedSummary.isNotEmpty
+                ? intelligenceItem.translatedSummary
+                : intelligenceItem.originalContent.isNotEmpty
+                    ? intelligenceItem.originalContent
+                    : intelligenceItem.displaySummary
+        : item.summary.isNotEmpty
+            ? '${item.title}\n${item.summary}'
+            : item.title;
+    final resolvedGlossaryEntries = _glossaryEntriesFromTerms(
+      intelligenceItem?.glossaryTerms ?? item.glossaryTerms,
+      resolvedBodyText,
     );
-    final resolvedBodyText = useFigmaAnalysisMock
-        ? _figmaMockBodyText
-        : intelligenceItem != null
-            ? intelligenceItem.translatedContent.isNotEmpty
-                ? intelligenceItem.translatedContent
-                : intelligenceItem.translatedSummary.isNotEmpty
-                    ? intelligenceItem.translatedSummary
-                    : intelligenceItem.originalContent.isNotEmpty
-                        ? intelligenceItem.originalContent
-                        : intelligenceItem.displaySummary
-            : item.summary.isNotEmpty
-                ? '${item.title}\n${item.summary}'
-                : item.title;
-    final resolvedGlossaryEntries = useFigmaAnalysisMock
-        ? const [_figmaMockGlossaryEntry]
-        : _glossaryEntriesFromTerms(
-            intelligenceItem?.glossaryTerms ?? item.glossaryTerms,
-            resolvedBodyText,
-          );
 
     if (intelligenceItem != null) {
       return _NotificationArticleDetailData(
-        title: useFigmaAnalysisMock
-            ? _figmaMockDetailTitle
-            : intelligenceItem.title,
+        title: intelligenceItem.title,
         companyLabel: _notificationCompanyLabel(item),
         relativeTimeLabel: _relativeTimeLabel(
           intelligenceItem.publishedAt ?? intelligenceItem.receivedAt,
@@ -810,9 +704,7 @@ class _NotificationArticleDetailData {
           intelligenceItem.importance,
           intelligenceItem.riskLevel,
         ),
-        analysisRows: useFigmaAnalysisMock
-            ? _figmaMockAnalysisRows()
-            : _analysisRowsFromIntelligence(intelligenceItem),
+        analysisRows: _analysisRowsFromIntelligence(intelligenceItem),
         bodyText: resolvedBodyText,
         glossaryEntries: resolvedGlossaryEntries,
         originalUrl: intelligenceItem.originalUrl.isNotEmpty
@@ -825,28 +717,26 @@ class _NotificationArticleDetailData {
     }
 
     return _NotificationArticleDetailData(
-      title: useFigmaAnalysisMock ? _figmaMockDetailTitle : item.title,
+      title: item.title,
       companyLabel: _notificationCompanyLabel(item),
       relativeTimeLabel: _relativeTimeLabel(item.createdAt),
       sentiment: _StockNewsSentiment.positive,
       priority: _StockNewsPriority.high,
-      analysisRows: useFigmaAnalysisMock
-          ? _figmaMockAnalysisRows()
-          : [
-              _StockNewsSummaryRowData(
-                label: 'What',
-                value: item.title,
-              ),
-              _StockNewsSummaryRowData(
-                label: 'Why',
-                value: item.summary.isNotEmpty ? item.summary : item.title,
-              ),
-              _StockNewsSummaryRowData(
-                label: 'Impact',
-                value:
-                    '${item.targetLabel} notification triggered for ${_notificationCompanyLabel(item)}.',
-              ),
-            ],
+      analysisRows: [
+        _StockNewsSummaryRowData(
+          label: 'What',
+          value: item.title,
+        ),
+        _StockNewsSummaryRowData(
+          label: 'Why',
+          value: item.summary.isNotEmpty ? item.summary : item.title,
+        ),
+        _StockNewsSummaryRowData(
+          label: 'Impact',
+          value:
+              '${item.targetLabel} notification triggered for ${_notificationCompanyLabel(item)}.',
+        ),
+      ],
       bodyText: resolvedBodyText,
       glossaryEntries: resolvedGlossaryEntries,
       originalUrl: item.originalUrl,
@@ -1348,11 +1238,7 @@ List<_NotificationArticleGlossaryEntry> _glossaryEntriesFromTerms(
         highlightedText: highlightedText,
         eyebrow: 'Financial Glossary',
         title: _glossaryTooltipTitle(term, highlightedText),
-        description: term.description.isNotEmpty
-            ? term.description
-            : term.category.isNotEmpty
-                ? 'Category: ${_titleCaseWords(term.category.replaceAll('_', ' ').toLowerCase())}'
-                : '',
+        description: term.description,
       ),
     );
   }
@@ -1381,9 +1267,15 @@ String _glossaryTooltipTitle(
   AlertGlossaryTerm term,
   String highlightedText,
 ) {
+  final displayTerm = _titleCaseWords(highlightedText);
   final englishTitle = _titleCaseWords(term.englishTerm);
-  if (term.sourceTerm.isNotEmpty && englishTitle.isNotEmpty) {
-    return '${term.sourceTerm} ($englishTitle)';
+  if (displayTerm.isNotEmpty &&
+      englishTitle.isNotEmpty &&
+      displayTerm.toLowerCase() != englishTitle.toLowerCase()) {
+    return '$displayTerm ($englishTitle)';
+  }
+  if (displayTerm.isNotEmpty) {
+    return displayTerm;
   }
   if (englishTitle.isNotEmpty) {
     return englishTitle;
@@ -1410,56 +1302,4 @@ String _titleCaseWords(String value) {
             : '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}',
       )
       .join(' ');
-}
-
-bool _shouldUseFigmaAnalysisMock(
-  NotificationItem item, {
-  StockIntelligenceItem? intelligenceItem,
-}) {
-  final title = intelligenceItem?.title ?? item.title;
-  return title.startsWith(
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
-  );
-}
-
-const _figmaMockDetailTitle =
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025';
-const _figmaMockAnalysisText =
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG SAMSUNG ELEC: Dividend Payout';
-const _figmaMockBodyText =
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG  '
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
-    '\n'
-    'SAMSUNG ELEC: Daejangju for FY2025 AMSUNG  SAMSUNG ELEC: '
-    'Dividend Payout Confirmed for FY2025 AMSUNG\n'
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
-    '\n'
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG  '
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG\n'
-    'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025 AMSUNG';
-const _figmaMockGlossaryEntry = _NotificationArticleGlossaryEntry(
-  highlightedText: 'Daejangju',
-  eyebrow: 'Financial Glossary',
-  title: 'Daejangju (Market Leader)',
-  description:
-      'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend.',
-);
-
-List<_StockNewsSummaryRowData> _figmaMockAnalysisRows() {
-  return const [
-    _StockNewsSummaryRowData(
-      label: 'What',
-      value: _figmaMockAnalysisText,
-    ),
-    _StockNewsSummaryRowData(
-      label: 'Why',
-      value: _figmaMockAnalysisText,
-    ),
-    _StockNewsSummaryRowData(
-      label: 'Impact',
-      value: _figmaMockAnalysisText,
-    ),
-  ];
 }
