@@ -363,6 +363,70 @@ void main() {
     expect(find.byKey(const ValueKey('trending-stock-000660')), findsOneWidget);
   });
 
+  testWidgets('markets surfaces provider outages instead of empty states',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const quoteMessage =
+        'KIS market data provider is unavailable for stockCode=005930';
+    const indexMessage = 'KIS index data provider is unavailable.';
+    final marketIndexController = MarketIndexController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/api/v1/market/indices') {
+            return _jsonErrorEnvelope(
+              status: 502,
+              code: 'MARKET_001',
+              message: indexMessage,
+            );
+          }
+          return http.Response('{}', 404);
+        }),
+      ),
+    );
+    final marketQuoteController = MarketQuoteController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path == '/api/v1/stocks/search-rankings') {
+            return _jsonErrorEnvelope(
+              status: 502,
+              code: 'MARKET_001',
+              message: quoteMessage,
+            );
+          }
+          if (request.url.path == '/api/v1/market/quotes') {
+            return _jsonErrorEnvelope(
+              status: 502,
+              code: 'MARKET_001',
+              message: quoteMessage,
+            );
+          }
+          return http.Response('{}', 404);
+        }),
+      ),
+    );
+    addTearDown(marketIndexController.dispose);
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketIndexController: marketIndexController,
+        marketQuoteController: marketQuoteController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Market indices unavailable'), findsOneWidget);
+    expect(find.text(indexMessage), findsOneWidget);
+    expect(find.text('No indices'), findsNothing);
+    expect(find.text('Market data unavailable'), findsOneWidget);
+    expect(find.text(quoteMessage), findsOneWidget);
+    expect(find.text('No stocks'), findsNothing);
+  });
+
   testWidgets('searches stocks and opens the placeholder detail tabs',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -1569,6 +1633,7 @@ class _RecordingUrlLauncher extends UrlLauncherPlatform {
 
 StockExchangeApp _stockExchangeTestApp({
   required MarketQuoteController marketQuoteController,
+  MarketIndexController? marketIndexController,
   MarketQuoteController? watchlistQuoteController,
   MarketDetailController? marketDetailController,
   MarketNewsController? marketNewsController,
@@ -1581,7 +1646,7 @@ StockExchangeApp _stockExchangeTestApp({
     accountController: _accountController(),
     tradeController: _tradeController(),
     marketDetailController: marketDetailController ?? _marketDetailController(),
-    marketIndexController: _marketIndexController(),
+    marketIndexController: marketIndexController ?? _marketIndexController(),
     marketNewsController: marketNewsController ?? _marketNewsController(),
     marketQuoteController: marketQuoteController,
     watchlistQuoteController:
@@ -2586,6 +2651,24 @@ http.Response _jsonEnvelope(Map<String, Object?> data) {
       'timestamp': '2026-06-18T06:00:00Z',
     }),
     200,
+    headers: const {'content-type': 'application/json'},
+  );
+}
+
+http.Response _jsonErrorEnvelope({
+  required int status,
+  required String code,
+  required String message,
+}) {
+  return http.Response(
+    jsonEncode({
+      'success': false,
+      'status': status,
+      'code': code,
+      'message': message,
+      'timestamp': '2026-06-18T06:00:00Z',
+    }),
+    status,
     headers: const {'content-type': 'application/json'},
   );
 }
