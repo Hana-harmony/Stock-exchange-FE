@@ -1311,6 +1311,54 @@ void main() {
     expect(find.text('+USD 5.50 +18.33%'), findsWidgets);
   });
 
+  testWidgets('hides foreign ownership forecast for non restricted stocks',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _marketDetailController(
+      foreignOwnershipPredictionConfidenceLevel: 'NOT_APPLICABLE',
+      foreignOwnershipPredictionConfidenceScore: '0',
+      foreignOwnershipPredictionModelVersion: 'none',
+    );
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketDetailController: marketDetailController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Foreign Ownership Forecast'), findsNothing);
+    expect(find.text('Foreign Ownership Limit Alert'), findsNothing);
+
+    await tester
+        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Market Status'), findsOneWidget);
+    expect(find.text('Foreign Ownership'), findsNothing);
+    expect(find.text('Estimated exhaustion'), findsNothing);
+    expect(find.text('none / NOT_APPLICABLE 0'), findsNothing);
+  });
+
   testWidgets(
       'shows initial loading before quote and detail data are available',
       (tester) async {
@@ -1798,6 +1846,9 @@ MarketDetailController _marketDetailController({
   String priceLimitState = 'NORMAL',
   List<Uri>? chartRequests,
   String stockMarketDataTime = '2026-06-18T06:00:00Z',
+  String foreignOwnershipPredictionConfidenceLevel = 'HIGH',
+  String foreignOwnershipPredictionConfidenceScore = '0.91',
+  String foreignOwnershipPredictionModelVersion = 'test',
 }) {
   return MarketDetailController(
     apiClient: ExchangeApiClient(
@@ -1832,9 +1883,12 @@ MarketDetailController _marketDetailController({
             'predictedForeignOwnershipRateMax': '27.6',
             'predictedForeignLimitExhaustionRateMin': '27.0',
             'predictedForeignLimitExhaustionRateMax': '27.6',
-            'foreignOwnershipPredictionConfidenceLevel': 'HIGH',
-            'foreignOwnershipPredictionConfidenceScore': '0.91',
-            'foreignOwnershipPredictionModelVersion': 'test',
+            'foreignOwnershipPredictionConfidenceLevel':
+                foreignOwnershipPredictionConfidenceLevel,
+            'foreignOwnershipPredictionConfidenceScore':
+                foreignOwnershipPredictionConfidenceScore,
+            'foreignOwnershipPredictionModelVersion':
+                foreignOwnershipPredictionModelVersion,
             'foreignOwnershipBaseDate': '2026-06-17',
             'viActive': viActive,
             'singlePriceTrading': false,
