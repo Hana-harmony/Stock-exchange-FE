@@ -685,6 +685,8 @@ class _GlobalPeerSheetContent extends StatelessWidget {
   Widget build(BuildContext context) {
     final primaryPeer = match.primaryPeer;
     final tags = _globalPeerTags(match);
+    final comparisonItems = _globalPeerComparisonItems(match);
+    final strengthItems = _globalPeerStrengthItems(match);
 
     return _GlobalPeerSheetFrame(
       child: Column(
@@ -699,6 +701,7 @@ class _GlobalPeerSheetContent extends StatelessWidget {
                 child: _GlobalPeerHeadline(
                   headline: _globalPeerHeadline(match),
                   primaryPeer: primaryPeer,
+                  isExpanded: isExpanded,
                 ),
               ),
             ],
@@ -743,26 +746,19 @@ class _GlobalPeerSheetContent extends StatelessWidget {
                     ),
                   ),
           ),
-          if (primaryPeer != null) ...[
+          if (comparisonItems.isNotEmpty) ...[
             const SizedBox(height: 20),
-            _GlobalPeerDetailCard(peer: primaryPeer),
-          ],
-          if (match.peers.length > 1) ...[
-            const SizedBox(height: 16),
-            Text(
-              'Other close peers',
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontSize: 16,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.gray1000,
-                  ),
+            _GlobalPeerComparisonSection(
+              items: comparisonItems,
+              isExpanded: isExpanded,
             ),
-            const SizedBox(height: 8),
-            for (final peer in match.peers.skip(1).take(3)) ...[
-              _GlobalPeerDetailCard(peer: peer),
-              const SizedBox(height: 8),
-            ],
+          ],
+          if (strengthItems.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            _GlobalPeerStrengthSection(
+              items: strengthItems,
+              isExpanded: isExpanded,
+            ),
           ],
         ],
       ),
@@ -835,10 +831,12 @@ class _GlobalPeerHeadline extends StatelessWidget {
   const _GlobalPeerHeadline({
     required this.headline,
     required this.primaryPeer,
+    required this.isExpanded,
   });
 
   final String headline;
   final GlobalPeerMatchPeer? primaryPeer;
+  final bool isExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -858,8 +856,8 @@ class _GlobalPeerHeadline extends StatelessWidget {
         ),
       ),
       key: const ValueKey('global-peer-sheet-headline'),
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+      maxLines: isExpanded ? null : 2,
+      overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
     );
   }
 }
@@ -892,103 +890,642 @@ class _GlobalPeerHashTag extends StatelessWidget {
   }
 }
 
-class _GlobalPeerDetailCard extends StatelessWidget {
-  const _GlobalPeerDetailCard({required this.peer});
+class _GlobalPeerComparisonSection extends StatelessWidget {
+  const _GlobalPeerComparisonSection({
+    required this.items,
+    required this.isExpanded,
+  });
 
-  final GlobalPeerMatchPeer peer;
+  final List<_GlobalPeerComparisonItem> items;
+  final bool isExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Global Comparison',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+                color: AppColors.gray1000,
+              ),
+        ),
+        const SizedBox(height: 8),
+        for (final item in items) ...[
+          _GlobalPeerComparisonCard(
+            item: item,
+            isExpanded: isExpanded,
+          ),
+          if (item != items.last) const SizedBox(height: 8),
+        ],
+      ],
+    );
+  }
+}
+
+class _GlobalPeerComparisonCard extends StatelessWidget {
+  const _GlobalPeerComparisonCard({
+    required this.item,
+    required this.isExpanded,
+  });
+
+  final _GlobalPeerComparisonItem item;
+  final bool isExpanded;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.gray50,
+        color: AppColors.white,
+        border: Border.all(color: AppColors.gray300),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              peer.displayName,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: 16,
-                    height: 1.4,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.gray1000,
-                  ),
+            _GlobalPeerCompanyMark(
+              label: item.peer.ticker,
+              asset: item.asset,
             ),
-            const SizedBox(height: 6),
-            Text(
-              [
-                if (peer.sector.isNotEmpty) peer.sector,
-                if (peer.industry.isNotEmpty) peer.industry,
-                if (peer.exchange.isNotEmpty) peer.exchange,
-              ].join(' · '),
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 13,
-                    height: 1.4,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.gray600,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _GlobalPeerComparisonTitle(
+                    item: item,
+                    isExpanded: isExpanded,
                   ),
-            ),
-            if (peer.rationale.isNotEmpty) ...[
-              const SizedBox(height: 10),
-              Text(
-                peer.rationale,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 14,
-                      height: 1.4,
-                      fontWeight: FontWeight.w400,
-                      color: AppColors.gray800,
-                    ),
+                  const SizedBox(height: 4),
+                  Text(
+                    item.summary,
+                    maxLines: isExpanded ? null : 2,
+                    overflow: isExpanded
+                        ? TextOverflow.visible
+                        : TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontSize: 12,
+                          height: 1.4,
+                          fontWeight: FontWeight.w400,
+                          color: AppColors.gray700,
+                        ),
+                  ),
+                ],
               ),
-            ],
-            if (peer.matchedFactors.isNotEmpty) ...[
-              const SizedBox(height: 12),
-              ...peer.matchedFactors.take(4).map(
-                    (factor) => Padding(
-                      padding: const EdgeInsets.only(bottom: 6),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Padding(
-                            padding: EdgeInsets.only(top: 7),
-                            child: SizedBox.square(
-                              dimension: 4,
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  color: AppColors.orange500,
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              factor,
-                              style: Theme.of(context)
-                                  .textTheme
-                                  .bodyMedium
-                                  ?.copyWith(
-                                    fontSize: 13,
-                                    height: 1.4,
-                                    fontWeight: FontWeight.w400,
-                                    color: AppColors.gray700,
-                                  ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-            ],
+            ),
           ],
         ),
       ),
     );
   }
+}
+
+class _GlobalPeerComparisonTitle extends StatelessWidget {
+  const _GlobalPeerComparisonTitle({
+    required this.item,
+    required this.isExpanded,
+  });
+
+  final _GlobalPeerComparisonItem item;
+  final bool isExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    final baseStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
+          fontSize: 14,
+          height: 1.4,
+          fontWeight: FontWeight.w600,
+          color: AppColors.gray1000,
+        );
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          TextSpan(text: '${item.title} ', style: baseStyle),
+          TextSpan(
+            text: item.peerLabel,
+            style: baseStyle?.copyWith(color: AppColors.orange500),
+          ),
+        ],
+      ),
+      maxLines: isExpanded ? null : 1,
+      overflow: isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+    );
+  }
+}
+
+class _GlobalPeerCompanyMark extends StatelessWidget {
+  const _GlobalPeerCompanyMark({
+    required this.label,
+    required this.asset,
+  });
+
+  final String label;
+  final String? asset;
+
+  @override
+  Widget build(BuildContext context) {
+    if (asset != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Image.asset(
+          asset!,
+          width: 48,
+          height: 48,
+          fit: BoxFit.contain,
+        ),
+      );
+    }
+
+    final normalized = label.trim().isEmpty ? '?' : label.trim().toUpperCase();
+    return Container(
+      width: 48,
+      height: 48,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: AppColors.gray100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        normalized.characters.take(4).join(),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+              fontSize: normalized.length > 3 ? 11 : 13,
+              height: 1,
+              fontWeight: FontWeight.w700,
+              color: AppColors.orange500,
+            ),
+      ),
+    );
+  }
+}
+
+class _GlobalPeerStrengthSection extends StatelessWidget {
+  const _GlobalPeerStrengthSection({
+    required this.items,
+    required this.isExpanded,
+  });
+
+  final List<_GlobalPeerStrengthItem> items;
+  final bool isExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Key Strengths',
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize: 14,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+                color: AppColors.gray1000,
+              ),
+        ),
+        const SizedBox(height: 8),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final itemWidth = isExpanded
+                ? constraints.maxWidth
+                : (constraints.maxWidth - 8) / 2;
+            return Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final item in items)
+                  SizedBox(
+                    width: itemWidth,
+                    child: _GlobalPeerStrengthCard(
+                      item: item,
+                      isExpanded: isExpanded,
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _GlobalPeerStrengthCard extends StatelessWidget {
+  const _GlobalPeerStrengthCard({
+    required this.item,
+    required this.isExpanded,
+  });
+
+  final _GlobalPeerStrengthItem item;
+  final bool isExpanded;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.white,
+        border: Border.all(color: AppColors.gray300),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment:
+              isExpanded ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          children: [
+            Image.asset(
+              item.iconAsset,
+              width: 24,
+              height: 24,
+              fit: BoxFit.contain,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              item.title,
+              maxLines: isExpanded ? null : 1,
+              overflow:
+                  isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              textAlign: isExpanded ? TextAlign.left : TextAlign.center,
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                    fontSize: 12,
+                    height: 1.4,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.gray1000,
+                  ),
+            ),
+            Text(
+              item.description,
+              maxLines: isExpanded ? null : 2,
+              overflow:
+                  isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              textAlign: isExpanded ? TextAlign.left : TextAlign.center,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontSize: 10,
+                    height: 1.4,
+                    fontWeight: FontWeight.w400,
+                    color: AppColors.gray600,
+                  ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _GlobalPeerComparisonItem {
+  const _GlobalPeerComparisonItem({
+    required this.title,
+    required this.peerLabel,
+    required this.summary,
+    required this.peer,
+    required this.asset,
+  });
+
+  final String title;
+  final String peerLabel;
+  final String summary;
+  final GlobalPeerMatchPeer peer;
+  final String? asset;
+}
+
+class _GlobalPeerStrengthItem {
+  const _GlobalPeerStrengthItem({
+    required this.title,
+    required this.description,
+    required this.iconAsset,
+  });
+
+  final String title;
+  final String description;
+  final String iconAsset;
+}
+
+List<_GlobalPeerComparisonItem> _globalPeerComparisonItems(
+  GlobalPeerMatch match,
+) {
+  final peers = match.peers.take(3).toList(growable: false);
+  return [
+    for (var index = 0; index < peers.length; index++)
+      _GlobalPeerComparisonItem(
+        title: _globalPeerComparisonTitle(peers[index], index),
+        peerLabel: _globalPeerShortPeerLabel(peers[index]),
+        summary: _globalPeerComparisonSummary(peers[index]),
+        peer: peers[index],
+        asset: _globalPeerComparisonAsset(peers[index]),
+      ),
+  ];
+}
+
+String _globalPeerComparisonTitle(GlobalPeerMatchPeer peer, int index) {
+  if (index == 0) {
+    return 'Overall Business';
+  }
+  final tags = peer.businessTags
+      .map(_formatGlobalPeerTag)
+      .where((tag) => tag.isNotEmpty)
+      .toList(growable: false);
+  if (tags.isNotEmpty) {
+    return tags.first;
+  }
+  if (peer.industry.trim().isNotEmpty) {
+    return _formatGlobalPeerTag(peer.industry);
+  }
+  if (peer.sector.trim().isNotEmpty) {
+    return _formatGlobalPeerTag(peer.sector);
+  }
+  return index == 1 ? 'Business Segment' : 'Growth Segment';
+}
+
+String _globalPeerShortPeerLabel(GlobalPeerMatchPeer peer) {
+  final ticker = peer.ticker.trim();
+  if (_isKnownTicker(ticker, const ['AAPL'])) {
+    return 'Apple';
+  }
+  if (_isKnownTicker(ticker, const ['INTC'])) {
+    return 'Intel';
+  }
+  if (_isKnownTicker(ticker, const ['TSM', 'TSMC'])) {
+    return 'TSMC';
+  }
+  final companyName = peer.companyName.trim();
+  if (companyName.isEmpty) {
+    return ticker.isEmpty ? 'Peer' : ticker;
+  }
+  final normalized = companyName
+      .replaceAll(RegExp(r'\b(Inc\.?|Corp\.?|Corporation|Ltd\.?)\b'), '')
+      .trim();
+  return normalized.split(RegExp(r'\s+')).firstWhere(
+        (part) => part.isNotEmpty,
+        orElse: () => companyName,
+      );
+}
+
+String _globalPeerComparisonSummary(GlobalPeerMatchPeer peer) {
+  for (final value in [
+    peer.rationale,
+    ...peer.matchedFactors,
+    peer.businessModel,
+  ]) {
+    final normalized = value.trim();
+    if (normalized.isNotEmpty) {
+      return normalized;
+    }
+  }
+  final descriptionParts = [
+    if (peer.sector.isNotEmpty) peer.sector,
+    if (peer.industry.isNotEmpty) peer.industry,
+    if (peer.exchange.isNotEmpty) peer.exchange,
+  ];
+  return descriptionParts.isEmpty
+      ? 'Peer similarity is derived from the latest global comparison model.'
+      : '${descriptionParts.join(' · ')} peer selected by the global comparison model.';
+}
+
+String? _globalPeerComparisonAsset(GlobalPeerMatchPeer peer) {
+  final haystack = '${peer.ticker} ${peer.companyName}'.toLowerCase();
+  if (haystack.contains('aapl') || haystack.contains('apple')) {
+    return AppAssets.stockQuestionComparisonApple;
+  }
+  if (haystack.contains('intc') || haystack.contains('intel')) {
+    return AppAssets.stockQuestionComparisonIntel;
+  }
+  if (haystack.contains('tsm') || haystack.contains('taiwan semiconductor')) {
+    return AppAssets.stockQuestionComparisonTsmc;
+  }
+  return null;
+}
+
+List<_GlobalPeerStrengthItem> _globalPeerStrengthItems(GlobalPeerMatch match) {
+  final primaryPeer = match.primaryPeer;
+  if (primaryPeer == null) {
+    return const <_GlobalPeerStrengthItem>[];
+  }
+
+  final subjectName = _globalPeerSubjectName(match);
+  final seen = <String>{};
+  final items = <_GlobalPeerStrengthItem>[];
+
+  void addItem({
+    required String title,
+    required String description,
+    required String rawValue,
+  }) {
+    if (items.length == 4) {
+      return;
+    }
+    final normalizedTitle = title.trim();
+    final normalizedDescription =
+        description.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalizedTitle.isEmpty || normalizedDescription.isEmpty) {
+      return;
+    }
+    final key = '$normalizedTitle|$normalizedDescription'.toLowerCase();
+    if (!seen.add(key)) {
+      return;
+    }
+
+    items.add(
+      _GlobalPeerStrengthItem(
+        title: normalizedTitle,
+        description: normalizedDescription,
+        iconAsset: _globalPeerStrengthIcon(rawValue, items.length),
+      ),
+    );
+  }
+
+  for (final rawValue in primaryPeer.businessTags) {
+    final title = _globalPeerStrengthTitle(rawValue);
+    final theme = title.toLowerCase();
+    addItem(
+      title: title,
+      description:
+          '$subjectName is tagged for $theme exposure in the global peer model.',
+      rawValue: rawValue,
+    );
+  }
+
+  for (final rawValue in primaryPeer.matchedFactors) {
+    final item = _globalPeerSubjectStrengthFromFactor(
+      rawValue: rawValue,
+      subjectName: subjectName,
+    );
+    if (item == null) {
+      continue;
+    }
+    addItem(
+      title: item.title,
+      description: item.description,
+      rawValue: rawValue,
+    );
+  }
+
+  final summary = match.summary.trim();
+  if (!_globalPeerLooksComparative(summary)) {
+    addItem(
+      title: 'Business Summary',
+      description: summary,
+      rawValue: summary,
+    );
+  }
+
+  if (items.isEmpty) {
+    return [
+      _GlobalPeerStrengthItem(
+        title: 'Strong Match',
+        description: _globalPeerSummary(match),
+        iconAsset: AppAssets.stockQuestionEcosystemIcon,
+      ),
+    ];
+  }
+  return items;
+}
+
+String _globalPeerSubjectName(GlobalPeerMatch match) {
+  final stockName = match.stockName.trim();
+  if (stockName.isEmpty) {
+    final stockCode = match.stockCode.trim();
+    return stockCode.isEmpty ? 'This stock' : stockCode;
+  }
+  final englishName = stockName.split(RegExp(r'\s*\(')).first.trim();
+  return englishName.isEmpty ? stockName : englishName;
+}
+
+String _globalPeerStrengthTitle(String value) {
+  final formatted = _formatGlobalPeerTag(value);
+  if (formatted.isEmpty) {
+    return '';
+  }
+  if (formatted.toLowerCase() == 'memory') {
+    return 'in Memory';
+  }
+  return formatted;
+}
+
+_GlobalPeerStrengthItem? _globalPeerSubjectStrengthFromFactor({
+  required String rawValue,
+  required String subjectName,
+}) {
+  final normalized = rawValue.trim().replaceAll(RegExp(r'\s+'), ' ');
+  if (normalized.isEmpty) {
+    return null;
+  }
+
+  final sourceMatch = RegExp(
+    r'source=([^,]+)(?:,\s*peer=|$)',
+    caseSensitive: false,
+  ).firstMatch(normalized);
+  if (sourceMatch != null) {
+    final sourceValue = sourceMatch.group(1)?.trim() ?? '';
+    if (sourceValue.isNotEmpty) {
+      return _GlobalPeerStrengthItem(
+        title: 'Business Model',
+        description: '$subjectName business model: $sourceValue.',
+        iconAsset: _globalPeerStrengthIcon(sourceValue, 0),
+      );
+    }
+  }
+
+  final mappedMatch = RegExp(
+    r'^(Sector|Industry|Scale):\s*both are mapped to\s+(.+?)\.?$',
+    caseSensitive: false,
+  ).firstMatch(normalized);
+  if (mappedMatch != null) {
+    final label = (mappedMatch.group(1) ?? '').toLowerCase();
+    final value = (mappedMatch.group(2) ?? '').trim();
+    final title = label == 'scale'
+        ? _formatGlobalPeerTag(value)
+        : _globalPeerStrengthTitle(value);
+    final description = label == 'scale'
+        ? '$subjectName is classified as ${_formatGlobalPeerTag(value)} in the global peer model.'
+        : '$subjectName is classified under $value ${label == 'sector' ? 'sector' : 'industry'} in the global peer model.';
+    return _GlobalPeerStrengthItem(
+      title: title,
+      description: description,
+      iconAsset: _globalPeerStrengthIcon(value, 0),
+    );
+  }
+
+  if (_globalPeerLooksComparative(normalized)) {
+    return null;
+  }
+
+  return _GlobalPeerStrengthItem(
+    title: _globalPeerSubjectFactorTitle(normalized),
+    description: normalized,
+    iconAsset: _globalPeerStrengthIcon(normalized, 0),
+  );
+}
+
+String _globalPeerSubjectFactorTitle(String value) {
+  final normalized = value.toLowerCase();
+  if (normalized.startsWith('revenue model')) {
+    return 'Revenue Mix';
+  }
+  if (normalized.startsWith('business model')) {
+    return 'Business Model';
+  }
+  if (normalized.startsWith('sector')) {
+    return 'Sector';
+  }
+  if (normalized.startsWith('industry')) {
+    return 'Industry';
+  }
+  return 'Business Strength';
+}
+
+bool _globalPeerLooksComparative(String value) {
+  final normalized = value.toLowerCase();
+  return normalized.contains('both ') ||
+      normalized.contains('peer=') ||
+      normalized.contains(' peer ') ||
+      normalized.contains('matched with') ||
+      normalized.contains('closest us-listed') ||
+      normalized.contains('comparison') ||
+      normalized.contains('similarity');
+}
+
+String _globalPeerStrengthIcon(String value, int index) {
+  final keyword = value.toLowerCase();
+  if (keyword.contains('memory') ||
+      keyword.contains('semiconductor') ||
+      keyword.contains('chip') ||
+      keyword.contains('nand') ||
+      keyword.contains('dram')) {
+    return AppAssets.stockQuestionMemoryIcon;
+  }
+  if (keyword.contains('foundry') ||
+      keyword.contains('fab') ||
+      keyword.contains('manufactur')) {
+    return AppAssets.stockQuestionFoundryIcon;
+  }
+  if (keyword.contains('ai') ||
+      keyword.contains('data') ||
+      keyword.contains('growth')) {
+    return AppAssets.stockQuestionAiIcon;
+  }
+  if (keyword.contains('ecosystem') ||
+      keyword.contains('platform') ||
+      keyword.contains('consumer')) {
+    return AppAssets.stockQuestionEcosystemIcon;
+  }
+  return [
+    AppAssets.stockQuestionMemoryIcon,
+    AppAssets.stockQuestionFoundryIcon,
+    AppAssets.stockQuestionEcosystemIcon,
+    AppAssets.stockQuestionAiIcon,
+  ][index % 4];
+}
+
+bool _isKnownTicker(String ticker, List<String> values) {
+  return values.contains(ticker.trim().toUpperCase());
 }
 
 String _globalPeerHeadline(GlobalPeerMatch match) {
