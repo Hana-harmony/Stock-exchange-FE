@@ -147,6 +147,10 @@ void main() {
       find.text('Korea market rebounds as chip stocks recover'),
       findsOneWidget,
     );
+    expect(
+      _findNetworkImage('https://news.example.com/market.jpg'),
+      findsOneWidget,
+    );
     await tester.tap(
       find.byKey(const ValueKey('market-news-card-MKT-NEWS-001')),
     );
@@ -2833,6 +2837,15 @@ Finder _findAssetImage(String assetName) {
         widget is Image &&
         widget.image is AssetImage &&
         (widget.image as AssetImage).assetName == assetName,
+  );
+}
+
+Finder _findNetworkImage(String url) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Image &&
+        widget.image is NetworkImage &&
+        (widget.image as NetworkImage).url == url,
   );
 }
 
