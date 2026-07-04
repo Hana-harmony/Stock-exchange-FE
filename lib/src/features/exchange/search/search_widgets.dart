@@ -58,7 +58,6 @@ class _MostSearchedRow extends StatelessWidget {
                   child: _SearchResultAvatar(
                     stockCode: item.stockCode,
                     stockName: item.stockName,
-                    logoUrl: item.logoUrl,
                   ),
                 ),
               ),
@@ -200,7 +199,6 @@ class _SearchResultTile extends StatelessWidget {
               _SearchResultAvatar(
                 stockCode: item.stockCode,
                 stockName: item.stockName,
-                logoUrl: item.logoUrl,
               ),
               const SizedBox(width: 8),
               Expanded(

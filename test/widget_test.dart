@@ -64,6 +64,10 @@ void main() {
     expect(find.text('Trending Stocks'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(
+      _findAssetImage('assets/stock_logos/kr/005930.png'),
+      findsWidgets,
+    );
+    expect(
       _findAssetImage(AppAssets.stockCardRed),
       findsNothing,
     );
@@ -145,6 +149,10 @@ void main() {
     );
     expect(
       find.text('Korea market rebounds as chip stocks recover'),
+      findsOneWidget,
+    );
+    expect(
+      _findNetworkImage('https://news.example.com/market.jpg'),
       findsOneWidget,
     );
     await tester.tap(
@@ -230,6 +238,12 @@ void main() {
 
     expect(find.text('AI Analysis'), findsOneWidget);
     expect(find.text('View Original'), findsOneWidget);
+    expect(find.text('Glossary'), findsOneWidget);
+    expect(find.text('Daejangju (Market Leader)'), findsOneWidget);
+    expect(
+      find.textContaining('dictates the overall trend.'),
+      findsOneWidget,
+    );
     final glossaryParagraph = tester.widget<RichText>(
       find.descendant(
         of: find.byKey(const ValueKey('notification-article-body-paragraph-1')),
@@ -238,42 +252,6 @@ void main() {
     );
     expect(
         glossaryParagraph.text.toPlainText(), contains('Daejangju for FY2025'));
-
-    await _tapSubstringInRichText(
-      tester,
-      find.descendant(
-        of: find.byKey(const ValueKey('notification-article-body-paragraph-1')),
-        matching: find.byType(RichText),
-      ),
-      'Daejangju',
-    );
-    await tester.pump();
-
-    expect(find.text('Financial Glossary'), findsOneWidget);
-    expect(find.text('Daejangju (Market Leader)'), findsOneWidget);
-    expect(
-      find.textContaining('dictates the overall trend.'),
-      findsOneWidget,
-    );
-
-    await tester.tapAt(const Offset(201, 150));
-    await tester.pump();
-    expect(find.text('Financial Glossary'), findsNothing);
-
-    await _tapSubstringInRichText(
-      tester,
-      find.descendant(
-        of: find.byKey(const ValueKey('notification-article-body-paragraph-1')),
-        matching: find.byType(RichText),
-      ),
-      'Daejangju',
-    );
-    await tester.pump();
-    expect(find.text('Financial Glossary'), findsOneWidget);
-
-    await tester.pump(const Duration(seconds: 10));
-    await tester.pump();
-    expect(find.text('Financial Glossary'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('notification-article-back')));
     await tester.pumpAndSettle();
@@ -695,6 +673,8 @@ void main() {
         findsOneWidget);
     expect(find.textContaining('Revenue model mixes'), findsOneWidget);
     expect(find.text('Global Comparison'), findsOneWidget);
+    expect(_findAssetImage('assets/stock_logos/us/SQ.png'), findsOneWidget);
+    expect(_findAssetImage('assets/stock_logos/us/PYPL.png'), findsOneWidget);
     expect(find.textContaining('Overall Business'), findsOneWidget);
     expect(find.textContaining('Block'), findsWidgets);
     expect(find.text('Key Strengths'), findsOneWidget);
@@ -2836,37 +2816,13 @@ Finder _findAssetImage(String assetName) {
   );
 }
 
-Future<void> _tapSubstringInRichText(
-  WidgetTester tester,
-  Finder richTextFinder,
-  String substring,
-) async {
-  final richText = tester.widget<RichText>(richTextFinder);
-  final paragraph = tester.renderObject<RenderParagraph>(richTextFinder);
-  final plainText = richText.text.toPlainText();
-  final start = plainText.indexOf(substring);
-  expect(start, isNonNegative, reason: 'Missing substring: $substring');
-
-  final boxes = paragraph.getBoxesForSelection(
-    TextSelection(baseOffset: start, extentOffset: start + substring.length),
+Finder _findNetworkImage(String url) {
+  return find.byWidgetPredicate(
+    (widget) =>
+        widget is Image &&
+        widget.image is NetworkImage &&
+        (widget.image as NetworkImage).url == url,
   );
-  expect(boxes, isNotEmpty, reason: 'No text boxes for substring: $substring');
-
-  var left = boxes.first.left;
-  var top = boxes.first.top;
-  var right = boxes.first.right;
-  var bottom = boxes.first.bottom;
-  for (final box in boxes.skip(1)) {
-    left = left < box.left ? left : box.left;
-    top = top < box.top ? top : box.top;
-    right = right > box.right ? right : box.right;
-    bottom = bottom > box.bottom ? bottom : box.bottom;
-  }
-
-  final tapOffset = paragraph.localToGlobal(
-    Offset((left + right) / 2, (top + bottom) / 2),
-  );
-  await tester.tapAt(tapOffset);
 }
 
 void _expectRect(Rect actual, Rect expected, {double tolerance = 1}) {

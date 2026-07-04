@@ -409,6 +409,15 @@ class _StockLogoBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final logoAssetPath = _koreanStockLogoAssetPath(stockCode);
+    if (logoAssetPath != null) {
+      return CircleAvatar(
+        radius: 18,
+        backgroundColor: AppColors.white,
+        foregroundImage: AssetImage(logoAssetPath),
+      );
+    }
+
     final colors = const [
       AppColors.green500,
       AppColors.orange500,
