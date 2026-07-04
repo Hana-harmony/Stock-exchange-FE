@@ -18,6 +18,7 @@ class _StockDetailSnapshot {
     required this.previousClose,
     required this.countryBadgeAsset,
     required this.showKoreaFlag,
+    required this.showsForeignOwnershipEstimate,
     required this.estimatedRange,
     required this.estimatedRangeMax,
     required this.previousDayForeignRatio,
@@ -55,6 +56,7 @@ class _StockDetailSnapshot {
   final String previousClose;
   final String countryBadgeAsset;
   final bool showKoreaFlag;
+  final bool showsForeignOwnershipEstimate;
   final String estimatedRange;
   final String estimatedRangeMax;
   final String previousDayForeignRatio;
@@ -132,20 +134,18 @@ class _StockDetailSnapshot {
         : quote != null
             ? _formatPercentDisplay(quote.changeRate)
             : _formatPercentDisplay(detail?.changeRate ?? fallback.changeRate);
-    final maxLimitRate = _parsePercent(
-      '${detail?.predictedForeignLimitExhaustionRateMax ?? fallback.estimatedMax}%',
-    );
+    final showsForeignOwnershipEstimate =
+        _showsForeignOwnershipEstimate(detail);
+    final estimateMaxRaw = showsForeignOwnershipEstimate
+        ? detail!.predictedForeignLimitExhaustionRateMax
+        : fallback.estimatedMax;
+    final maxLimitRate = _parsePercent('$estimateMaxRaw%');
     final limitForeignRatio =
-        detail == null ? fallback.limitForeignRatio : '100.00%';
+        showsForeignOwnershipEstimate ? '100.00%' : fallback.limitForeignRatio;
     final limitValue = _parsePercent(limitForeignRatio);
-    final confidenceLevel =
-        detail?.foreignOwnershipPredictionConfidenceLevel.toUpperCase() ?? '';
-    final isForeignLimitApplicable = detail == null ||
-        (!confidenceLevel.contains('NOT_APPLICABLE') &&
-            !confidenceLevel.contains('UNRESTRICTED'));
-    final isForeignLimitAlert = isForeignLimitApplicable && maxLimitRate >= 90;
-    final estimatedRangeMax =
-        '${detail?.predictedForeignLimitExhaustionRateMax ?? fallback.estimatedMax}%';
+    final isForeignLimitAlert =
+        showsForeignOwnershipEstimate && maxLimitRate >= 90;
+    final estimatedRangeMax = '$estimateMaxRaw%';
     final portfolio = tradeState.portfolio;
     MockHolding? holding;
     if (portfolio != null) {
@@ -185,15 +185,18 @@ class _StockDetailSnapshot {
           ? AppAssets.countryBadgeHk
           : AppAssets.countryBadgeKr,
       showKoreaFlag: !_isHongKongMarket(market),
-      estimatedRange: _formatRange(
-        detail?.predictedForeignLimitExhaustionRateMin,
-        detail?.predictedForeignLimitExhaustionRateMax,
-        fallback.estimatedRange,
-      ),
-      estimatedRangeMax:
-          '${detail?.predictedForeignLimitExhaustionRateMax ?? fallback.estimatedMax}%',
-      previousDayForeignRatio:
-          '${detail?.foreignLimitExhaustionRate ?? fallback.previousDayRatio}%',
+      showsForeignOwnershipEstimate: showsForeignOwnershipEstimate,
+      estimatedRange: showsForeignOwnershipEstimate
+          ? _formatRange(
+              detail!.predictedForeignLimitExhaustionRateMin,
+              detail.predictedForeignLimitExhaustionRateMax,
+              fallback.estimatedRange,
+            )
+          : fallback.estimatedRange,
+      estimatedRangeMax: estimatedRangeMax,
+      previousDayForeignRatio: showsForeignOwnershipEstimate
+          ? '${detail!.foreignLimitExhaustionRate}%'
+          : '${fallback.previousDayRatio}%',
       limitForeignRatio: limitForeignRatio,
       alertProgress:
           limitValue == 0 ? 0 : (maxLimitRate / limitValue).clamp(0, 1),
@@ -204,7 +207,7 @@ class _StockDetailSnapshot {
           ? 'Based on a time-series regression analysis\nwith a 95% confidence interval'
           : 'Based on the latest foreign ownership data\nand today forecast model',
       foreignLimitCardMessage: _foreignLimitCardMessage(
-        isApplicable: isForeignLimitApplicable,
+        isApplicable: showsForeignOwnershipEstimate,
         isAlert: isForeignLimitAlert,
         estimatedRangeMax: estimatedRangeMax,
         limitForeignRatio: limitForeignRatio,
@@ -326,6 +329,26 @@ String _marketStatusLabel({
     return 'Market status updating';
   }
   return fallback.marketStatus;
+}
+
+bool _showsForeignOwnershipEstimate(StockDetail? detail) {
+  if (detail == null) {
+    return false;
+  }
+  final confidenceLevel =
+      detail.foreignOwnershipPredictionConfidenceLevel.trim().toUpperCase();
+
+  // 옵니렌즈가 예측 대상이라고 분류한 종목에만 외국인 한도 예측 UI를 노출한다.
+  if (confidenceLevel.isEmpty ||
+      confidenceLevel == 'UNKNOWN' ||
+      confidenceLevel == 'N/A' ||
+      confidenceLevel == 'NA' ||
+      confidenceLevel == 'NONE' ||
+      confidenceLevel.contains('NOT_APPLICABLE') ||
+      confidenceLevel.contains('UNRESTRICTED')) {
+    return false;
+  }
+  return true;
 }
 
 String _foreignLimitCardMessage({
