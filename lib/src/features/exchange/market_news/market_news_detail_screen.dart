@@ -117,6 +117,19 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
                                             detail: detail,
                                           ),
                                         ),
+                                        if (detail
+                                            .glossaryEntries.isNotEmpty) ...[
+                                          const SizedBox(height: 20),
+                                          Padding(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 16,
+                                            ),
+                                            child:
+                                                _NotificationArticleGlossarySection(
+                                              entries: detail.glossaryEntries,
+                                            ),
+                                          ),
+                                        ],
                                         const SizedBox(height: 20),
                                         Padding(
                                           padding: const EdgeInsets.symmetric(
