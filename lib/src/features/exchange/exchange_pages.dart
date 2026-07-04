@@ -7,6 +7,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/account_controller.dart';
 import '../../core/currency_format.dart';
+import '../../core/exchange_api_client.dart';
 import '../../core/exchange_session_controller.dart';
 import '../../core/market_detail_controller.dart';
 import '../../core/market_index_controller.dart';

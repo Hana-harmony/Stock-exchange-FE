@@ -49,6 +49,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
   Timer? _searchDebounce;
   String _query = '';
   bool _isSearching = false;
+  String? _searchErrorMessage;
   bool _rankingsLoading = true;
   bool _trendingLoading = true;
   List<StockSearchItem> _liveResults = const [];
@@ -119,8 +120,10 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
       if (query.isEmpty) {
         _liveResults = const [];
         _isSearching = false;
+        _searchErrorMessage = null;
       } else {
         _isSearching = true;
+        _searchErrorMessage = null;
       }
     });
     if (query.isEmpty) {
@@ -139,6 +142,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
     setState(() {
       _query = query;
       _isSearching = true;
+      _searchErrorMessage = null;
     });
     try {
       final response = await widget.marketQuoteController.searchStocks(
@@ -151,6 +155,16 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
       setState(() {
         _liveResults = response.results;
         _isSearching = false;
+        _searchErrorMessage = null;
+      });
+    } on ExchangeApiException catch (error) {
+      if (!mounted || _controller.text.trim() != query) {
+        return;
+      }
+      setState(() {
+        _liveResults = const [];
+        _isSearching = false;
+        _searchErrorMessage = error.message;
       });
     } on Object {
       if (!mounted || _controller.text.trim() != query) {
@@ -159,6 +173,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
       setState(() {
         _liveResults = const [];
         _isSearching = false;
+        _searchErrorMessage = 'Unable to search stocks.';
       });
     }
   }
@@ -244,12 +259,15 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
   }
 
   void _rememberSelectedStock(StockSearchItem item) {
-    final label = item.stockName.isEmpty ? item.stockCode : item.stockName;
+    final label = _stockHistoryLabel(item);
     widget.onSearchCommitted(label);
     setState(() {
       _recentSearches = [
         label,
-        ..._recentSearches.where((entry) => entry != label),
+        ..._recentSearches.where(
+          (entry) =>
+              entry != label && _historySearchQuery(entry) != item.stockCode,
+        ),
       ].take(6).toList(growable: false);
     });
     unawaited(widget.marketQuoteController.recordSearchSelection(item));
@@ -334,6 +352,11 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
                         title: 'Searching stocks',
                         body: 'Loading matching tickers from the exchange.',
                       )
+                    else if (_searchErrorMessage != null)
+                      _ErrorStateCard(
+                        message: _searchErrorMessage!,
+                        onRetry: () => _runSearch(_query),
+                      )
                     else if (_liveResults.isEmpty)
                       const _MutedInfoCard(
                         title: 'No matching stocks',
@@ -387,11 +410,13 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
                             _HistoryChip(
                               query: _recentSearches[index],
                               onTap: () {
-                                _controller.text = _recentSearches[index];
+                                final historyEntry = _recentSearches[index];
+                                final query = _historySearchQuery(historyEntry);
+                                _controller.text = historyEntry;
                                 _controller.selection = TextSelection.collapsed(
                                   offset: _controller.text.length,
                                 );
-                                _submitQuery(_recentSearches[index]);
+                                _submitQuery(query);
                               },
                             ),
                             if (index != _recentSearches.length - 1)
@@ -563,6 +588,16 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       setState(() {
         _results = response.results;
         _isLoading = false;
+        _errorMessage = null;
+      });
+    } on ExchangeApiException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      setState(() {
+        _results = const [];
+        _isLoading = false;
+        _errorMessage = error.message;
       });
     } on Object {
       if (!mounted) {
@@ -571,7 +606,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       setState(() {
         _results = const [];
         _isLoading = false;
-        _errorMessage = null;
+        _errorMessage = 'Unable to search stocks.';
       });
     }
   }
@@ -588,8 +623,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
   }
 
   void _openDetail(StockSearchItem item) {
-    widget.onSearchCommitted(
-        item.stockName.isEmpty ? item.stockCode : item.stockName);
+    widget.onSearchCommitted(_stockHistoryLabel(item));
     unawaited(widget.marketQuoteController.recordSearchSelection(item));
     Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -674,6 +708,24 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
       ),
     );
   }
+}
+
+String _stockHistoryLabel(StockSearchItem item) {
+  final stockCode = item.stockCode.trim();
+  final stockName = item.stockName.trim();
+  if (stockCode.isEmpty) {
+    return stockName;
+  }
+  if (stockName.isEmpty || stockName == stockCode) {
+    return stockCode;
+  }
+  return '$stockCode $stockName';
+}
+
+String _historySearchQuery(String historyEntry) {
+  final normalized = historyEntry.trim();
+  final codeMatch = RegExp(r'^\d{6}\b').firstMatch(normalized);
+  return codeMatch == null ? normalized : codeMatch.group(0)!;
 }
 
 class _SearchHeaderBar extends StatelessWidget {

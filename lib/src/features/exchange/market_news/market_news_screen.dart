@@ -127,63 +127,50 @@ class _MarketNewsCard extends StatelessWidget {
           ),
           child: Padding(
             padding: const EdgeInsets.all(14),
-            child: Row(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _StockNewsImage(
-                  imageUrl: item.imageUrl,
-                  width: 82,
-                  height: 82,
+                Row(
+                  children: [
+                    _StockNewsTargetBadge(
+                      label: item.displayQuery,
+                    ),
+                    const Spacer(),
+                    Text(
+                      _relativeTimeLabel(
+                        item.publishedAt ?? item.createdAt,
+                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            fontSize: 12,
+                            color: AppColors.gray600,
+                          ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          _StockNewsTargetBadge(
-                            label: item.displayQuery,
-                          ),
-                          const Spacer(),
-                          Text(
-                            _relativeTimeLabel(
-                              item.publishedAt ?? item.createdAt,
-                            ),
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontSize: 12,
-                                      color: AppColors.gray600,
-                                    ),
-                          ),
-                        ],
+                const SizedBox(height: 8),
+                Text(
+                  item.displayTitle,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: 16,
+                        height: 1.35,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.gray1000,
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        item.displayTitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style:
-                            Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontSize: 16,
-                                  height: 1.35,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppColors.gray1000,
-                                ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        item.displaySummary,
-                        maxLines: 3,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: 13,
-                              height: 1.4,
-                              color: AppColors.gray700,
-                            ),
-                      ),
-                    ],
-                  ),
+                ),
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    _StockNewsSentimentBadge(
+                      sentiment: _sentimentFromString(item.sentiment),
+                    ),
+                    _StockNewsPriorityBadge(
+                      priority: _priorityFromStrings(item.importance, ''),
+                    ),
+                  ],
                 ),
               ],
             ),

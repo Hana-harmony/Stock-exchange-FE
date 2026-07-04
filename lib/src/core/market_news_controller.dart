@@ -116,6 +116,8 @@ class MarketNewsItem {
     required this.canonicalUrl,
     required this.sourceLicensePolicy,
     required this.glossaryTerms,
+    required this.sentiment,
+    required this.importance,
     required this.duplicateKey,
     this.publishedAt,
     this.createdAt,
@@ -136,6 +138,8 @@ class MarketNewsItem {
   final String canonicalUrl;
   final String sourceLicensePolicy;
   final List<AlertGlossaryTerm> glossaryTerms;
+  final String sentiment;
+  final String importance;
   final String duplicateKey;
   final DateTime? publishedAt;
   final DateTime? createdAt;
@@ -191,6 +195,8 @@ class MarketNewsItem {
       canonicalUrl: _string(json['canonicalUrl'], fallback: ''),
       sourceLicensePolicy: _string(json['sourceLicensePolicy'], fallback: ''),
       glossaryTerms: _glossaryTerms(json['glossaryTerms']),
+      sentiment: _string(json['sentiment'], fallback: 'NEUTRAL'),
+      importance: _string(json['importance'], fallback: 'MEDIUM'),
       duplicateKey: _string(json['duplicateKey'], fallback: ''),
       publishedAt: _dateTime(json['publishedAt']),
       createdAt: _dateTime(json['createdAt']),

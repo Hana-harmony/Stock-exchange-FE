@@ -4,6 +4,7 @@ class _StockDetailSnapshot {
   const _StockDetailSnapshot({
     required this.stockCode,
     required this.stockName,
+    required this.logoUrl,
     required this.marketStatusLabel,
     required this.currentPrice,
     required this.currentPriceKrwDisplay,
@@ -42,6 +43,7 @@ class _StockDetailSnapshot {
 
   final String stockCode;
   final String stockName;
+  final String logoUrl;
   final String marketStatusLabel;
   final String currentPrice;
   final String currentPriceKrwDisplay;
@@ -160,6 +162,7 @@ class _StockDetailSnapshot {
     return _StockDetailSnapshot(
       stockCode: stockCode,
       stockName: quote?.stockName ?? detail?.stockName ?? fallback.stockName,
+      logoUrl: detail?.logoUrl ?? '',
       marketStatusLabel: _marketStatusLabel(
         quote: quote,
         detail: detail,
