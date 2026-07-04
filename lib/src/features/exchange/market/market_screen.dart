@@ -157,6 +157,9 @@ class _MarketScreenState extends State<MarketScreen> {
               cards: marketStatusCards,
               indicators: _marketIndicators,
               isLoading: indexState.status == MarketIndexStatus.loading,
+              errorMessage: indexState.status == MarketIndexStatus.failure
+                  ? indexState.errorMessage
+                  : null,
             ),
             const SizedBox(height: 24),
             Padding(
@@ -196,24 +199,32 @@ class _MarketScreenState extends State<MarketScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  if (quoteState.status == MarketQuoteStatus.loading &&
-                      trendingStocks.isEmpty)
-                    const _MutedInfoCard(
-                      title: 'Loading stocks',
-                      body: 'Live Korea market quotes are being loaded.',
-                    )
-                  else if (trendingStocks.isEmpty)
-                    const _MutedInfoCard(
-                      title: 'No stocks',
-                      body: 'No live market quotes are available yet.',
-                    )
-                  else
+                  if (quoteState.status == MarketQuoteStatus.failure &&
+                      quoteState.errorMessage != null &&
+                      quoteState.errorMessage!.isNotEmpty) ...[
+                    _MutedInfoCard(
+                      title: 'Market data unavailable',
+                      body: quoteState.errorMessage!,
+                    ),
+                    if (trendingStocks.isNotEmpty) const SizedBox(height: 8),
+                  ],
+                  if (trendingStocks.isNotEmpty)
                     for (var index = 0; index < trendingStocks.length; index++)
                       _TrendingStockTile(
                         stock: trendingStocks[index],
                         rank: index + 1,
                         onTap: () => _openTrendingStock(trendingStocks[index]),
-                      ),
+                      )
+                  else if (quoteState.status == MarketQuoteStatus.loading)
+                    const _MutedInfoCard(
+                      title: 'Loading stocks',
+                      body: 'Live Korea market quotes are being loaded.',
+                    )
+                  else if (quoteState.status != MarketQuoteStatus.failure)
+                    const _MutedInfoCard(
+                      title: 'No stocks',
+                      body: 'No live market quotes are available yet.',
+                    ),
                 ],
               ),
             ),
@@ -359,18 +370,30 @@ class _MarketStatusSection extends StatelessWidget {
     required this.cards,
     required this.indicators,
     required this.isLoading,
+    this.errorMessage,
   });
 
   final List<_MarketStatusCardData> cards;
   final List<_MarketIndicatorData> indicators;
   final bool isLoading;
+  final String? errorMessage;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       key: const ValueKey('market-status-section'),
       children: [
-        if (cards.isEmpty)
+        if (errorMessage != null && errorMessage!.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: _MutedInfoCard(
+              title: 'Market indices unavailable',
+              body: errorMessage!,
+            ),
+          ),
+          if (cards.isNotEmpty) const SizedBox(height: 8),
+        ],
+        if (cards.isEmpty && (errorMessage == null || errorMessage!.isEmpty))
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             child: _MutedInfoCard(
