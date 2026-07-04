@@ -4,6 +4,8 @@ abstract final class AppAssets {
 
   static const logoSymbol = 'assets/icons/logo_symbol.png';
   static const headerAiIcon = 'assets/icons/header_icon_ai.png';
+  static const hanaMontanaAnalysisCharacter =
+      'assets/icons/hana_montana_analysis_character.png';
   static const headerNotifications = 'assets/icons/header_notifications.png';
   static const headerNotificationsNew =
       'assets/icons/header_notifications_new.png';

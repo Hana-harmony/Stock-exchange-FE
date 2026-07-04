@@ -237,20 +237,33 @@ void main() {
 
     expect(find.text('AI Analysis'), findsOneWidget);
     expect(find.text('View Original'), findsOneWidget);
-    expect(find.text('Glossary'), findsOneWidget);
-    expect(find.text('Daejangju (Market Leader)'), findsOneWidget);
-    expect(
-      find.textContaining('dictates the overall trend.'),
-      findsOneWidget,
-    );
+    expect(_findAssetImage(AppAssets.hanaMontanaAnalysisCharacter),
+        findsOneWidget);
+    expect(find.text('Glossary'), findsNothing);
     final glossaryParagraph = tester.widget<RichText>(
       find.descendant(
-        of: find.byKey(const ValueKey('notification-article-body-paragraph-1')),
+        of: find.byKey(const ValueKey('notification-article-body-paragraph-0')),
         matching: find.byType(RichText),
       ),
     );
     expect(
         glossaryParagraph.text.toPlainText(), contains('Daejangju for FY2025'));
+    await tester.tapAt(
+      tester.getTopLeft(
+            find.byKey(
+              const ValueKey('notification-article-body-paragraph-0'),
+            ),
+          ) +
+          const Offset(160, 12),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Financial Glossary'), findsOneWidget);
+    expect(find.text('Daejangju (Market Leader)'), findsOneWidget);
+    expect(
+      find.textContaining('dictates the overall trend.'),
+      findsOneWidget,
+    );
 
     await tester.tap(find.byKey(const ValueKey('notification-article-back')));
     await tester.pumpAndSettle();
@@ -2555,9 +2568,11 @@ Map<String, Object?> _notificationInboxJson() {
         'matchReasons': ['WATCHLIST'],
         'glossaryTerms': [
           _glossaryTerm(
-            sourceTerm: '대장주',
-            englishTerm: 'Daejangju',
+            sourceTerm: 'Daejangju',
+            englishTerm: 'Market Leader',
             category: 'MARKET',
+            description:
+                'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend.',
           ),
         ],
         'translationQualityFlags': ['GLOSSARY_MATCHED'],
@@ -2606,9 +2621,11 @@ Map<String, Object?> _samsungIntelligenceJson() {
         'clusterKey': 'samsung-disclosure',
         'glossaryTerms': [
           _glossaryTerm(
-            sourceTerm: '대장주',
-            englishTerm: 'Daejangju',
+            sourceTerm: 'Daejangju',
+            englishTerm: 'Market Leader',
             category: 'MARKET',
+            description:
+                'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend.',
           ),
         ],
         'translationQualityFlags': ['GLOSSARY_MATCHED'],
@@ -2700,12 +2717,14 @@ Map<String, Object?> _glossaryTerm({
   required String sourceTerm,
   required String englishTerm,
   required String category,
+  String? description,
 }) {
   return {
     'sourceTerm': sourceTerm,
     'normalizedTerm': sourceTerm,
     'englishTerm': englishTerm,
     'category': category,
+    if (description != null) 'description': description,
   };
 }
 
@@ -2751,12 +2770,12 @@ Map<String, Object?> _marketNewsDetailJson() {
         'returned to large-cap exporters.',
     'glossaryTerms': [
       {
-        'sourceTerm': '',
-        'normalizedTerm': 'daejangju',
-        'englishTerm': 'Daejangju',
+        'sourceTerm': 'Daejangju',
+        'normalizedTerm': '대장주',
+        'englishTerm': 'Market Leader',
         'category': 'market_slang',
         'description':
-            'A leading stock that often sets the tone for a sector or the broader market.',
+            'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend.',
       },
     ],
   };
