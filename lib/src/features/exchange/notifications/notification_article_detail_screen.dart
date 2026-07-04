@@ -89,6 +89,18 @@ class _NotificationArticleDetailScreenState
                                         detail: detail,
                                       ),
                                     ),
+                                    if (detail.glossaryEntries.isNotEmpty) ...[
+                                      const SizedBox(height: 20),
+                                      Padding(
+                                        padding: const EdgeInsets.symmetric(
+                                          horizontal: 16,
+                                        ),
+                                        child:
+                                            _NotificationArticleGlossarySection(
+                                          entries: detail.glossaryEntries,
+                                        ),
+                                      ),
+                                    ],
                                     const SizedBox(height: 20),
                                     Padding(
                                       padding: const EdgeInsets.symmetric(
@@ -448,6 +460,9 @@ class _NotificationArticleAnalysisCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (detail.analysisRows.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: _analysisCardGradient,
@@ -523,7 +538,7 @@ class _NotificationArticleAnalysisRow extends StatelessWidget {
 
   final _StockNewsSummaryRowData row;
   static const _analysisLineHeight = 1.4;
-  static const _analysisLetterSpacing = -0.24;
+  static const _analysisLetterSpacing = 0.0;
   static const _analysisStrutStyle = StrutStyle(
     fontSize: 12,
     height: _analysisLineHeight,
@@ -536,66 +551,46 @@ class _NotificationArticleAnalysisRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 34,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: _analysisLabelWidth(row.label),
-            child: OverflowBox(
-              alignment: Alignment.topLeft,
-              minWidth: _analysisLabelWidth(row.label),
-              maxWidth: _analysisLabelVisualWidth(row.label),
-              child: Text(
-                row.label,
-                maxLines: 1,
-                softWrap: false,
-                strutStyle: _analysisStrutStyle,
-                textHeightBehavior: _analysisTextHeightBehavior,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 12,
-                      height: _analysisLineHeight,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: _analysisLetterSpacing,
-                      color: AppColors.orange500,
-                    ),
-              ),
-            ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: _analysisLabelVisualWidth(row.label),
+          child: Text(
+            row.label,
+            maxLines: 1,
+            softWrap: false,
+            strutStyle: _analysisStrutStyle,
+            textHeightBehavior: _analysisTextHeightBehavior,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 12,
+                  height: _analysisLineHeight,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: _analysisLetterSpacing,
+                  color: AppColors.orange500,
+                ),
           ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: SizedBox(
-              height: 34,
-              child: Text(
-                row.value,
-                maxLines: 2,
-                strutStyle: _analysisStrutStyle,
-                textHeightBehavior: _analysisTextHeightBehavior,
-                overflow: TextOverflow.clip,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 12,
-                      height: _analysisLineHeight,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: _analysisLetterSpacing,
-                      color: AppColors.gray700,
-                    ),
-              ),
-            ),
+        ),
+        const SizedBox(width: 6),
+        Expanded(
+          child: Text(
+            row.value,
+            strutStyle: _analysisStrutStyle,
+            textHeightBehavior: _analysisTextHeightBehavior,
+            softWrap: true,
+            overflow: TextOverflow.visible,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 12,
+                  height: _analysisLineHeight,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: _analysisLetterSpacing,
+                  color: AppColors.gray700,
+                ),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
-}
-
-double _analysisLabelWidth(String label) {
-  return switch (label) {
-    'What' => 29,
-    'Why' => 24,
-    'Impact' => 37,
-    _ => 42,
-  };
 }
 
 double _analysisLabelVisualWidth(String label) {
@@ -605,6 +600,90 @@ double _analysisLabelVisualWidth(String label) {
     'Impact' => 39,
     _ => 44,
   };
+}
+
+class _NotificationArticleGlossarySection extends StatelessWidget {
+  const _NotificationArticleGlossarySection({
+    required this.entries,
+  });
+
+  final List<_NotificationArticleGlossaryEntry> entries;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColors.gray200),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Glossary',
+              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontSize: 14,
+                    height: 1.4,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.gray1000,
+                  ),
+            ),
+            const SizedBox(height: 10),
+            for (var index = 0; index < entries.length; index++) ...[
+              _NotificationArticleGlossaryListItem(entry: entries[index]),
+              if (index != entries.length - 1)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 10),
+                  child: Divider(height: 1, color: AppColors.gray200),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NotificationArticleGlossaryListItem extends StatelessWidget {
+  const _NotificationArticleGlossaryListItem({
+    required this.entry,
+  });
+
+  final _NotificationArticleGlossaryEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          entry.title,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontSize: 13,
+                height: 1.4,
+                fontWeight: FontWeight.w700,
+                color: AppColors.gray1000,
+              ),
+        ),
+        if (entry.description.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text(
+            entry.description,
+            softWrap: true,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  height: 1.45,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.gray700,
+                ),
+          ),
+        ],
+      ],
+    );
+  }
 }
 
 class _NotificationArticleBody extends StatelessWidget {
@@ -801,24 +880,7 @@ class _NotificationArticleDetailData {
       relativeTimeLabel: _relativeTimeLabel(item.publishedAt ?? item.createdAt),
       sentiment: _StockNewsSentiment.positive,
       priority: _StockNewsPriority.medium,
-      analysisRows: rows.isEmpty
-          ? [
-              _StockNewsSummaryRowData(
-                label: 'What',
-                value: item.displaySummary,
-              ),
-              _StockNewsSummaryRowData(
-                label: 'Why',
-                value:
-                    'OmniLens translated and summarized this Korea market news for local investors.',
-              ),
-              _StockNewsSummaryRowData(
-                label: 'Impact',
-                value:
-                    'Use the full article context and glossary terms before making a trading decision.',
-              ),
-            ]
-          : rows,
+      analysisRows: rows,
       bodyText: bodyText.isNotEmpty ? bodyText : item.displayTitle,
       glossaryEntries: _glossaryEntriesFromTerms(
         item.glossaryTerms,
