@@ -79,6 +79,15 @@ bool _looksLikeSummaryOnlyBody(
   AlertSummaryLines summaryLines,
   String translatedSummary,
 ) {
+  final lower = value.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+  if (lower.contains(
+        'the original korean text is retained because machine translation was unavailable',
+      ) ||
+      lower.contains(
+        'review the linked article or filing for price, liquidity, and portfolio impact',
+      )) {
+    return true;
+  }
   if (_looksLikeStructuredSummaryText(value)) {
     return true;
   }

@@ -36,4 +36,35 @@ void main() {
     expect(item.displayBody, item.originalContent);
     expect(item.displayBody, isNot(contains('What:')));
   });
+
+  test('does not treat translation fallback notice as market news body', () {
+    final item = MarketNewsItem.fromJson({
+      'newsId': 'mkt-2',
+      'query': '한국 증시',
+      'title': '시장 뉴스',
+      'translatedTitle': 'Market news',
+      'summary': '요약',
+      'summaryLines': {
+        'what': 'KOSPI rose on foreign buying.',
+        'why': 'The article cites stronger semiconductor demand.',
+        'impact': 'Investors should monitor index breadth.',
+      },
+      'translatedSummary': 'Translated summary.',
+      'originalContent': '실제 원문 전문입니다. 번역 실패 시 이 원문을 본문으로 표시해야 합니다.',
+      'translatedContent':
+          'The original Korean text is retained because machine translation was unavailable. Review the linked article or filing for price, liquidity, and portfolio impact.',
+      'imageUrls': <String>[],
+      'contentAvailability': 'ORIGINAL_TEXT_ONLY',
+      'originalUrl': 'https://news.example.com/market/2',
+      'canonicalUrl': 'https://news.example.com/market/2',
+      'sourceLicensePolicy': 'licensed_naver_original_full_text_v1',
+      'glossaryTerms': <Object>[],
+      'sentiment': 'NEUTRAL',
+      'importance': 'MEDIUM',
+      'duplicateKey': 'mkt-duplicate-2',
+    });
+
+    expect(item.displayBody, item.originalContent);
+    expect(item.displayBody, isNot(contains('machine translation')));
+  });
 }
