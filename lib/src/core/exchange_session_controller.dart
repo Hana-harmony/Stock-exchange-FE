@@ -94,9 +94,12 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     required String username,
     required String password,
   }) async {
-    if (_hasInvalidCredentials(username: username, password: password)) {
-      value =
-          ExchangeSessionState.failure('Username and password are required.');
+    final validationError = _credentialValidationError(
+      username: username,
+      password: password,
+    );
+    if (validationError != null) {
+      value = ExchangeSessionState.failure(validationError);
       return;
     }
 
@@ -122,9 +125,12 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     required String username,
     required String password,
   }) async {
-    if (_hasInvalidCredentials(username: username, password: password)) {
-      value =
-          ExchangeSessionState.failure('Username and password are required.');
+    final validationError = _credentialValidationError(
+      username: username,
+      password: password,
+    );
+    if (validationError != null) {
+      value = ExchangeSessionState.failure(validationError);
       return;
     }
 
@@ -182,10 +188,20 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     value = const ExchangeSessionState.signedOut();
   }
 
-  bool _hasInvalidCredentials({
+  String? _credentialValidationError({
     required String username,
     required String password,
   }) {
-    return username.trim().isEmpty || password.isEmpty;
+    final trimmedUsername = username.trim();
+    if (trimmedUsername.isEmpty || password.isEmpty) {
+      return 'Username and password are required.';
+    }
+    if (!RegExp(r'^[A-Za-z0-9_]{4,30}$').hasMatch(trimmedUsername)) {
+      return 'Username must be 4-30 letters, numbers, or underscores.';
+    }
+    if (password.length < 8 || password.length > 72) {
+      return 'Password must be 8-72 characters.';
+    }
+    return null;
   }
 }
