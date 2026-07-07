@@ -157,10 +157,18 @@ class MarketNewsItem {
   }
 
   String get displayBody {
-    if (_looksEnglish(translatedContent)) {
+    if (_isArticleBodyCandidate(
+      translatedContent,
+      summaryLines: summaryLines,
+      translatedSummary: translatedSummary,
+    )) {
       return translatedContent;
     }
-    if (_looksEnglish(originalContent)) {
+    if (_isArticleBodyCandidate(
+      originalContent,
+      summaryLines: summaryLines,
+      translatedSummary: translatedSummary,
+    )) {
       return originalContent;
     }
     return '';
@@ -280,4 +288,65 @@ bool _looksEnglish(String value) {
     return letterCount > 0;
   }
   return letterCount > hangulCount * 2;
+}
+
+bool _isArticleBodyCandidate(
+  String value, {
+  required AlertSummaryLines summaryLines,
+  required String translatedSummary,
+}) {
+  final trimmed = value.trim();
+  if (trimmed.isEmpty ||
+      _looksLikeSummaryOnlyBody(trimmed, summaryLines, translatedSummary)) {
+    return false;
+  }
+  return _looksEnglish(trimmed) || RegExp(r'[가-힣]').hasMatch(trimmed);
+}
+
+bool _looksLikeSummaryOnlyBody(
+  String value,
+  AlertSummaryLines summaryLines,
+  String translatedSummary,
+) {
+  if (_looksLikeStructuredSummaryText(value)) {
+    return true;
+  }
+  final normalized = _normalizeArticleBodyComparison(value);
+  final translatedSummaryNormalized =
+      _normalizeArticleBodyComparison(translatedSummary);
+  if (translatedSummaryNormalized.isNotEmpty &&
+      normalized == translatedSummaryNormalized) {
+    return true;
+  }
+  final rawSummaryLines = [
+    summaryLines.what,
+    summaryLines.why,
+    summaryLines.impact,
+  ].where((line) => line.trim().isNotEmpty).join(' ');
+  final labeledSummaryLines = summaryLines.lines.join(' ');
+  return normalized.isNotEmpty &&
+      (normalized == _normalizeArticleBodyComparison(rawSummaryLines) ||
+          normalized == _normalizeArticleBodyComparison(labeledSummaryLines));
+}
+
+bool _looksLikeStructuredSummaryText(String value) {
+  final lower = value.replaceAll(RegExp(r'\s+'), ' ').trim().toLowerCase();
+  return RegExp(r'(^|\s)what\s*:').hasMatch(lower) &&
+      RegExp(r'(^|\s)why\s*:').hasMatch(lower) &&
+      RegExp(r'(^|\s)impact\s*:').hasMatch(lower);
+}
+
+String _normalizeArticleBodyComparison(String value) {
+  return value
+      .replaceAll(
+        RegExp(
+          r'\b(what|why|impact|what happened|why it matters|investor impact)\s*:',
+          caseSensitive: false,
+        ),
+        '',
+      )
+      .replaceAll(RegExp(r'[^\w가-힣%]+'), ' ')
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim()
+      .toLowerCase();
 }

@@ -677,8 +677,8 @@ class _NotificationArticleDetailData {
     StockIntelligenceItem? intelligenceItem,
   }) {
     final resolvedBodyText = intelligenceItem != null
-        ? intelligenceItem.translatedContent.isNotEmpty
-            ? intelligenceItem.translatedContent
+        ? intelligenceItem.displayBody.isNotEmpty
+            ? intelligenceItem.displayBody
             : _articleBodyUnavailableText
         : item.summary.isNotEmpty
             ? '${item.title}\n${item.summary}'

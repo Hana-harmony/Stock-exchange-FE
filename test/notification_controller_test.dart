@@ -168,6 +168,20 @@ void main() {
     expect(controller.value.status, NotificationStatus.failure);
     expect(controller.value.errorMessage, 'Sign in to load alert inbox.');
   });
+
+  test('does not treat What Why Impact summary as stock article body', () {
+    final item = StockIntelligenceItem.fromJson({
+      ...((_stockIntelligenceJson()['items'] as List<Object?>).single
+          as Map<String, Object?>),
+      'translatedContent':
+          'What: Samsung earnings improved. Why: HBM demand expanded. Impact: Investors should monitor profits.',
+      'originalContent': '삼성전자 뉴스 원문 전문입니다. HBM 수요 확대와 실적 개선 배경을 상세히 설명합니다.',
+    });
+
+    expect(item.displayBody, item.originalContent);
+    expect(item.contentPreview, startsWith('삼성전자 뉴스 원문 전문입니다.'));
+    expect(item.contentPreview, isNot(contains('What:')));
+  });
 }
 
 http.Response _jsonEnvelope(Map<String, Object?> data) {
