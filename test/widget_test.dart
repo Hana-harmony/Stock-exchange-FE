@@ -10,6 +10,7 @@ import 'package:stock_exchange_fe/src/app.dart';
 import 'package:stock_exchange_fe/src/core/account_controller.dart';
 import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/exchange_session_controller.dart';
+import 'package:stock_exchange_fe/src/core/market_calendar_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_detail_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_index_controller.dart';
 import 'package:stock_exchange_fe/src/core/market_news_controller.dart';
@@ -37,7 +38,10 @@ void main() {
     addTearDown(marketQuoteController.dispose);
 
     await tester.pumpWidget(
-      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        nowProvider: () => DateTime.parse('2026-07-06T00:15:00Z'),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -58,8 +62,8 @@ void main() {
     expect(find.text('KOSPI'), findsWidgets);
     expect(find.text('KOSDAQ'), findsWidgets);
     expect(find.text('2570.94'), findsOneWidget);
-    expect(find.text('21:30'), findsOneWidget);
-    expect(find.text('Retail Sales (MOM)'), findsWidgets);
+    expect(find.text('09:15'), findsOneWidget);
+    expect(find.text('Closing call auction'), findsWidgets);
     expect(find.text('Trending Stocks'), findsOneWidget);
     expect(find.text('Samsung Electronics'), findsWidgets);
     expect(
@@ -1305,7 +1309,7 @@ void main() {
     expect(find.text('Foreign Ownership'), findsOneWidget);
     expect(find.text('KOSPI'), findsOneWidget);
     expect(find.text('27.0%~27.6%'), findsOneWidget);
-    expect(find.text('test / HIGH 0.91'), findsOneWidget);
+    expect(find.text('test / TIME_SERIES_ADJUSTED 0.91'), findsOneWidget);
     expect(find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
         findsNothing);
     expect(find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
@@ -1337,6 +1341,77 @@ void main() {
     expect(chartRequests.last.queryParameters['to'], '2026-07-03');
     expect(chartRequests.last.queryParameters['interval'], '1d');
     expect(find.text('+USD 5.50 +18.33%'), findsWidgets);
+  });
+
+  testWidgets('extends 1D stock chart with live quote candle', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController(
+      seedQuotes: [
+        MarketQuote(
+          stockCode: '035720',
+          stockName: 'Kakao',
+          market: 'KOSPI',
+          currentPriceKrw: '56000',
+          changeRate: '+2.30%',
+          volume: 1300000,
+          localCurrency: 'USD',
+          localCurrencyPrice: '36.70',
+          fxRate: '1525.93',
+          fxRateTime: null,
+          fxRateSource: 'Hana-OmniLens-API',
+          fxStale: false,
+          marketDataTime: DateTime.utc(2026, 7, 3, 5, 1, 30),
+          badge: 'Live',
+        ),
+      ],
+    );
+    final marketDetailController = _marketDetailController(
+      stockMarketDataTime: '2026-07-03T06:30:00Z',
+    );
+    final sessionController = _sessionController();
+    final tradeController = _tradeController();
+    final notificationController = _notificationController();
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+    addTearDown(sessionController.dispose);
+    addTearDown(tradeController.dispose);
+    addTearDown(notificationController.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: StockDetailScreen(
+          sessionController: sessionController,
+          marketDetailController: marketDetailController,
+          marketQuoteController: marketQuoteController,
+          tradeController: tradeController,
+          notificationController: notificationController,
+          stockCode: '035720',
+          title: 'Kakao',
+          market: 'KOSPI',
+          sector: 'IT',
+          nowProvider: () => DateTime.parse('2026-07-03T05:02:00Z'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(marketQuoteController.quoteFor('035720')?.currentPriceKrw, '56000');
+    expect(
+      marketQuoteController.quoteFor('035720')?.marketDataTime?.toUtc(),
+      DateTime.utc(2026, 7, 3, 5, 1, 30),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('stock-detail-tab-chart')));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const ValueKey('stock-chart-content')), findsOneWidget);
+    expect(find.text('1D price chart'), findsOneWidget);
+    final latestPrice = tester.widget<Text>(
+      find.byKey(const ValueKey('stock-chart-latest-price')),
+    );
+    expect(latestPrice.data, 'USD 36.70');
   });
 
   testWidgets('hides foreign ownership forecast for non restricted stocks',
@@ -1709,6 +1784,7 @@ class _RecordingUrlLauncher extends UrlLauncherPlatform {
 
 StockExchangeApp _stockExchangeTestApp({
   required MarketQuoteController marketQuoteController,
+  MarketCalendarController? marketCalendarController,
   MarketIndexController? marketIndexController,
   MarketQuoteController? watchlistQuoteController,
   MarketDetailController? marketDetailController,
@@ -1721,6 +1797,8 @@ StockExchangeApp _stockExchangeTestApp({
     sessionController: _sessionController(),
     accountController: _accountController(),
     tradeController: _tradeController(),
+    marketCalendarController:
+        marketCalendarController ?? _marketCalendarController(),
     marketDetailController: marketDetailController ?? _marketDetailController(),
     marketIndexController: marketIndexController ?? _marketIndexController(),
     marketNewsController: marketNewsController ?? _marketNewsController(),
@@ -1874,7 +1952,7 @@ MarketDetailController _marketDetailController({
   String priceLimitState = 'NORMAL',
   List<Uri>? chartRequests,
   String stockMarketDataTime = '2026-06-18T06:00:00Z',
-  String foreignOwnershipPredictionConfidenceLevel = 'HIGH',
+  String foreignOwnershipPredictionConfidenceLevel = 'TIME_SERIES_ADJUSTED',
   String foreignOwnershipPredictionConfidenceScore = '0.91',
   String foreignOwnershipPredictionModelVersion = 'test',
 }) {
@@ -2152,6 +2230,20 @@ MarketNewsController _marketNewsController() {
   );
 }
 
+MarketCalendarController _marketCalendarController() {
+  return MarketCalendarController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        if (request.url.path == '/api/v1/market/calendar') {
+          return _jsonEnvelope(_marketCalendarJson());
+        }
+        return http.Response('{}', 404);
+      }),
+    ),
+  );
+}
+
 MarketIndexController _marketIndexController() {
   return MarketIndexController(
     apiClient: ExchangeApiClient(
@@ -2189,9 +2281,11 @@ MarketIndexController _marketIndexController() {
   );
 }
 
-MarketQuoteController _marketQuoteController() {
+MarketQuoteController _marketQuoteController({
+  List<MarketQuote> seedQuotes = seedMarketQuotes,
+}) {
   return MarketQuoteController(
-    seedQuotes: seedMarketQuotes,
+    seedQuotes: seedQuotes,
     apiClient: ExchangeApiClient(
       baseUri: Uri.parse('http://localhost:3000'),
       httpClient: MockClient((request) async {
@@ -2205,8 +2299,8 @@ MarketQuoteController _marketQuoteController() {
               'realtime': 'WebSocket',
             },
             'cache': {'status': 'HIT'},
-            'quoteCount': seedMarketQuotes.length,
-            'quotes': seedMarketQuotes.map(_quoteJson).toList(),
+            'quoteCount': seedQuotes.length,
+            'quotes': seedQuotes.map(_quoteJson).toList(),
             'servedAt': '2026-06-18T06:00:00Z',
           });
         }
@@ -2457,6 +2551,7 @@ Map<String, Object?> _quoteJson(MarketQuote quote) {
     'fxRate': quote.fxRate,
     'fxRateSource': quote.fxRateSource,
     'fxStale': quote.fxStale,
+    'marketDataTime': quote.marketDataTime?.toUtc().toIso8601String(),
     'badge': quote.badge,
   };
 }
@@ -2758,6 +2853,57 @@ Map<String, Object?> _marketNewsJson() {
         'createdAt': '2026-06-18T04:05:00Z',
       },
     ],
+  };
+}
+
+Map<String, Object?> _marketCalendarJson() {
+  return {
+    'dataSource': 'KOREA_EXCHANGE_SESSION_SCHEDULE',
+    'market': 'KOSPI/KOSDAQ',
+    'timezone': 'Asia/Seoul',
+    'currentTime': '2026-07-06T09:15:00+09:00',
+    'currentDate': '2026-07-06',
+    'currentStatus': 'REGULAR_SESSION',
+    'eventCount': 3,
+    'events': [
+      {
+        'eventId': 'KRX-2026-07-06-CLOSING_CALL_AUCTION',
+        'title': 'Closing call auction',
+        'market': 'KOSPI/KOSDAQ',
+        'eventType': 'CLOSING_CALL_AUCTION',
+        'scheduledAt': '2026-07-06T15:20:00+09:00',
+        'timeLabel': '15:20 KST',
+        'dateLabel': 'Jul 6',
+        'importance': 'HIGH',
+        'status': 'UPCOMING',
+        'minutesUntil': 365,
+      },
+      {
+        'eventId': 'KRX-2026-07-06-REGULAR_MARKET_CLOSE',
+        'title': 'Regular market closes',
+        'market': 'KOSPI/KOSDAQ',
+        'eventType': 'REGULAR_MARKET_CLOSE',
+        'scheduledAt': '2026-07-06T15:30:00+09:00',
+        'timeLabel': '15:30 KST',
+        'dateLabel': 'Jul 6',
+        'importance': 'HIGH',
+        'status': 'UPCOMING',
+        'minutesUntil': 375,
+      },
+      {
+        'eventId': 'KRX-2026-07-06-AFTER_HOURS_SINGLE_PRICE',
+        'title': 'After-hours single-price session',
+        'market': 'KOSPI/KOSDAQ',
+        'eventType': 'AFTER_HOURS_SINGLE_PRICE',
+        'scheduledAt': '2026-07-06T16:00:00+09:00',
+        'timeLabel': '16:00 KST',
+        'dateLabel': 'Jul 6',
+        'importance': 'MEDIUM',
+        'status': 'UPCOMING',
+        'minutesUntil': 405,
+      },
+    ],
+    'servedAt': '2026-07-06T00:15:00Z',
   };
 }
 

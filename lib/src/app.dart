@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'core/account_controller.dart';
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
+import 'core/market_calendar_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_index_controller.dart';
 import 'core/market_news_controller.dart';
@@ -31,6 +32,7 @@ class StockExchangeApp extends StatelessWidget {
     this.sessionController,
     this.accountController,
     this.tradeController,
+    this.marketCalendarController,
     this.marketDetailController,
     this.marketIndexController,
     this.marketNewsController,
@@ -47,6 +49,7 @@ class StockExchangeApp extends StatelessWidget {
   final ExchangeSessionController? sessionController;
   final AccountController? accountController;
   final TradeController? tradeController;
+  final MarketCalendarController? marketCalendarController;
   final MarketDetailController? marketDetailController;
   final MarketIndexController? marketIndexController;
   final MarketNewsController? marketNewsController;
@@ -69,6 +72,7 @@ class StockExchangeApp extends StatelessWidget {
         sessionController: sessionController,
         accountController: accountController,
         tradeController: tradeController,
+        marketCalendarController: marketCalendarController,
         marketDetailController: marketDetailController,
         marketIndexController: marketIndexController,
         marketNewsController: marketNewsController,
@@ -91,6 +95,7 @@ class ExchangeShell extends StatefulWidget {
     this.sessionController,
     this.accountController,
     this.tradeController,
+    this.marketCalendarController,
     this.marketDetailController,
     this.marketIndexController,
     this.marketNewsController,
@@ -107,6 +112,7 @@ class ExchangeShell extends StatefulWidget {
   final ExchangeSessionController? sessionController;
   final AccountController? accountController;
   final TradeController? tradeController;
+  final MarketCalendarController? marketCalendarController;
   final MarketDetailController? marketDetailController;
   final MarketIndexController? marketIndexController;
   final MarketNewsController? marketNewsController;
@@ -133,6 +139,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final ExchangeSessionController _sessionController;
   late final AccountController _accountController;
   late final TradeController _tradeController;
+  late final MarketCalendarController _marketCalendarController;
   late final MarketDetailController _marketDetailController;
   late final MarketIndexController _marketIndexController;
   late final MarketNewsController _marketNewsController;
@@ -153,6 +160,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
     _sessionController = widget.sessionController ?? _createSessionController();
     _accountController = widget.accountController ?? _createAccountController();
     _tradeController = widget.tradeController ?? _createTradeController();
+    _marketCalendarController =
+        widget.marketCalendarController ?? _createMarketCalendarController();
     _marketDetailController =
         widget.marketDetailController ?? _createMarketDetailController();
     _marketIndexController =
@@ -216,6 +225,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return MarketDetailController(apiClient: _apiClient);
   }
 
+  MarketCalendarController _createMarketCalendarController() {
+    return MarketCalendarController(apiClient: _apiClient);
+  }
+
   MarketIndexController _createMarketIndexController() {
     return MarketIndexController(
       apiClient: _apiClient,
@@ -263,6 +276,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
     }
     if (widget.tradeController == null) {
       _tradeController.dispose();
+    }
+    if (widget.marketCalendarController == null) {
+      _marketCalendarController.dispose();
     }
     if (widget.marketDetailController == null) {
       _marketDetailController.dispose();
@@ -551,6 +567,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
         MarketScreen(
           sessionController: _sessionController,
           tradeController: _tradeController,
+          marketCalendarController: _marketCalendarController,
           marketDetailController: _marketDetailController,
           marketIndexController: _marketIndexController,
           marketQuoteController: _marketQuoteController,

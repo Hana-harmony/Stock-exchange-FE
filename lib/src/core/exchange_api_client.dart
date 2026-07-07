@@ -568,6 +568,13 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketCalendar({int limit = 6}) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/market/calendar',
+      query: {'limit': '$limit'},
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getMarketNewsDetail(String newsId) {
     return get<Map<String, dynamic>>('/api/v1/market/news/$newsId');
   }

@@ -99,6 +99,9 @@ class MarketIndex {
     required this.changeRate,
     required this.accumulatedVolume,
     required this.accumulatedTradingValue,
+    required this.openValue,
+    required this.highValue,
+    required this.lowValue,
     this.marketDataTime,
     required this.source,
   });
@@ -112,6 +115,9 @@ class MarketIndex {
   final String changeRate;
   final int accumulatedVolume;
   final int accumulatedTradingValue;
+  final String openValue;
+  final String highValue;
+  final String lowValue;
   final DateTime? marketDataTime;
   final String source;
 
@@ -126,6 +132,9 @@ class MarketIndex {
       changeRate: _string(json['changeRate'], fallback: '0'),
       accumulatedVolume: _int(json['accumulatedVolume']),
       accumulatedTradingValue: _int(json['accumulatedTradingValue']),
+      openValue: _string(json['openValue'], fallback: '0'),
+      highValue: _string(json['highValue'], fallback: '0'),
+      lowValue: _string(json['lowValue'], fallback: '0'),
       marketDataTime: _dateTime(json['marketDataTime']),
       source: _string(json['source'], fallback: 'KIS_WEBSOCKET_INDEX'),
     );
@@ -490,7 +499,7 @@ double? _double(Object? value) {
   if (value is num) {
     return value.toDouble();
   }
-  return double.tryParse(value?.toString() ?? '');
+  return double.tryParse(value?.toString().replaceAll(',', '').trim() ?? '');
 }
 
 DateTime? _dateTime(Object? value) {

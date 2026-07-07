@@ -160,19 +160,10 @@ class MarketNewsItem {
     if (_looksEnglish(translatedContent)) {
       return translatedContent;
     }
-    if (_looksEnglish(translatedSummary)) {
-      return translatedSummary;
-    }
-    if (summaryLines.hasAny) {
-      return summaryLines.lines.join('\n\n');
-    }
-    if (_looksEnglish(summary)) {
-      return summary;
-    }
     if (_looksEnglish(originalContent)) {
       return originalContent;
     }
-    return displayTitle;
+    return '';
   }
 
   String? get imageUrl => imageUrls.isEmpty ? null : imageUrls.first;

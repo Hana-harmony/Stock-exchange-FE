@@ -5,6 +5,7 @@ class MarketScreen extends StatefulWidget {
     super.key,
     required this.sessionController,
     required this.tradeController,
+    required this.marketCalendarController,
     required this.marketDetailController,
     required this.marketIndexController,
     required this.marketQuoteController,
@@ -17,6 +18,7 @@ class MarketScreen extends StatefulWidget {
 
   final ExchangeSessionController sessionController;
   final TradeController tradeController;
+  final MarketCalendarController marketCalendarController;
   final MarketDetailController marketDetailController;
   final MarketIndexController marketIndexController;
   final MarketQuoteController marketQuoteController;
@@ -43,6 +45,8 @@ class _MarketScreenState extends State<MarketScreen> {
 
   int _selectedCategoryIndex = 0;
   List<String> _marketTrendingStockCodes = _defaultTrendingStockCodes;
+  Timer? _calendarClockTimer;
+  DateTime? _lastCalendarRequestedAt;
 
   static const _defaultTrendingStockCodes = <String>[
     '005930',
@@ -57,31 +61,49 @@ class _MarketScreenState extends State<MarketScreen> {
     '012330',
   ];
 
-  static const _marketIndicators = <_MarketIndicatorData>[
-    _MarketIndicatorData(
-      previous: 'Prev 0.5%',
-      consensus: 'Cons 0.5%',
-      actual: 'Act --',
-      indicator: 'Retail Sales (MOM)',
-    ),
-    _MarketIndicatorData(
-      previous: 'Prev 0.5%',
-      consensus: 'Cons 0.5%',
-      actual: 'Act --',
-      indicator: 'Retail Sales (MOM)',
-    ),
-    _MarketIndicatorData(
-      previous: 'Prev 0.5%',
-      consensus: 'Cons 0.5%',
-      actual: 'Act --',
-      indicator: 'Retail Sales (MOM)',
-    ),
-  ];
-
   @override
   void initState() {
     super.initState();
+    _startMarketCalendarClock();
+    unawaited(_loadMarketCalendar());
     _loadLiveMarketData();
+  }
+
+  @override
+  void didUpdateWidget(covariant MarketScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.marketCalendarController != widget.marketCalendarController) {
+      unawaited(_loadMarketCalendar());
+    }
+  }
+
+  @override
+  void dispose() {
+    _calendarClockTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startMarketCalendarClock() {
+    _calendarClockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() {});
+        _loadMarketCalendarIfStale();
+      }
+    });
+  }
+
+  Future<void> _loadMarketCalendar() {
+    _lastCalendarRequestedAt = DateTime.now();
+    return widget.marketCalendarController.load(limit: 6);
+  }
+
+  void _loadMarketCalendarIfStale() {
+    final lastRequestedAt = _lastCalendarRequestedAt;
+    if (lastRequestedAt == null ||
+        DateTime.now().difference(lastRequestedAt) >=
+            const Duration(minutes: 1)) {
+      unawaited(_loadMarketCalendar());
+    }
   }
 
   Future<void> _loadLiveMarketData() async {
@@ -106,12 +128,16 @@ class _MarketScreenState extends State<MarketScreen> {
       animation: Listenable.merge([
         widget.marketIndexController,
         widget.marketQuoteController,
+        widget.marketCalendarController,
       ]),
       builder: (context, _) {
         final indexState = widget.marketIndexController.value;
         final quoteState = widget.marketQuoteController.value;
+        final calendarState = widget.marketCalendarController.value;
         final marketStatusCards = _buildMarketStatusCards(indexState);
         final trendingStocks = _buildTrendingStocks(quoteState);
+        final calendarHeader = _buildMarketCalendarHeader();
+        final calendarEvents = _buildMarketCalendarEvents(calendarState);
 
         return ListView(
           padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
@@ -155,7 +181,8 @@ class _MarketScreenState extends State<MarketScreen> {
             const SizedBox(height: 24),
             _MarketStatusSection(
               cards: marketStatusCards,
-              indicators: _marketIndicators,
+              calendarHeader: calendarHeader,
+              calendarEvents: calendarEvents,
               isLoading: indexState.status == MarketIndexStatus.loading,
               errorMessage: indexState.status == MarketIndexStatus.failure
                   ? indexState.errorMessage
@@ -333,6 +360,7 @@ class _MarketScreenState extends State<MarketScreen> {
   List<_MarketStatusCardData> _buildMarketStatusCards(MarketIndexState state) {
     return state.indices.take(3).map((index) {
       final changeRate = _parsePercent(index.changeRate);
+      final chartProgress = _koreanRegularSessionProgress(index.marketDataTime);
       return _MarketStatusCardData(
         title: index.indexName,
         value: index.currentValue,
@@ -341,9 +369,8 @@ class _MarketScreenState extends State<MarketScreen> {
         isPositive: changeRate >= 0,
         points: _normalizeSparkline(
           state.intradaySeriesFor(index.indexCode),
-          fallback: double.tryParse(index.currentValue.replaceAll(',', '')),
         ),
-        chartProgress: _koreanRegularSessionProgress(index.marketDataTime),
+        chartProgress: chartProgress,
       );
     }).toList(growable: false);
   }
@@ -363,18 +390,105 @@ class _MarketScreenState extends State<MarketScreen> {
       );
     }).toList(growable: false);
   }
+
+  _MarketCalendarHeaderData _buildMarketCalendarHeader() {
+    final kst = _now().toUtc().add(const Duration(hours: 9));
+    return _MarketCalendarHeaderData(
+      time: _formatKoreanMarketCalendarTime(kst),
+      date: _formatKoreanMarketCalendarDate(kst),
+    );
+  }
+
+  List<_MarketCalendarEventData> _buildMarketCalendarEvents(
+    MarketCalendarState state,
+  ) {
+    final events = state.calendar?.events ?? const <MarketCalendarEvent>[];
+    if (events.isNotEmpty) {
+      return events
+          .take(6)
+          .map(_toMarketCalendarEventData)
+          .toList(growable: false);
+    }
+    if (state.status == MarketCalendarStatus.loading) {
+      return const [
+        _MarketCalendarEventData(
+          label: 'Syncing',
+          title: 'Korea market calendar',
+          detail: 'Loading server events',
+          isHighImportance: false,
+        ),
+      ];
+    }
+    if (state.status == MarketCalendarStatus.failure) {
+      return [
+        _MarketCalendarEventData(
+          label: 'Error',
+          title: 'Calendar unavailable',
+          detail: state.errorMessage ?? 'Unable to load events',
+          isHighImportance: true,
+        ),
+      ];
+    }
+    return const [
+      _MarketCalendarEventData(
+        label: 'Waiting',
+        title: 'Korea market calendar',
+        detail: 'No upcoming events yet',
+        isHighImportance: false,
+      ),
+    ];
+  }
+
+  _MarketCalendarEventData _toMarketCalendarEventData(
+    MarketCalendarEvent event,
+  ) {
+    final isHighImportance = event.importance.toUpperCase() == 'HIGH';
+    final until = _marketCalendarRelativeLabel(event.scheduledAt);
+    final detailParts = <String>[
+      if (event.dateLabel.trim().isNotEmpty) event.dateLabel.trim(),
+      if (event.timeLabel.trim().isNotEmpty) event.timeLabel.trim(),
+    ];
+    return _MarketCalendarEventData(
+      label: '${isHighImportance ? 'High' : 'Medium'} · $until',
+      title: event.title,
+      detail: detailParts.isEmpty ? event.market : detailParts.join(' · '),
+      isHighImportance: isHighImportance,
+    );
+  }
+
+  String _marketCalendarRelativeLabel(DateTime? scheduledAt) {
+    if (scheduledAt == null) {
+      return 'upcoming';
+    }
+    final now = _now();
+    final diff = scheduledAt.toUtc().difference(now.toUtc());
+    if (diff.inMinutes <= 0) {
+      return 'now';
+    }
+    if (diff.inMinutes < 60) {
+      return 'in ${diff.inMinutes}m';
+    }
+    if (diff.inHours < 24) {
+      return 'in ${diff.inHours}h';
+    }
+    return 'in ${diff.inDays}d';
+  }
+
+  DateTime _now() => widget.nowProvider?.call() ?? DateTime.now();
 }
 
 class _MarketStatusSection extends StatelessWidget {
   const _MarketStatusSection({
     required this.cards,
-    required this.indicators,
+    required this.calendarHeader,
+    required this.calendarEvents,
     required this.isLoading,
     this.errorMessage,
   });
 
   final List<_MarketStatusCardData> cards;
-  final List<_MarketIndicatorData> indicators;
+  final _MarketCalendarHeaderData calendarHeader;
+  final List<_MarketCalendarEventData> calendarEvents;
   final bool isLoading;
   final String? errorMessage;
 
@@ -428,7 +542,10 @@ class _MarketStatusSection extends StatelessWidget {
             padding: const EdgeInsets.only(left: 16),
             child: Row(
               children: [
-                const _MarketIndicatorTimeBlock(time: '21:30', date: 'Jun 17'),
+                _MarketIndicatorTimeBlock(
+                  time: calendarHeader.time,
+                  date: calendarHeader.date,
+                ),
                 const SizedBox(width: 20),
                 Expanded(
                   child: SingleChildScrollView(
@@ -437,13 +554,13 @@ class _MarketStatusSection extends StatelessWidget {
                     child: Row(
                       children: [
                         for (var index = 0;
-                            index < indicators.length;
+                            index < calendarEvents.length;
                             index++) ...[
                           _MarketIndicatorSummary(
                             key: ValueKey('market-indicator-summary-$index'),
-                            data: indicators[index],
+                            data: calendarEvents[index],
                           ),
-                          if (index != indicators.length - 1) ...[
+                          if (index != calendarEvents.length - 1) ...[
                             const SizedBox(width: 20),
                             const SizedBox(
                               width: 1,
@@ -545,7 +662,7 @@ class _MarketIndicatorTimeBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 45,
+      width: 64,
       height: 45,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -570,7 +687,6 @@ class _MarketIndicatorTimeBlock extends StatelessWidget {
                     fontSize: 14,
                     height: 1.4,
                     fontWeight: FontWeight.w400,
-                    letterSpacing: -0.28,
                     color: AppColors.orange500,
                   ),
             ),
@@ -584,7 +700,7 @@ class _MarketIndicatorTimeBlock extends StatelessWidget {
 class _MarketIndicatorSummary extends StatelessWidget {
   const _MarketIndicatorSummary({super.key, required this.data});
 
-  final _MarketIndicatorData data;
+  final _MarketCalendarEventData data;
 
   @override
   Widget build(BuildContext context) {
@@ -592,8 +708,8 @@ class _MarketIndicatorSummary extends StatelessWidget {
           fontSize: 12,
           height: 1.4,
           fontWeight: FontWeight.w400,
-          letterSpacing: -0.24,
-          color: AppColors.gray600,
+          color:
+              data.isHighImportance ? AppColors.orange500 : AppColors.gray600,
         );
     final indicatorStyle = Theme.of(context).textTheme.bodyMedium?.copyWith(
           fontSize: 16,
@@ -602,35 +718,38 @@ class _MarketIndicatorSummary extends StatelessWidget {
           color: AppColors.gray900,
         );
 
+    final detailStyle = Theme.of(context).textTheme.bodySmall?.copyWith(
+          fontSize: 12,
+          height: 1.25,
+          color: AppColors.gray600,
+        );
+
     return SizedBox(
-      width: 160,
-      height: 41,
+      width: 188,
+      height: 58,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            height: 17,
-            child: Row(
-              children: [
-                SizedBox(
-                  width: 53,
-                  child: Text(data.previous, style: labelStyle),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 57,
-                  child: Text(data.consensus, style: labelStyle),
-                ),
-                const SizedBox(width: 8),
-                SizedBox(
-                  width: 34,
-                  child: Text(data.actual, style: labelStyle),
-                ),
-              ],
-            ),
+          Text(
+            data.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: labelStyle,
           ),
           const SizedBox(height: 2),
-          Text(data.indicator, style: indicatorStyle),
+          Text(
+            data.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: indicatorStyle,
+          ),
+          const SizedBox(height: 1),
+          Text(
+            data.detail,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: detailStyle,
+          ),
         ],
       ),
     );
@@ -919,24 +1038,34 @@ class _MarketStatusCardData {
   final double chartProgress;
 }
 
-class _MarketIndicatorData {
-  const _MarketIndicatorData({
-    required this.previous,
-    required this.consensus,
-    required this.actual,
-    required this.indicator,
+class _MarketCalendarHeaderData {
+  const _MarketCalendarHeaderData({
+    required this.time,
+    required this.date,
   });
 
-  final String previous;
-  final String consensus;
-  final String actual;
-  final String indicator;
+  final String time;
+  final String date;
 }
 
-List<double> _normalizeSparkline(List<double> values, {double? fallback}) {
-  final source = values.isNotEmpty ? values : [if (fallback != null) fallback];
+class _MarketCalendarEventData {
+  const _MarketCalendarEventData({
+    required this.label,
+    required this.title,
+    required this.detail,
+    required this.isHighImportance,
+  });
+
+  final String label;
+  final String title;
+  final String detail;
+  final bool isHighImportance;
+}
+
+List<double> _normalizeSparkline(List<double> values) {
+  final source = values;
   if (source.length < 2) {
-    return const [0.5, 0.5];
+    return const [];
   }
   final minValue = source.reduce((a, b) => a < b ? a : b);
   final maxValue = source.reduce((a, b) => a > b ? a : b);
@@ -988,4 +1117,13 @@ String _signedText(String value) {
     return trimmed;
   }
   return '+$trimmed';
+}
+
+String _formatKoreanMarketCalendarTime(DateTime kst) {
+  return '${kst.hour.toString().padLeft(2, '0')}:'
+      '${kst.minute.toString().padLeft(2, '0')}';
+}
+
+String _formatKoreanMarketCalendarDate(DateTime kst) {
+  return '${_monthLabels[kst.month - 1]} ${kst.day}';
 }

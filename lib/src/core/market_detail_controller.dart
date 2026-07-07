@@ -310,6 +310,40 @@ class MarketChartPoint {
   String get closeLocalDisplay =>
       formatCurrencyDisplay(localCurrency, closeLocalCurrencyPrice);
 
+  MarketChartPoint copyWith({
+    String? tradeDate,
+    String? openPriceKrw,
+    String? highPriceKrw,
+    String? lowPriceKrw,
+    String? closePriceKrw,
+    String? localCurrency,
+    String? openLocalCurrencyPrice,
+    String? highLocalCurrencyPrice,
+    String? lowLocalCurrencyPrice,
+    String? closeLocalCurrencyPrice,
+    int? volume,
+    bool? adjusted,
+  }) {
+    return MarketChartPoint(
+      tradeDate: tradeDate ?? this.tradeDate,
+      openPriceKrw: openPriceKrw ?? this.openPriceKrw,
+      highPriceKrw: highPriceKrw ?? this.highPriceKrw,
+      lowPriceKrw: lowPriceKrw ?? this.lowPriceKrw,
+      closePriceKrw: closePriceKrw ?? this.closePriceKrw,
+      localCurrency: localCurrency ?? this.localCurrency,
+      openLocalCurrencyPrice:
+          openLocalCurrencyPrice ?? this.openLocalCurrencyPrice,
+      highLocalCurrencyPrice:
+          highLocalCurrencyPrice ?? this.highLocalCurrencyPrice,
+      lowLocalCurrencyPrice:
+          lowLocalCurrencyPrice ?? this.lowLocalCurrencyPrice,
+      closeLocalCurrencyPrice:
+          closeLocalCurrencyPrice ?? this.closeLocalCurrencyPrice,
+      volume: volume ?? this.volume,
+      adjusted: adjusted ?? this.adjusted,
+    );
+  }
+
   static MarketChartPoint fromJson(Map<String, dynamic> json) {
     return MarketChartPoint(
       tradeDate: _string(json['tradeDate'], fallback: ''),

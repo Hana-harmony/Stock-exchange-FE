@@ -340,18 +340,17 @@ bool _showsForeignOwnershipEstimate(StockDetail? detail) {
   }
   final confidenceLevel =
       detail.foreignOwnershipPredictionConfidenceLevel.trim().toUpperCase();
+  const applicableLevels = {
+    'SNAPSHOT_ONLY',
+    'TIME_SERIES_ADJUSTED',
+    'LIMITED_TIME_SERIES',
+    'AI_TIME_SERIES_ADJUSTED',
+    'AI_LIMITED_TIME_SERIES',
+    'FOREIGN_LIMIT_ZERO_NOT_ACQUIRABLE',
+  };
 
-  // 옵니렌즈가 예측 대상이라고 분류한 종목에만 외국인 한도 예측 UI를 노출한다.
-  if (confidenceLevel.isEmpty ||
-      confidenceLevel == 'UNKNOWN' ||
-      confidenceLevel == 'N/A' ||
-      confidenceLevel == 'NA' ||
-      confidenceLevel == 'NONE' ||
-      confidenceLevel.contains('NOT_APPLICABLE') ||
-      confidenceLevel.contains('UNRESTRICTED')) {
-    return false;
-  }
-  return true;
+  // 외국인 취득한도 제한 종목 전용 confidence만 예측 UI를 노출한다.
+  return applicableLevels.contains(confidenceLevel);
 }
 
 String _foreignLimitCardMessage({

@@ -411,10 +411,24 @@ class _StockLogoBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final logoAssetPath = _koreanStockLogoAssetPath(stockCode);
     if (logoAssetPath != null) {
-      return CircleAvatar(
-        radius: 18,
-        backgroundColor: AppColors.white,
-        foregroundImage: AssetImage(logoAssetPath),
+      return Semantics(
+        label: '$stockName logo',
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.white,
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColors.gray200),
+          ),
+          child: ClipOval(
+            child: Image.asset(
+              logoAssetPath,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+            ),
+          ),
+        ),
       );
     }
 

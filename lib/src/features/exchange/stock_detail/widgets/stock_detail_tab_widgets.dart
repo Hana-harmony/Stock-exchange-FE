@@ -167,25 +167,33 @@ class _StockOrderTab extends StatelessWidget {
 class _StockChartTab extends StatelessWidget {
   const _StockChartTab({
     required this.chart,
+    required this.chartPoints,
     required this.status,
     required this.errorMessage,
     required this.marketDataTime,
+    required this.liveQuote,
     required this.selectedPeriod,
     required this.onPeriodChanged,
   });
 
   final MarketChart? chart;
+  final List<MarketChartPoint>? chartPoints;
   final MarketDetailStatus status;
   final String? errorMessage;
   final DateTime? marketDataTime;
+  final MarketQuote? liveQuote;
   final _StockChartPeriod selectedPeriod;
   final ValueChanged<_StockChartPeriod> onPeriodChanged;
 
   @override
   Widget build(BuildContext context) {
-    final rawPoints = chart?.points ?? const <MarketChartPoint>[];
+    final rawPoints =
+        chartPoints ?? chart?.points ?? const <MarketChartPoint>[];
+    final oneDayPoints = selectedPeriod == _StockChartPeriod.oneDay
+        ? _oneDayChartPointsWithLiveQuote(rawPoints, liveQuote)
+        : rawPoints;
     final points = selectedPeriod == _StockChartPeriod.oneDay
-        ? _visibleOneDayChartPoints(rawPoints, marketDataTime)
+        ? _visibleOneDayChartPoints(oneDayPoints, marketDataTime)
         : rawPoints;
     if (status == MarketDetailStatus.loading) {
       return ListView(
@@ -297,6 +305,7 @@ class _StockChartCard extends StatelessWidget {
                 ),
                 Text(
                   latest.closeLocalDisplay,
+                  key: const ValueKey('stock-chart-latest-price'),
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -757,24 +766,175 @@ List<MarketChartPoint> _visibleOneDayChartPoints(
   if (cutoffKst == null) {
     return points;
   }
-  final cutoffDay = _koreanDateOnly(cutoffKst);
+  final cutoffDayKey = _koreanDateKey(cutoffKst);
   final cutoffMinutes = cutoffKst.hour * 60 + cutoffKst.minute;
   final visible = points.where((point) {
     final tradeDate = _parseKoreanChartTradeDate(point.tradeDate);
     if (tradeDate == null) {
       return true;
     }
-    final tradeDay = DateTime(tradeDate.year, tradeDate.month, tradeDate.day);
-    if (tradeDay.isBefore(cutoffDay)) {
+    final tradeDayKey = _koreanDateKey(tradeDate);
+    if (tradeDayKey < cutoffDayKey) {
       return true;
     }
-    if (tradeDay.isAfter(cutoffDay)) {
+    if (tradeDayKey > cutoffDayKey) {
       return false;
     }
     final tradeMinutes = tradeDate.hour * 60 + tradeDate.minute;
     return tradeMinutes <= cutoffMinutes;
   }).toList(growable: false);
   return visible.isEmpty ? points.take(1).toList(growable: false) : visible;
+}
+
+List<MarketChartPoint> _oneDayChartPointsWithLiveQuote(
+  List<MarketChartPoint> points,
+  MarketQuote? liveQuote,
+) {
+  if (liveQuote == null || liveQuote.isAfterHours) {
+    return points;
+  }
+  final liveKst = liveQuote.marketDataTime?.toUtc().add(
+        const Duration(hours: 9),
+      );
+  if (liveKst == null || !_isOneDayRegularSessionTick(liveKst)) {
+    return points;
+  }
+  final livePriceKrw = _parseAmount(liveQuote.currentPriceKrw);
+  if (livePriceKrw == null || livePriceKrw <= 0) {
+    return points;
+  }
+
+  final liveBucket = DateTime(
+    liveKst.year,
+    liveKst.month,
+    liveKst.day,
+    liveKst.hour,
+    liveKst.minute,
+  );
+  final liveBucketText = _formatKoreanChartBucket(liveBucket);
+  final livePriceText = _formatLiveChartAmount(liveQuote.currentPriceKrw);
+  final liveLocalText =
+      _formatLiveChartAmount(liveQuote.effectiveLocalCurrencyPrice);
+  final next = List<MarketChartPoint>.of(points);
+  final bucketIndex = next.indexWhere((point) {
+    final tradeDate = _parseKoreanChartTradeDate(point.tradeDate);
+    return tradeDate != null &&
+        DateTime(
+              tradeDate.year,
+              tradeDate.month,
+              tradeDate.day,
+              tradeDate.hour,
+              tradeDate.minute,
+            ) ==
+            liveBucket;
+  });
+
+  if (bucketIndex >= 0) {
+    next[bucketIndex] = _mergeLiveQuoteIntoChartPoint(
+      next[bucketIndex],
+      liveQuote,
+      livePriceKrw,
+      livePriceText,
+      liveLocalText,
+    );
+  } else {
+    next.add(_liveQuoteChartPoint(
+      liveQuote,
+      liveBucketText,
+      livePriceText,
+      liveLocalText,
+    ));
+  }
+
+  next.sort((left, right) {
+    final leftDate = _parseKoreanChartTradeDate(left.tradeDate);
+    final rightDate = _parseKoreanChartTradeDate(right.tradeDate);
+    if (leftDate == null || rightDate == null) {
+      return left.tradeDate.compareTo(right.tradeDate);
+    }
+    return leftDate.compareTo(rightDate);
+  });
+  return next;
+}
+
+bool _isOneDayRegularSessionTick(DateTime kst) {
+  if (!_isKoreanRegularSessionWeekday(kst)) {
+    return false;
+  }
+  final minutes = kst.hour * 60 + kst.minute;
+  return minutes >= _koreanRegularOpenMinutes &&
+      minutes <= _koreanRegularCloseMinutes;
+}
+
+MarketChartPoint _mergeLiveQuoteIntoChartPoint(
+  MarketChartPoint point,
+  MarketQuote liveQuote,
+  double livePriceKrw,
+  String livePriceText,
+  String liveLocalText,
+) {
+  final highPrice = _parseAmount(point.highPriceKrw) ?? livePriceKrw;
+  final lowPrice = _parseAmount(point.lowPriceKrw) ?? livePriceKrw;
+  final isNewHigh = livePriceKrw > highPrice;
+  final isNewLow = livePriceKrw < lowPrice;
+  return point.copyWith(
+    highPriceKrw: isNewHigh ? livePriceText : point.highPriceKrw,
+    lowPriceKrw: isNewLow ? livePriceText : point.lowPriceKrw,
+    closePriceKrw: livePriceText,
+    localCurrency: liveQuote.localCurrency,
+    highLocalCurrencyPrice:
+        isNewHigh ? liveLocalText : point.highLocalCurrencyPrice,
+    lowLocalCurrencyPrice:
+        isNewLow ? liveLocalText : point.lowLocalCurrencyPrice,
+    closeLocalCurrencyPrice: liveLocalText,
+  );
+}
+
+MarketChartPoint _liveQuoteChartPoint(
+  MarketQuote liveQuote,
+  String tradeDate,
+  String priceKrw,
+  String localPrice,
+) {
+  return MarketChartPoint(
+    tradeDate: tradeDate,
+    openPriceKrw: priceKrw,
+    highPriceKrw: priceKrw,
+    lowPriceKrw: priceKrw,
+    closePriceKrw: priceKrw,
+    localCurrency: liveQuote.localCurrency,
+    openLocalCurrencyPrice: localPrice,
+    highLocalCurrencyPrice: localPrice,
+    lowLocalCurrencyPrice: localPrice,
+    closeLocalCurrencyPrice: localPrice,
+    volume: 0,
+    adjusted: false,
+  );
+}
+
+String _formatKoreanChartBucket(DateTime value) {
+  return '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}T'
+      '${value.hour.toString().padLeft(2, '0')}:'
+      '${value.minute.toString().padLeft(2, '0')}:00';
+}
+
+String _formatLiveChartAmount(String value) {
+  final parsed = _parseAmount(value);
+  if (parsed == null) {
+    return value;
+  }
+  if (parsed == parsed.roundToDouble()) {
+    return parsed.round().toString();
+  }
+  return parsed
+      .toStringAsFixed(4)
+      .replaceFirst(RegExp(r'0+$'), '')
+      .replaceFirst(
+        RegExp(r'\.$'),
+        '',
+      );
 }
 
 DateTime? _oneDayChartCutoffKst({
@@ -788,17 +948,18 @@ DateTime? _oneDayChartCutoffKst({
   if (sessionDay == null) {
     return null;
   }
-  final referenceKst =
-      (marketDataTime ?? DateTime.now()).toUtc().add(const Duration(hours: 9));
-  final referenceDay = _koreanDateOnly(referenceKst);
-  final referenceMinutes = referenceKst.hour * 60 + referenceKst.minute;
-  if (!_isKoreanRegularSessionWeekday(referenceKst) ||
-      referenceDay != sessionDay ||
-      referenceMinutes < _koreanRegularOpenMinutes ||
-      referenceMinutes >= _koreanRegularCloseMinutes) {
-    return null;
+
+  // 차트 API가 반환한 최신 분봉을 우선 사용해 상세 snapshot 지연으로 인한 잘림을 막는다.
+  final latestPointKst = _parseKoreanChartTradeDate(points.last.tradeDate);
+  if (_isOneDayRegularSessionCutoff(latestPointKst, sessionDay)) {
+    return latestPointKst;
   }
-  return referenceKst;
+
+  final referenceKst = marketDataTime?.toUtc().add(const Duration(hours: 9));
+  if (_isOneDayRegularSessionCutoff(referenceKst, sessionDay)) {
+    return referenceKst;
+  }
+  return null;
 }
 
 DateTime? _chartSessionDay(List<MarketChartPoint> points) {
@@ -807,6 +968,22 @@ DateTime? _chartSessionDay(List<MarketChartPoint> points) {
     return null;
   }
   return _koreanDateOnly(tradeDate);
+}
+
+bool _isOneDayRegularSessionCutoff(DateTime? kst, DateTime sessionDay) {
+  if (kst == null || !_isKoreanRegularSessionWeekday(kst)) {
+    return false;
+  }
+  if (_koreanDateKey(kst) != _koreanDateKey(sessionDay)) {
+    return false;
+  }
+  final minutes = kst.hour * 60 + kst.minute;
+  return minutes >= _koreanRegularOpenMinutes &&
+      minutes < _koreanRegularCloseMinutes;
+}
+
+int _koreanDateKey(DateTime value) {
+  return value.year * 10000 + value.month * 100 + value.day;
 }
 
 Color _chartTrendColor(List<MarketChartPoint> points) {
