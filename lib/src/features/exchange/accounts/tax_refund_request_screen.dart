@@ -29,6 +29,12 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       'image/jpeg',
       'text/plain',
     ],
+    uniformTypeIdentifiers: [
+      'com.adobe.pdf',
+      'public.png',
+      'public.jpeg',
+      'public.plain-text',
+    ],
   );
 
   static const _documents = <_TaxRequiredDocument>[
