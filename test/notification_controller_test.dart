@@ -178,8 +178,8 @@ void main() {
       'originalContent': '삼성전자 뉴스 원문 전문입니다. HBM 수요 확대와 실적 개선 배경을 상세히 설명합니다.',
     });
 
-    expect(item.displayBody, item.originalContent);
-    expect(item.contentPreview, startsWith('삼성전자 뉴스 원문 전문입니다.'));
+    expect(item.displayBody, isEmpty);
+    expect(item.contentPreview, isEmpty);
     expect(item.contentPreview, isNot(contains('What:')));
   });
 
@@ -189,10 +189,10 @@ void main() {
           as Map<String, Object?>),
       'translatedContent':
           'The original Korean text is retained because machine translation was unavailable. Review the linked article or filing for price, liquidity, and portfolio impact.',
-      'originalContent': '삼성전자 공시 원문 전문입니다. 번역 실패 시 이 원문을 본문으로 표시해야 합니다.',
+      'originalContent': '삼성전자 공시 원문 전문입니다. 번역 실패 시 이 원문은 본문으로 표시하지 않습니다.',
     });
 
-    expect(item.displayBody, item.originalContent);
+    expect(item.displayBody, isEmpty);
     expect(item.contentPreview, isNot(contains('machine translation')));
   });
 }

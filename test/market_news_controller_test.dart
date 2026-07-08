@@ -33,7 +33,7 @@ void main() {
       'createdAt': '2026-06-18T06:01:00Z',
     });
 
-    expect(item.displayBody, item.originalContent);
+    expect(item.displayBody, isEmpty);
     expect(item.displayBody, isNot(contains('What:')));
   });
 
@@ -50,7 +50,7 @@ void main() {
         'impact': 'Investors should monitor index breadth.',
       },
       'translatedSummary': 'Translated summary.',
-      'originalContent': '실제 원문 전문입니다. 번역 실패 시 이 원문을 본문으로 표시해야 합니다.',
+      'originalContent': '실제 원문 전문입니다. 번역 실패 시 이 원문은 본문으로 표시하지 않습니다.',
       'translatedContent':
           'The original Korean text is retained because machine translation was unavailable. Review the linked article or filing for price, liquidity, and portfolio impact.',
       'imageUrls': <String>[],
@@ -64,7 +64,7 @@ void main() {
       'duplicateKey': 'mkt-duplicate-2',
     });
 
-    expect(item.displayBody, item.originalContent);
+    expect(item.displayBody, isEmpty);
     expect(item.displayBody, isNot(contains('machine translation')));
   });
 }
