@@ -41,17 +41,47 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     _TaxRequiredDocument(
       type: 'RESIDENCE_CERTIFICATE',
       title: 'Certificate of Tax Residence',
-      subtitle: 'Verifies your tax residency to determine eligibility.',
+      listDescription:
+          'Verifies your tax residency to determine eligibility for treaty tax benefits.',
+      uploadTitle: 'Upload\nCertificate of\nTax Residence',
+      uploadDescription:
+          'Upload your Certificate of Tax Residence\nto verify your tax residency.',
+      infoTitle: 'Why is Certificate of Tax Residence required?',
+      infoText:
+          'This document verifies your tax residency and confirms your eligibility to claim tax treaty benefits in accordance with the applicable tax regulations.',
+      badge: 'Document 1',
+      uploadStep: 2,
+      analyzingStep: 3,
     ),
     _TaxRequiredDocument(
       type: 'APOSTILLE',
-      title: 'Apostille Certificate',
-      subtitle: 'Certifies authenticity for international use.',
+      title: 'Appostille Certificate',
+      listDescription:
+          'Certifies the authenticity of your official documents for international use.',
+      uploadTitle: 'Upload\nAppostille Certificate',
+      uploadDescription:
+          'Upload your Certificate of Tax Residence\nto verify your tax residency.',
+      infoTitle: 'Why is an Apostille required?',
+      infoText:
+          'It is required for the Certificate of Residence to be recognized as a public document holding legal effect by public authorities and financial institutions in Korea.',
+      badge: 'Document 2',
+      uploadStep: 4,
+      analyzingStep: 5,
     ),
     _TaxRequiredDocument(
       type: 'REDUCED_TAX_APPLICATION',
-      title: 'Reduced Withholding Tax Rate Application',
-      subtitle: 'Requests the treaty withholding tax rate.',
+      title: 'Reduced Withholding\nTax Rate Application',
+      listDescription:
+          'Requests the application of the reduced withholding tax rate on eligible dividend income.',
+      uploadTitle: 'Upload\nReduced Withholding\nTax Rate Application',
+      uploadDescription:
+          'Upload your completed application to\nrequest the reduced withholding tax rate.',
+      infoTitle: 'Why is a Reduced Withholding\nTax Rate Application required?',
+      infoText:
+          'This application allows you to request a reduced withholding tax rate under the applicable tax treaty.',
+      badge: 'Document 3',
+      uploadStep: 6,
+      analyzingStep: 7,
     ),
   ];
 
@@ -92,6 +122,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     setState(() {
       _fileErrorMessage = null;
     });
+
     final _PickedTaxDocumentFile? file;
     try {
       file = await _pickTaxDocumentFile();
@@ -106,6 +137,13 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     if (file == null) {
       return;
     }
+
+    if (mounted) {
+      setState(() {
+        _step = document.analyzingStep;
+      });
+    }
+
     await widget.taxController.uploadDocument(
       accountId: widget.accountId,
       documentType: document.type,
@@ -113,25 +151,29 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       bytes: file.bytes,
       contentType: file.contentType,
     );
-    final uploaded = _uploaded(document.type);
-    if (!mounted || !_isVerified(uploaded)) {
+    if (!mounted) {
       return;
     }
-    final nextIndex = _documents.indexWhere((item) {
-      return !_isVerified(_uploaded(item.type));
-    });
-    if (nextIndex == -1) {
+
+    final uploaded = _uploaded(document.type);
+    if (!_isVerified(uploaded)) {
       setState(() {
-        _step = 4;
+        _step = document.uploadStep;
       });
-    } else {
-      setState(() {
-        _step = nextIndex + 1;
-      });
+      return;
     }
+
+    if (document.type == 'REDUCED_TAX_APPLICATION') {
+      await _submitVerifiedDocuments();
+      return;
+    }
+
+    setState(() {
+      _step = document.type == 'RESIDENCE_CERTIFICATE' ? 4 : 6;
+    });
   }
 
-  Future<void> _submit() async {
+  Future<void> _submitVerifiedDocuments() async {
     if (!_hasAllDocuments) {
       setState(() {
         _fileErrorMessage =
@@ -153,7 +195,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       return;
     }
     setState(() {
-      _step = 5;
+      _step = 8;
     });
   }
 
@@ -168,7 +210,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
         child: Column(
           children: [
             _TaxRequestHeader(onClose: () => Navigator.of(context).pop()),
-            _TaxProgressBar(step: _step),
+            if (_showsProgress) _TaxSegmentProgressBar(filled: _filledSegments),
             Expanded(
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 220),
@@ -181,38 +223,77 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     );
   }
 
+  bool get _showsProgress => _step >= 1 && _step <= 7;
+
+  int get _filledSegments {
+    if (_step <= 1) {
+      return 1;
+    }
+    if (_step <= 3) {
+      return 2;
+    }
+    if (_step <= 5) {
+      return 3;
+    }
+    return 4;
+  }
+
   Widget _buildStep(BuildContext context, TaxState state, bool loading) {
     if (_step == 0) {
-      return _TaxIntroStep(
-        loading: loading,
-        onAgree: () => setState(() => _step = 1),
-      );
-    }
-    if (_step >= 1 && _step <= 3) {
-      final document = _documents[_step - 1];
-      return _TaxDocumentStep(
-        key: ValueKey('tax-document-step-${document.type}'),
-        document: document,
-        uploaded: _uploaded(document.type),
-        loading: loading,
-        fileErrorMessage: _fileErrorMessage,
-        onUpload: () => _upload(document),
-      );
-    }
-    if (_step == 4) {
-      return _TaxReviewStep(
+      return _TaxLandingStep(
         documents: _documents,
-        uploadedForType: _uploaded,
-        canSubmit: _hasAllDocuments && !loading,
         loading: loading,
-        onSubmit: _submit,
+        onApply: () => setState(() => _step = 1),
+      );
+    }
+    if (_step == 1) {
+      return _TaxConsentStep(
+        loading: loading,
+        onCancel: () => Navigator.of(context).pop(),
+        onAgree: () => setState(() => _step = 2),
+      );
+    }
+    final uploadDocument = _documentForUploadStep(_step);
+    if (uploadDocument != null) {
+      return _TaxDocumentUploadStep(
+        key: ValueKey('tax-document-step-${uploadDocument.type}'),
+        document: uploadDocument,
+        uploaded: _uploaded(uploadDocument.type),
+        loading: loading,
+        fileErrorMessage: _fileErrorMessage ?? state.errorMessage,
+        onUpload: () => _upload(uploadDocument),
+      );
+    }
+    final analyzingDocument = _documentForAnalyzingStep(_step);
+    if (analyzingDocument != null) {
+      return _TaxAnalyzingStep(
+        key: ValueKey('tax-analyzing-step-${analyzingDocument.type}'),
+        verification: _uploaded(analyzingDocument.type)?.verification,
       );
     }
     return _TaxSubmittedStep(
       refundCase: state.refundCase,
       onConfirm: () => Navigator.of(context).pop(),
-      onReview: () => setState(() => _step = 4),
+      onReview: () => setState(() => _step = 0),
     );
+  }
+
+  _TaxRequiredDocument? _documentForUploadStep(int step) {
+    for (final document in _documents) {
+      if (document.uploadStep == step) {
+        return document;
+      }
+    }
+    return null;
+  }
+
+  _TaxRequiredDocument? _documentForAnalyzingStep(int step) {
+    for (final document in _documents) {
+      if (document.analyzingStep == step) {
+        return document;
+      }
+    }
+    return null;
   }
 }
 
@@ -311,12 +392,26 @@ class _TaxRequiredDocument {
   const _TaxRequiredDocument({
     required this.type,
     required this.title,
-    required this.subtitle,
+    required this.listDescription,
+    required this.uploadTitle,
+    required this.uploadDescription,
+    required this.infoTitle,
+    required this.infoText,
+    required this.badge,
+    required this.uploadStep,
+    required this.analyzingStep,
   });
 
   final String type;
   final String title;
-  final String subtitle;
+  final String listDescription;
+  final String uploadTitle;
+  final String uploadDescription;
+  final String infoTitle;
+  final String infoText;
+  final String badge;
+  final int uploadStep;
+  final int analyzingStep;
 }
 
 class _TaxRequestHeader extends StatelessWidget {
@@ -334,33 +429,28 @@ class _TaxRequestHeader extends StatelessWidget {
           SizedBox(
             height: 44,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
                 children: [
                   Image.asset(AppAssets.logoSymbol, width: 36, height: 36),
-                  const SizedBox(width: 4),
-                  Expanded(
-                    child: Text(
-                      'Tax Refund Request',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                            fontSize: 22,
-                            height: 31 / 22,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.gray1000,
-                          ),
-                    ),
-                  ),
+                  const Spacer(),
                   IconButton(
                     tooltip: 'Information',
                     onPressed: () {},
-                    icon: const Icon(Icons.info_outline, size: 22),
+                    icon: const Icon(
+                      Icons.info_outline,
+                      size: 22,
+                      color: AppColors.gray500,
+                    ),
                   ),
                   IconButton(
                     tooltip: 'Close',
                     onPressed: onClose,
-                    icon: const Icon(Icons.close, size: 22),
+                    icon: const Icon(
+                      Icons.close,
+                      size: 24,
+                      color: AppColors.gray700,
+                    ),
                   ),
                 ],
               ),
@@ -372,87 +462,335 @@ class _TaxRequestHeader extends StatelessWidget {
   }
 }
 
-class _TaxProgressBar extends StatelessWidget {
-  const _TaxProgressBar({required this.step});
+class _TaxSegmentProgressBar extends StatelessWidget {
+  const _TaxSegmentProgressBar({required this.filled});
 
-  final int step;
+  final int filled;
 
   @override
   Widget build(BuildContext context) {
-    final progress = (step / 5).clamp(0.12, 1.0).toDouble();
     return SizedBox(
       height: 30,
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(999),
-          child: LinearProgressIndicator(
-            value: progress,
-            minHeight: 8,
-            backgroundColor: AppColors.gray200,
-            valueColor: const AlwaysStoppedAnimation(AppColors.green500),
-          ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            for (var index = 0; index < 4; index++) ...[
+              Expanded(
+                child: Container(
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: index < filled
+                        ? AppColors.orange500
+                        : AppColors.gray200,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              if (index != 3) const SizedBox(width: 8),
+            ],
+          ],
         ),
       ),
     );
   }
 }
 
-class _TaxIntroStep extends StatelessWidget {
-  const _TaxIntroStep({
+class _TaxLandingStep extends StatelessWidget {
+  const _TaxLandingStep({
+    required this.documents,
     required this.loading,
-    required this.onAgree,
+    required this.onApply,
   });
 
+  final List<_TaxRequiredDocument> documents;
   final bool loading;
-  final VoidCallback onAgree;
+  final VoidCallback onApply;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const ValueKey('tax-intro-step'),
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
+    return _TaxScreenWithBottomAction(
+      key: const ValueKey('tax-landing-step'),
+      primaryLabel: 'Apply Reduced Rate',
+      primaryKey: const ValueKey('tax-apply-button'),
+      primaryLoading: loading,
+      onPrimary: onApply,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(8, 24, 8, 132),
+        children: [
+          Text(
+            'Reduced Withholding\nTax Rate Available',
+            textAlign: TextAlign.center,
+            style: _taxTitleStyle(context),
+          ),
+          const SizedBox(height: 12),
+          const _TaxRateSummary(),
+          const SizedBox(height: 36),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            child: Text(
+              'Required Documents',
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: 18,
+                    height: 25 / 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray1000,
+                  ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (var index = 0; index < documents.length; index++) ...[
+            _TaxRequiredDocumentCard(document: documents[index]),
+            if (index != documents.length - 1) const _TaxDocumentConnector(),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxRateSummary extends StatelessWidget {
+  const _TaxRateSummary();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
       children: [
-        Text(
-          'Reduced Withholding\nTax Rate Available',
-          style: _taxTitleStyle(context),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              '22%',
+              style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                    fontSize: 22,
+                    height: 31 / 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray500,
+                    decoration: TextDecoration.lineThrough,
+                    decorationColor: AppColors.gray500,
+                  ),
+            ),
+            const SizedBox(width: 8),
+            const Icon(Icons.arrow_forward, color: AppColors.gray500, size: 20),
+            const SizedBox(width: 8),
+            Text(
+              '16.5%',
+              style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontSize: 38,
+                    height: 53 / 38,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.orange500,
+                  ),
+            ),
+          ],
         ),
-        const SizedBox(height: 10),
-        Text(
-          '22% -> 16.5%',
-          style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                fontSize: 38,
-                height: 53 / 38,
-                fontWeight: FontWeight.w700,
-                color: AppColors.green500,
-              ),
-        ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
         Text(
           '*Including Local Taxes',
           style: _taxBodyStyle(context, fontSize: 14),
         ),
-        const SizedBox(height: 28),
-        const _TaxInfoPanel(
-          title: 'Information Collected',
-          lines: [
-            'Full Name',
-            'Resident Registration Number (RRN)',
-            'Original Tax-Related Documents',
-            'Bank Account Information',
-          ],
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 45,
-          child: FilledButton(
-            key: const ValueKey('tax-agree-button'),
-            onPressed: loading ? null : onAgree,
-            style: _exchangePrimaryButtonStyle(
-              backgroundColor: AppColors.orange500,
-              radius: 8,
+      ],
+    );
+  }
+}
+
+class _TaxRequiredDocumentCard extends StatelessWidget {
+  const _TaxRequiredDocumentCard({required this.document});
+
+  final _TaxRequiredDocument document;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      constraints: const BoxConstraints(minHeight: 88),
+      padding: const EdgeInsets.fromLTRB(16, 12, 6, 12),
+      decoration: BoxDecoration(
+        color: AppColors.gray100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  document.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: 18,
+                        height: 25 / 18,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.orange500,
+                      ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  document.listDescription,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: _taxBodyStyle(context, fontSize: 12),
+                ),
+              ],
             ),
-            child: const Text('Agree to All'),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            height: 24,
+            constraints: const BoxConstraints(minWidth: 78),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.circular(4),
+            ),
+            child: Text(
+              document.badge,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    fontSize: 12,
+                    height: 17 / 12,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray700,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxDocumentConnector extends StatelessWidget {
+  const _TaxDocumentConnector();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 18,
+      child: Center(
+        child: Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            shape: BoxShape.circle,
+          ),
+          child: const Icon(Icons.add, size: 16, color: AppColors.gray700),
+        ),
+      ),
+    );
+  }
+}
+
+class _TaxConsentStep extends StatelessWidget {
+  const _TaxConsentStep({
+    required this.loading,
+    required this.onCancel,
+    required this.onAgree,
+  });
+
+  final bool loading;
+  final VoidCallback onCancel;
+  final VoidCallback onAgree;
+
+  @override
+  Widget build(BuildContext context) {
+    return _TaxScreenWithBottomAction(
+      key: const ValueKey('tax-consent-step'),
+      primaryLabel: 'Agree to All',
+      primaryKey: const ValueKey('tax-agree-button'),
+      primaryLoading: loading,
+      onPrimary: onAgree,
+      secondaryLabel: 'Cancel',
+      onSecondary: onCancel,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 152),
+        children: [
+          Text(
+            'Consent to the\nCollection and Use of\nPersonal Information',
+            style: _taxTitleStyle(context),
+          ),
+          const SizedBox(height: 20),
+          Text(
+            'Upload the required documents to process\nyour tax reassessment claim. Your documents\nare securely protected under the GLBA\nand used only for this service.',
+            style: _taxBodyStyle(context),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'You may refuse to provide your consent.\nHowever, doing so may restrict your use of\nthe tax reassessment claim service.',
+            style: _taxBodyStyle(context),
+          ),
+          const SizedBox(height: 112),
+          const _TaxCollectedInfoPanel(),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxCollectedInfoPanel extends StatelessWidget {
+  const _TaxCollectedInfoPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    const lines = [
+      'Full Name',
+      'Resident Registration Number (RRN)',
+      'Original Tax-Related Documents',
+      'Bank Account Information',
+    ];
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            'Information Collected',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontSize: 18,
+                  height: 25 / 18,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.gray1000,
+                ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+          decoration: BoxDecoration(
+            color: AppColors.gray100,
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(
+            children: [
+              for (final line in lines) ...[
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.check,
+                      size: 14,
+                      color: AppColors.orange500,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        line,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 14,
+                              height: 20 / 14,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.gray700,
+                            ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (line != lines.last) const SizedBox(height: 10),
+              ],
+            ],
           ),
         ),
       ],
@@ -460,8 +798,8 @@ class _TaxIntroStep extends StatelessWidget {
   }
 }
 
-class _TaxDocumentStep extends StatelessWidget {
-  const _TaxDocumentStep({
+class _TaxDocumentUploadStep extends StatelessWidget {
+  const _TaxDocumentUploadStep({
     super.key,
     required this.document,
     required this.uploaded,
@@ -478,123 +816,307 @@ class _TaxDocumentStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final verification = uploaded?.verification;
-    final verifying = loading;
+    return _TaxScreenWithBottomAction(
+      primaryLabel: uploaded == null ? 'Upload File' : 'Re-upload File',
+      primaryKey: ValueKey('tax-upload-${document.type}'),
+      primaryLoading: loading,
+      onPrimary: loading ? null : onUpload,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 24, 16, 152),
+        children: [
+          Text(document.uploadTitle, style: _taxTitleStyle(context)),
+          const SizedBox(height: 12),
+          Text(document.uploadDescription, style: _taxBodyStyle(context)),
+          const SizedBox(height: 18),
+          const SizedBox(
+            height: 240,
+            child: _TaxUploadIllustration(),
+          ),
+          const SizedBox(height: 10),
+          _TaxInfoCallout(title: document.infoTitle, body: document.infoText),
+          if (uploaded != null) ...[
+            const SizedBox(height: 10),
+            _TaxSelectedFilePanel(uploaded: uploaded!),
+            const SizedBox(height: 10),
+            _TaxVerificationPanel(
+              verification: uploaded!.verification,
+              verifying: loading,
+            ),
+          ],
+          if (fileErrorMessage != null) ...[
+            const SizedBox(height: 10),
+            _TaxFileErrorPanel(message: fileErrorMessage!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxUploadIllustration extends StatelessWidget {
+  const _TaxUploadIllustration();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: SizedBox(
+        width: 294,
+        height: 240,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              right: 12,
+              top: 18,
+              child: Icon(
+                Icons.description,
+                size: 126,
+                color: AppColors.gray200.withValues(alpha: 0.95),
+              ),
+            ),
+            Positioned(
+              right: 74,
+              bottom: 34,
+              child: Icon(
+                Icons.cloud_upload,
+                size: 118,
+                color: AppColors.orange300.withValues(alpha: 0.95),
+              ),
+            ),
+            Positioned(
+              right: 92,
+              bottom: 58,
+              child: Container(
+                width: 52,
+                height: 52,
+                decoration: const BoxDecoration(
+                  color: AppColors.orange500,
+                  shape: BoxShape.circle,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaxInfoCallout extends StatelessWidget {
+  const _TaxInfoCallout({
+    required this.title,
+    required this.body,
+  });
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      decoration: BoxDecoration(
+        color: AppColors.orange100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                  fontSize: 16,
+                  height: 22 / 16,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.orange500,
+                ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            body,
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  fontSize: 12,
+                  height: 17 / 12,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.gray700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxAnalyzingStep extends StatelessWidget {
+  const _TaxAnalyzingStep({
+    super.key,
+    required this.verification,
+  });
+
+  final TaxDocumentVerification? verification;
+
+  @override
+  Widget build(BuildContext context) {
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       children: [
-        Text('Upload\n${document.title}', style: _taxTitleStyle(context)),
+        Text('Analyzing\nYour Documents...', style: _taxTitleStyle(context)),
         const SizedBox(height: 12),
-        Text(document.subtitle, style: _taxBodyStyle(context)),
-        const SizedBox(height: 42),
-        Container(
-          height: 240,
-          decoration: BoxDecoration(
-            color: AppColors.gray50,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.gray200),
-          ),
-          child: Center(
-            child: verifying
-                ? const CircularProgressIndicator(color: AppColors.orange500)
-                : Icon(
-                    uploaded == null
-                        ? Icons.upload_file_outlined
-                        : Icons.document_scanner_outlined,
-                    size: 58,
-                    color: uploaded == null
-                        ? AppColors.gray500
-                        : AppColors.green500,
-                  ),
-          ),
+        Text(
+          'Using OCR to extract and validate\nthe information in your uploaded documents.',
+          style: _taxBodyStyle(context),
         ),
-        const SizedBox(height: 16),
-        if (uploaded != null) ...[
-          _TaxSelectedFilePanel(uploaded: uploaded!),
-          const SizedBox(height: 12),
-        ],
-        if (fileErrorMessage != null) ...[
-          _TaxFileErrorPanel(message: fileErrorMessage!),
-          const SizedBox(height: 12),
-        ],
-        _TaxVerificationPanel(
-          verification: verification,
-          verifying: verifying,
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 45,
-          child: FilledButton(
-            key: ValueKey('tax-upload-${document.type}'),
-            onPressed: loading ? null : onUpload,
-            style: _exchangePrimaryButtonStyle(
-              backgroundColor: AppColors.orange500,
-              radius: 8,
-            ),
-            child: Text(
-              verifying
-                  ? 'Verifying with Hana Montana...'
-                  : uploaded == null
-                      ? 'Upload File'
-                      : 'Re-upload File',
-            ),
-          ),
-        ),
+        const SizedBox(height: 88),
+        _TaxDocumentAnalysisPreview(verification: verification),
       ],
     );
   }
 }
 
-class _TaxReviewStep extends StatelessWidget {
-  const _TaxReviewStep({
-    required this.documents,
-    required this.uploadedForType,
-    required this.canSubmit,
-    required this.loading,
-    required this.onSubmit,
-  });
+class _TaxDocumentAnalysisPreview extends StatelessWidget {
+  const _TaxDocumentAnalysisPreview({required this.verification});
 
-  final List<_TaxRequiredDocument> documents;
-  final TaxDocumentUpload? Function(String type) uploadedForType;
-  final bool canSubmit;
-  final bool loading;
-  final VoidCallback onSubmit;
+  final TaxDocumentVerification? verification;
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      key: const ValueKey('tax-review-step'),
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
-      children: [
-        Text('OCR Verification\nReady to Submit',
-            style: _taxTitleStyle(context)),
-        const SizedBox(height: 12),
-        Text(
-          'Review extracted document status before sending the case to Hana.',
-          style: _taxBodyStyle(context),
+    final progress =
+        ((verification?.progressPercent ?? 0) / 100).clamp(0.0, 1.0).toDouble();
+    final stage = verification?.stageDisplay ?? 'Uploading to Exchange';
+    return Center(
+      child: Container(
+        width: 358,
+        height: 460,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppColors.gray200),
+          boxShadow: AppShadows.card,
         ),
-        const SizedBox(height: 22),
-        for (final document in documents) ...[
-          _TaxDocumentStatusRow(
-            title: document.title,
-            upload: uploadedForType(document.type),
-          ),
-          const SizedBox(height: 10),
-        ],
-        const SizedBox(height: 14),
-        SizedBox(
-          height: 45,
-          child: FilledButton(
-            key: const ValueKey('tax-submit-button'),
-            onPressed: canSubmit ? onSubmit : null,
-            style: _exchangePrimaryButtonStyle(
-              backgroundColor: AppColors.orange500,
-              radius: 8,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 34,
+                        height: 34,
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.gray300),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.account_balance,
+                          size: 18,
+                          color: AppColors.gray600,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'CERTIFICATE OF TAX STATUS',
+                          style:
+                              Theme.of(context).textTheme.labelSmall?.copyWith(
+                                    fontSize: 10,
+                                    height: 1.2,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.gray700,
+                                  ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 14),
+                  Container(height: 2, color: AppColors.orange500),
+                  const SizedBox(height: 18),
+                  for (var index = 0; index < 9; index++) ...[
+                    Container(
+                      width: index.isEven ? 280 : 220,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: AppColors.gray200,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+                  const Spacer(),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      width: 96,
+                      height: 2,
+                      color: AppColors.gray400,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: Text(loading ? 'Submitting...' : 'Submit Documents'),
-          ),
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.white.withValues(alpha: 0.92),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.gray200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: AppColors.orange500,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            '$stage · ${(progress * 100).round()}%',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style:
+                                Theme.of(context).textTheme.bodySmall?.copyWith(
+                                      fontSize: 12,
+                                      height: 17 / 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: AppColors.gray700,
+                                    ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(999),
+                      child: LinearProgressIndicator(
+                        minHeight: 6,
+                        value: progress == 0 ? null : progress,
+                        backgroundColor: AppColors.gray200,
+                        color: AppColors.orange500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
-      ],
+      ),
     );
   }
 }
@@ -612,58 +1134,215 @@ class _TaxSubmittedStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
+    return _TaxScreenWithBottomAction(
       key: const ValueKey('tax-submitted-step'),
-      padding: const EdgeInsets.fromLTRB(16, 32, 16, 24),
-      children: [
-        Text('Documents Submitted!', style: _taxTitleStyle(context)),
-        const SizedBox(height: 12),
-        Text(
-          'All required documents have been submitted successfully. We will review them and notify you of the next steps.',
-          style: _taxBodyStyle(context),
-        ),
-        const SizedBox(height: 32),
-        Icon(
-          Icons.check_circle_outline,
-          size: 148,
-          color: AppColors.green500,
-        ),
-        const SizedBox(height: 34),
-        if (refundCase != null)
-          _TaxInfoPanel(
-            title: 'Estimated Refund',
-            lines: [
-              refundCase!.refundDisplay,
-              'Case ${refundCase!.referenceDisplay}',
-            ],
+      primaryLabel: 'Confirm',
+      primaryKey: const ValueKey('tax-confirm-button'),
+      onPrimary: onConfirm,
+      secondaryLabel: 'Review Documents',
+      onSecondary: onReview,
+      stackedSecondary: true,
+      child: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 32, 16, 210),
+        children: [
+          Text(
+            'Documents Submitted!',
+            textAlign: TextAlign.center,
+            style: _taxTitleStyle(context),
           ),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 45,
-          child: FilledButton(
-            key: const ValueKey('tax-confirm-button'),
-            onPressed: onConfirm,
-            style: _exchangePrimaryButtonStyle(
-              backgroundColor: AppColors.orange500,
-              radius: 8,
+          const SizedBox(height: 12),
+          Text(
+            "All required documents have been submitted successfully. We'll review them and notify\nyou of the next steps.",
+            textAlign: TextAlign.center,
+            style: _taxBodyStyle(context),
+          ),
+          const SizedBox(height: 76),
+          const _TaxSubmittedIllustration(),
+          if (refundCase != null) ...[
+            const SizedBox(height: 24),
+            Text(
+              '${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}',
+              textAlign: TextAlign.center,
+              style: _taxBodyStyle(context, fontSize: 14),
             ),
-            child: const Text('Confirm'),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxSubmittedIllustration extends StatelessWidget {
+  const _TaxSubmittedIllustration();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 330,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          Positioned(
+            left: 80,
+            top: 18,
+            child: Icon(
+              Icons.description,
+              size: 156,
+              color: AppColors.gray200.withValues(alpha: 0.72),
+            ),
           ),
-        ),
-        const SizedBox(height: 12),
-        SizedBox(
-          height: 45,
-          child: OutlinedButton(
-            key: const ValueKey('tax-review-documents-button'),
-            onPressed: onReview,
-            style: OutlinedButton.styleFrom(
-              foregroundColor: AppColors.gray900,
-              side: const BorderSide(color: AppColors.gray300),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+          Positioned(
+            left: 132,
+            top: 108,
+            child: Icon(
+              Icons.folder,
+              size: 212,
+              color: AppColors.gray200.withValues(alpha: 0.82),
+            ),
+          ),
+          const Positioned(
+            left: 18,
+            top: 132,
+            child: _TaxCoin(size: 122, symbolSize: 62),
+          ),
+          const Positioned(
+            right: 30,
+            top: 46,
+            child: _TaxCoin(size: 56, symbolSize: 30),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxCoin extends StatelessWidget {
+  const _TaxCoin({
+    required this.size,
+    required this.symbolSize,
+  });
+
+  final double size;
+  final double symbolSize;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: AppColors.orange300,
+        border: Border.all(color: const Color(0xFFFFC284), width: 4),
+        boxShadow: const [
+          BoxShadow(
+            color: Color.fromRGBO(255, 121, 27, 0.22),
+            blurRadius: 8,
+            offset: Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Icon(
+        Icons.attach_money,
+        size: symbolSize,
+        color: AppColors.white,
+      ),
+    );
+  }
+}
+
+class _TaxScreenWithBottomAction extends StatelessWidget {
+  const _TaxScreenWithBottomAction({
+    super.key,
+    required this.child,
+    required this.primaryLabel,
+    required this.onPrimary,
+    this.primaryKey,
+    this.primaryLoading = false,
+    this.secondaryLabel,
+    this.onSecondary,
+    this.stackedSecondary = false,
+  });
+
+  final Widget child;
+  final String primaryLabel;
+  final VoidCallback? onPrimary;
+  final Key? primaryKey;
+  final bool primaryLoading;
+  final String? secondaryLabel;
+  final VoidCallback? onSecondary;
+  final bool stackedSecondary;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Positioned.fill(child: child),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: Container(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              24,
+              16,
+              34 + MediaQuery.of(context).padding.bottom,
+            ),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Color.fromRGBO(255, 255, 255, 0),
+                  AppColors.white,
+                  AppColors.white,
+                ],
+                stops: [0, 0.2, 1],
               ),
             ),
-            child: const Text('Review Documents'),
+            child: stackedSecondary
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _TaxPrimaryButton(
+                        key: primaryKey,
+                        label: primaryLabel,
+                        loading: primaryLoading,
+                        onPressed: onPrimary,
+                      ),
+                      if (secondaryLabel != null) ...[
+                        const SizedBox(height: 12),
+                        _TaxSecondaryButton(
+                          label: secondaryLabel!,
+                          onPressed: onSecondary,
+                        ),
+                      ],
+                    ],
+                  )
+                : Row(
+                    children: [
+                      if (secondaryLabel != null) ...[
+                        SizedBox(
+                          width: 120,
+                          child: _TaxSecondaryButton(
+                            label: secondaryLabel!,
+                            onPressed: onSecondary,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
+                      Expanded(
+                        child: _TaxPrimaryButton(
+                          key: primaryKey,
+                          label: primaryLabel,
+                          loading: primaryLoading,
+                          onPressed: onPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ],
@@ -671,47 +1350,62 @@ class _TaxSubmittedStep extends StatelessWidget {
   }
 }
 
-class _TaxInfoPanel extends StatelessWidget {
-  const _TaxInfoPanel({
-    required this.title,
-    required this.lines,
+class _TaxPrimaryButton extends StatelessWidget {
+  const _TaxPrimaryButton({
+    super.key,
+    required this.label,
+    required this.loading,
+    required this.onPressed,
   });
 
-  final String title;
-  final List<String> lines;
+  final String label;
+  final bool loading;
+  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.gray50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.gray200),
+    return SizedBox(
+      height: 45,
+      child: FilledButton(
+        onPressed: loading ? null : onPressed,
+        style: _exchangePrimaryButtonStyle(
+          backgroundColor: AppColors.orange500,
+          radius: 8,
+        ),
+        child: Text(loading ? 'Processing...' : label),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.gray900,
-                ),
+    );
+  }
+}
+
+class _TaxSecondaryButton extends StatelessWidget {
+  const _TaxSecondaryButton({
+    required this.label,
+    required this.onPressed,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 45,
+      child: OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColors.gray700,
+          side: const BorderSide(color: AppColors.gray300),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
-          const SizedBox(height: 12),
-          for (final line in lines) ...[
-            Row(
-              children: [
-                const Icon(Icons.check, size: 16, color: AppColors.green500),
-                const SizedBox(width: 10),
-                Expanded(child: Text(line, style: _taxBodyStyle(context))),
-              ],
-            ),
-            if (line != lines.last) const SizedBox(height: 8),
-          ],
-        ],
+          textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
+                fontSize: 18,
+                height: 25 / 18,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+        child: Text(label),
       ),
     );
   }
@@ -749,7 +1443,7 @@ class _TaxVerificationPanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.gray50,
+        color: AppColors.gray100,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -826,14 +1520,14 @@ class _TaxSelectedFilePanel extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.gray50,
+        color: AppColors.gray100,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
         children: [
           const Icon(
             Icons.description_outlined,
-            color: AppColors.green500,
+            color: AppColors.orange500,
             size: 20,
           ),
           const SizedBox(width: 10),
@@ -882,61 +1576,6 @@ class _TaxFileErrorPanel extends StatelessWidget {
   }
 }
 
-class _TaxDocumentStatusRow extends StatelessWidget {
-  const _TaxDocumentStatusRow({
-    required this.title,
-    required this.upload,
-  });
-
-  final String title;
-  final TaxDocumentUpload? upload;
-
-  @override
-  Widget build(BuildContext context) {
-    final status = upload?.verification?.verificationStatus ?? 'MISSING';
-    final verified = upload?.isVerified ?? false;
-    final blocked = !verified;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.gray50,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.gray200),
-      ),
-      child: Row(
-        children: [
-          Icon(
-            blocked ? Icons.error_outline : Icons.check_circle_outline,
-            color: blocked ? AppColors.red500 : AppColors.green500,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.gray900,
-                  ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            verified ? 'VERIFIED' : status,
-            style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: blocked ? AppColors.red500 : AppColors.green500,
-                ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 String _formatTaxFileSize(int bytes) {
   if (bytes >= 1024 * 1024) {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
@@ -951,15 +1590,16 @@ TextStyle? _taxTitleStyle(BuildContext context) {
   return Theme.of(context).textTheme.headlineMedium?.copyWith(
         fontSize: 28,
         height: 39 / 28,
-        fontWeight: FontWeight.w700,
-        color: AppColors.gray1000,
+        fontWeight: FontWeight.w600,
+        color: AppColors.slate600,
       );
 }
 
 TextStyle? _taxBodyStyle(BuildContext context, {double fontSize = 16}) {
   return Theme.of(context).textTheme.bodyMedium?.copyWith(
         fontSize: fontSize,
-        height: 1.38,
-        color: AppColors.gray700,
+        height: 1.4,
+        fontWeight: FontWeight.w400,
+        color: AppColors.gray600,
       );
 }
