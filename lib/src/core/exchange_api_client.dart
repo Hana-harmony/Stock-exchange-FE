@@ -688,6 +688,15 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getTaxDocumentVerification({
+    required String accountId,
+    required String documentId,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/accounts/$accountId/tax/documents/$documentId/verification',
+    );
+  }
+
   MediaType? _parseMediaType(String? contentType) {
     final normalized = contentType?.trim();
     if (normalized == null || normalized.isEmpty) {
@@ -707,6 +716,7 @@ class ExchangeApiClient {
     required String residenceCertificateFileName,
     required String reducedTaxApplicationFileName,
     String? residenceCertificateDocumentId,
+    String? apostilleDocumentId,
     String? reducedTaxApplicationDocumentId,
     required bool advancePaymentRequested,
   }) {
@@ -720,6 +730,8 @@ class ExchangeApiClient {
         if (residenceCertificateDocumentId != null &&
             residenceCertificateDocumentId.isNotEmpty)
           'residenceCertificateDocumentId': residenceCertificateDocumentId,
+        if (apostilleDocumentId != null && apostilleDocumentId.isNotEmpty)
+          'apostilleDocumentId': apostilleDocumentId,
         if (reducedTaxApplicationDocumentId != null &&
             reducedTaxApplicationDocumentId.isNotEmpty)
           'reducedTaxApplicationDocumentId': reducedTaxApplicationDocumentId,

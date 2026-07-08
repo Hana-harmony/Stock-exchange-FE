@@ -608,6 +608,9 @@ void main() {
               'rejectionReasons': [],
               'documentModelVersion': 'hanah-tax-ocr-e2e-review-v1',
               'source': 'HANNAH_MONTANA_AI_TAX_OCR',
+              'progressPercent': 100,
+              'stage': 'VERIFICATION_COMPLETE',
+              'updatedAt': '2026-06-18T06:00:01Z',
             },
           },
           'timestamp': '2026-06-18T06:00:00Z',
@@ -628,6 +631,59 @@ void main() {
       (response.data?['verification'] as Map<String, dynamic>?)?['source'],
       'HANNAH_MONTANA_AI_TAX_OCR',
     );
+  });
+
+  test('tax document verification progress uses account scoped bearer contract',
+      () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        expect(request.method, 'GET');
+        expect(
+          request.url.path,
+          '/api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-1/verification',
+        );
+        expect(_header(request, 'authorization'), 'Bearer access-token');
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {
+            'verificationStatus': 'PENDING',
+            'ocrConfidence': 0.0,
+            'fraudRiskScore': 0.0,
+            'riskLevel': 'MEDIUM',
+            'manualReviewRequired': true,
+            'extractedFields': {},
+            'missingRequiredFields': [],
+            'rejectionReasons': [],
+            'documentModelVersion': 'pending',
+            'source': 'HANA_EXCHANGE_BE',
+            'progressPercent': 75,
+            'stage': 'HANNAH_MONTANA_OCR',
+            'updatedAt': '2026-06-18T06:00:01Z',
+          },
+          'timestamp': '2026-06-18T06:00:01Z',
+        });
+      }),
+    );
+
+    final response = await client.getTaxDocumentVerification(
+      accountId: 'ACC-ABC123456789',
+      documentId: 'DOC-1',
+    );
+
+    expect(response.data?['progressPercent'], 75);
+    expect(response.data?['stage'], 'HANNAH_MONTANA_OCR');
   });
 
   test('tax refund request and sync use account scoped bearer contract',
@@ -653,6 +709,7 @@ void main() {
             'residenceCertificateFileName': 'residence.pdf',
             'reducedTaxApplicationFileName': 'reduced-tax.pdf',
             'residenceCertificateDocumentId': 'DOC-RES',
+            'apostilleDocumentId': 'DOC-APO',
             'reducedTaxApplicationDocumentId': 'DOC-RED',
             'advancePaymentRequested': true,
           });
@@ -676,6 +733,7 @@ void main() {
       residenceCertificateFileName: 'residence.pdf',
       reducedTaxApplicationFileName: 'reduced-tax.pdf',
       residenceCertificateDocumentId: 'DOC-RES',
+      apostilleDocumentId: 'DOC-APO',
       reducedTaxApplicationDocumentId: 'DOC-RED',
       advancePaymentRequested: true,
     );

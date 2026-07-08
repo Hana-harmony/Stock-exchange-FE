@@ -10,6 +10,9 @@ enum TaxStatus {
   failure,
 }
 
+const _verificationPollInterval = Duration(milliseconds: 700);
+const _verificationPollAttempts = 120;
+
 class TaxState {
   const TaxState({
     required this.status,
@@ -65,7 +68,20 @@ class TaxDocumentUpload {
   final DateTime? createdAt;
   final TaxDocumentVerification? verification;
 
-  bool get isVerified => verification?.verificationStatus == 'VERIFIED';
+  bool get isVerified => verification?.isHanaMontanaVerified ?? false;
+
+  TaxDocumentUpload copyWith({
+    TaxDocumentVerification? verification,
+  }) {
+    return TaxDocumentUpload(
+      documentId: documentId,
+      documentType: documentType,
+      originalFileName: originalFileName,
+      sizeBytes: sizeBytes,
+      createdAt: createdAt,
+      verification: verification ?? this.verification,
+    );
+  }
 
   static TaxDocumentUpload fromJson(Map<String, dynamic> json) {
     return TaxDocumentUpload(
@@ -93,6 +109,9 @@ class TaxDocumentVerification {
     required this.rejectionReasons,
     required this.documentModelVersion,
     required this.source,
+    required this.progressPercent,
+    required this.stage,
+    this.updatedAt,
   });
 
   final String verificationStatus;
@@ -105,9 +124,46 @@ class TaxDocumentVerification {
   final List<String> rejectionReasons;
   final String documentModelVersion;
   final String source;
+  final int progressPercent;
+  final String stage;
+  final DateTime? updatedAt;
 
   String get confidenceDisplay =>
       '${(ocrConfidence * 100).clamp(0, 100).toStringAsFixed(0)}%';
+
+  bool get isHanaMontanaVerified {
+    return verificationStatus == 'VERIFIED' &&
+        !manualReviewRequired &&
+        source == 'HANNAH_MONTANA_AI_TAX_OCR';
+  }
+
+  bool get isTerminal {
+    return progressPercent >= 100 ||
+        verificationStatus == 'VERIFIED' ||
+        verificationStatus == 'REJECTED' ||
+        verificationStatus == 'FAILED';
+  }
+
+  String get stageDisplay {
+    switch (stage) {
+      case 'UPLOADED_TO_EXCHANGE':
+        return 'Uploaded to Exchange';
+      case 'SENT_TO_OMNILENS':
+        return 'Sent to OmniLens';
+      case 'HANNAH_MONTANA_OCR':
+        return 'Hana Montana OCR';
+      case 'VERIFICATION_COMPLETE':
+        return 'Verification complete';
+      case 'VERIFICATION_FAILED':
+        return 'Verification failed';
+      default:
+        return stage
+            .split('_')
+            .where((part) => part.isNotEmpty)
+            .map((part) => '${part[0]}${part.substring(1).toLowerCase()}')
+            .join(' ');
+    }
+  }
 
   static TaxDocumentVerification fromJson(Map<String, dynamic> json) {
     return TaxDocumentVerification(
@@ -126,6 +182,9 @@ class TaxDocumentVerification {
       documentModelVersion:
           _string(json['documentModelVersion'], fallback: 'unavailable'),
       source: _string(json['source'], fallback: 'HANA_OMNILENS_API'),
+      progressPercent: _int(json['progressPercent']).clamp(0, 100).toInt(),
+      stage: _string(json['stage'], fallback: 'QUEUED'),
+      updatedAt: _dateTime(json['updatedAt']),
     );
   }
 }
@@ -364,14 +423,12 @@ class TaxController extends ValueNotifier<TaxState> {
         contentType: contentType,
       );
       final uploaded = TaxDocumentUpload.fromJson(response.data ?? {});
-      value = TaxState.loaded(
-        value.refundCase,
-        uploadedDocuments: [
-          ...value.uploadedDocuments
-              .where((item) => item.documentType != documentType),
-          uploaded,
-        ],
+      _emitDocument(uploaded, loading: true);
+      final verifiedUpload = await _pollDocumentVerification(
+        accountId: accountId,
+        uploaded: uploaded,
       );
+      _emitDocument(verifiedUpload, loading: false);
     } on ExchangeApiException catch (error) {
       value = TaxState.failure(
         errorMessage: error.message,
@@ -405,7 +462,17 @@ class TaxController extends ValueNotifier<TaxState> {
     }
 
     final residenceDocument = _document('RESIDENCE_CERTIFICATE');
+    final apostilleDocument = _document('APOSTILLE');
     final reducedTaxDocument = _document('REDUCED_TAX_APPLICATION');
+    if (!hasVerifiedRequiredDocuments) {
+      value = TaxState.failure(
+        errorMessage:
+            'Complete Hana Montana OCR verification for every required tax document before submitting.',
+        refundCase: value.refundCase,
+        uploadedDocuments: value.uploadedDocuments,
+      );
+      return;
+    }
     value = TaxState.loading(
       refundCase: value.refundCase,
       uploadedDocuments: value.uploadedDocuments,
@@ -426,6 +493,7 @@ class TaxController extends ValueNotifier<TaxState> {
                 ? reducedTaxDocument?.originalFileName ?? 'reduced-tax.pdf'
                 : reducedTaxApplicationFileName.trim(),
         residenceCertificateDocumentId: residenceDocument?.documentId,
+        apostilleDocumentId: apostilleDocument?.documentId,
         reducedTaxApplicationDocumentId: reducedTaxDocument?.documentId,
         advancePaymentRequested: advancePaymentRequested,
       );
@@ -493,7 +561,64 @@ class TaxController extends ValueNotifier<TaxState> {
   }
 
   bool hasVerifiedDocument(String documentType) {
-    return _document(documentType)?.isVerified ?? false;
+    return _document(documentType)?.verification?.isHanaMontanaVerified ??
+        false;
+  }
+
+  bool get hasVerifiedRequiredDocuments {
+    const requiredTypes = [
+      'RESIDENCE_CERTIFICATE',
+      'APOSTILLE',
+      'REDUCED_TAX_APPLICATION',
+    ];
+    return requiredTypes.every(hasVerifiedDocument);
+  }
+
+  Future<TaxDocumentUpload> _pollDocumentVerification({
+    required String accountId,
+    required TaxDocumentUpload uploaded,
+  }) async {
+    var current = uploaded;
+    if (current.verification?.isTerminal ?? false) {
+      return current;
+    }
+    for (var attempt = 0; attempt < _verificationPollAttempts; attempt++) {
+      await Future<void>.delayed(_verificationPollInterval);
+      final response = await _apiClient.getTaxDocumentVerification(
+        accountId: accountId,
+        documentId: current.documentId,
+      );
+      final verification =
+          TaxDocumentVerification.fromJson(response.data ?? {});
+      current = current.copyWith(verification: verification);
+      _emitDocument(current, loading: true);
+      if (verification.isTerminal) {
+        return current;
+      }
+    }
+    throw const ExchangeApiException(
+      status: 408,
+      code: 'TAX_OCR_TIMEOUT',
+      message: 'Hana Montana OCR verification is still in progress.',
+    );
+  }
+
+  void _emitDocument(TaxDocumentUpload document, {required bool loading}) {
+    final documents = [
+      ...value.uploadedDocuments.where(
+        (item) => item.documentType != document.documentType,
+      ),
+      document,
+    ];
+    value = loading
+        ? TaxState.loading(
+            refundCase: value.refundCase,
+            uploadedDocuments: documents,
+          )
+        : TaxState.loaded(
+            value.refundCase,
+            uploadedDocuments: documents,
+          );
   }
 }
 
