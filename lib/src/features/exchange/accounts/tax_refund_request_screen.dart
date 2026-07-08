@@ -422,41 +422,74 @@ class _TaxRequestHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 106,
-      child: Column(
-        children: [
-          const SizedBox(height: 62),
-          SizedBox(
-            height: 44,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                children: [
-                  Image.asset(AppAssets.logoSymbol, width: 36, height: 36),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Information',
-                    onPressed: () {},
-                    icon: const Icon(
-                      Icons.info_outline,
-                      size: 22,
-                      color: AppColors.gray500,
+      height: 44,
+      child: Padding(
+        padding: const EdgeInsets.only(left: 12, right: 12, top: 4, bottom: 4),
+        child: Row(
+          children: [
+            Image.asset(AppAssets.logoSymbol, width: 36, height: 36),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                'Tax Refund Request',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontSize: 22,
+                      height: 31 / 22,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.gray1000,
                     ),
-                  ),
-                  IconButton(
-                    tooltip: 'Close',
-                    onPressed: onClose,
-                    icon: const Icon(
-                      Icons.close,
-                      size: 24,
-                      color: AppColors.gray700,
-                    ),
-                  ),
-                ],
               ),
             ),
-          ),
-        ],
+            _TaxHeaderIconButton(
+              tooltip: 'Information',
+              onPressed: () {},
+              child: const Icon(
+                Icons.info_outline,
+                size: 22,
+                color: AppColors.gray500,
+              ),
+            ),
+            const SizedBox(width: 4),
+            _TaxHeaderIconButton(
+              tooltip: 'Close',
+              onPressed: onClose,
+              child: const Icon(
+                Icons.close,
+                size: 24,
+                color: AppColors.gray700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TaxHeaderIconButton extends StatelessWidget {
+  const _TaxHeaderIconButton({
+    required this.tooltip,
+    required this.onPressed,
+    required this.child,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 36,
+      height: 36,
+      child: IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints.tightFor(width: 36, height: 36),
+        icon: child,
       ),
     );
   }
@@ -516,7 +549,7 @@ class _TaxLandingStep extends StatelessWidget {
       primaryLoading: loading,
       onPrimary: onApply,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(8, 24, 8, 132),
+        padding: const EdgeInsets.fromLTRB(0, 32, 0, 132),
         children: [
           Text(
             'Reduced Withholding\nTax Rate Available',
@@ -540,7 +573,10 @@ class _TaxLandingStep extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           for (var index = 0; index < documents.length; index++) ...[
-            _TaxRequiredDocumentCard(document: documents[index]),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: _TaxRequiredDocumentCard(document: documents[index]),
+            ),
             if (index != documents.length - 1) const _TaxDocumentConnector(),
           ],
         ],
@@ -601,59 +637,61 @@ class _TaxRequiredDocumentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardHeight = document.title.contains('\n') ? 116.0 : 91.0;
+    final badgeWidth = document.badge == 'Document 1' ? 95.0 : 97.0;
     return Container(
-      constraints: const BoxConstraints(minHeight: 88),
-      padding: const EdgeInsets.fromLTRB(16, 12, 6, 12),
+      height: cardHeight,
       decoration: BoxDecoration(
         color: AppColors.gray100,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Stack(
+        clipBehavior: Clip.none,
         children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  document.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 18,
-                        height: 25 / 18,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.orange500,
-                      ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  document.listDescription,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: _taxBodyStyle(context, fontSize: 12),
-                ),
-              ],
+          Positioned(
+            left: 16,
+            top: 16,
+            right: 16,
+            child: Text(
+              document.title,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: 18,
+                    height: 25 / 18,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.orange500,
+                  ),
             ),
           ),
-          const SizedBox(width: 8),
-          Container(
-            height: 24,
-            constraints: const BoxConstraints(minWidth: 78),
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: AppColors.white,
-              borderRadius: BorderRadius.circular(4),
-            ),
+          Positioned(
+            left: 16,
+            top: document.title.contains('\n') ? 66 : 41,
+            right: 16,
             child: Text(
-              document.badge,
-              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    fontSize: 12,
-                    height: 17 / 12,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.gray700,
-                  ),
+              document.listDescription,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: _taxBodyStyle(context, fontSize: 12),
+            ),
+          ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Container(
+              width: badgeWidth,
+              height: 28,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(color: Color(0xFFDDDDDD)),
+              child: Text(
+                document.badge,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontSize: 14,
+                      height: 20 / 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.gray700,
+                    ),
+              ),
             ),
           ),
         ],
@@ -968,7 +1006,7 @@ class _TaxAnalyzingStep extends StatelessWidget {
           'Using OCR to extract and validate\nthe information in your uploaded documents.',
           style: _taxBodyStyle(context),
         ),
-        const SizedBox(height: 88),
+        const SizedBox(height: 121),
         _TaxDocumentAnalysisPreview(verification: verification),
       ],
     );
@@ -1372,7 +1410,16 @@ class _TaxPrimaryButton extends StatelessWidget {
           backgroundColor: AppColors.orange500,
           radius: 8,
         ),
-        child: Text(loading ? 'Processing...' : label),
+        child: loading
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.white,
+                ),
+              )
+            : Text(label),
       ),
     );
   }
