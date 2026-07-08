@@ -353,11 +353,16 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   final List<Duration> _liveReconnectDelays;
   StreamSubscription<Map<String, dynamic>>? _liveSubscription;
   Timer? _liveReconnectTimer;
+  Timer? _liveTickFlushTimer;
   MarketQuoteLiveSubscription? _activeLiveRequest;
   Set<String> _marketLiveStockCodes = <String>{};
   Set<String> _demandLiveStockCodes = <String>{};
   final Set<String> _requestedRealtimeSourceStockCodes = <String>{};
+  final Map<String, MarketQuote> _pendingLiveTicks = <String, MarketQuote>{};
+  DateTime? _lastLiveTickPublishedAt;
   int _liveReconnectAttempt = 0;
+  static const Duration _detailTickPublishInterval =
+      Duration(milliseconds: 250);
 
   bool get canSubscribeLive => _liveClient != null;
 
@@ -666,6 +671,9 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     _liveReconnectAttempt = 0;
     _liveReconnectTimer?.cancel();
     _liveReconnectTimer = null;
+    _liveTickFlushTimer?.cancel();
+    _liveTickFlushTimer = null;
+    _pendingLiveTicks.clear();
     await _liveSubscription?.cancel();
     _liveSubscription = null;
     if (updateState && value.liveStatus != MarketQuoteLiveStatus.disconnected) {
@@ -761,22 +769,53 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   }
 
   void _applyLiveTick(MarketQuote tick) {
-    final nextQuotes = List<MarketQuote>.of(value.quotes);
-    final index =
-        nextQuotes.indexWhere((quote) => quote.stockCode == tick.stockCode);
-    if (index >= 0) {
-      nextQuotes[index] = tick.isAfterHours
-          ? nextQuotes[index].mergeAfterHoursTick(tick)
-          : nextQuotes[index].mergeRegularTick(tick);
-    } else {
-      nextQuotes.insert(0, tick);
+    final now = DateTime.now().toUtc();
+    final lastPublishedAt = _lastLiveTickPublishedAt;
+    if (lastPublishedAt == null ||
+        now.difference(lastPublishedAt) >= _detailTickPublishInterval) {
+      _pendingLiveTicks.remove(tick.stockCode);
+      _publishLiveTicks([tick], now);
+      return;
     }
+
+    _pendingLiveTicks[tick.stockCode] = tick;
+    _liveTickFlushTimer ??= Timer(
+      _detailTickPublishInterval - now.difference(lastPublishedAt),
+      _flushPendingLiveTicks,
+    );
+  }
+
+  void _flushPendingLiveTicks() {
+    _liveTickFlushTimer = null;
+    if (_pendingLiveTicks.isEmpty) {
+      return;
+    }
+    final ticks = List<MarketQuote>.from(_pendingLiveTicks.values);
+    _pendingLiveTicks.clear();
+    _publishLiveTicks(ticks, DateTime.now().toUtc());
+  }
+
+  void _publishLiveTicks(List<MarketQuote> ticks, DateTime receivedAt) {
+    final nextQuotes = List<MarketQuote>.of(value.quotes);
+    for (final tick in ticks) {
+      final index =
+          nextQuotes.indexWhere((quote) => quote.stockCode == tick.stockCode);
+      if (index >= 0) {
+        nextQuotes[index] = tick.isAfterHours
+            ? nextQuotes[index].mergeAfterHoursTick(tick)
+            : nextQuotes[index].mergeRegularTick(tick);
+      } else {
+        nextQuotes.insert(0, tick);
+      }
+    }
+    final lastTick = ticks.last;
+    _lastLiveTickPublishedAt = receivedAt;
 
     value = value.copyWith(
       quotes: nextQuotes,
       liveStatus: MarketQuoteLiveStatus.live,
-      liveMessage: 'Live tick ${tick.stockCode} received.',
-      lastTickAt: DateTime.now().toUtc(),
+      liveMessage: 'Live tick ${lastTick.stockCode} received.',
+      lastTickAt: receivedAt,
       liveStale: false,
       clearErrorMessage: true,
     );
@@ -813,6 +852,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   @override
   void dispose() {
     _liveReconnectTimer?.cancel();
+    _liveTickFlushTimer?.cancel();
     _liveSubscription?.cancel();
     super.dispose();
   }
