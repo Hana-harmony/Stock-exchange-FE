@@ -55,6 +55,7 @@ class TaxDocumentUpload {
     required this.originalFileName,
     required this.sizeBytes,
     required this.createdAt,
+    this.verification,
   });
 
   final String documentId;
@@ -62,6 +63,9 @@ class TaxDocumentUpload {
   final String originalFileName;
   final int sizeBytes;
   final DateTime? createdAt;
+  final TaxDocumentVerification? verification;
+
+  bool get isVerified => verification?.verificationStatus == 'VERIFIED';
 
   static TaxDocumentUpload fromJson(Map<String, dynamic> json) {
     return TaxDocumentUpload(
@@ -70,6 +74,58 @@ class TaxDocumentUpload {
       originalFileName: _string(json['originalFileName'], fallback: ''),
       sizeBytes: _int(json['sizeBytes']),
       createdAt: _dateTime(json['createdAt']),
+      verification: json['verification'] == null
+          ? null
+          : TaxDocumentVerification.fromJson(_map(json['verification'])),
+    );
+  }
+}
+
+class TaxDocumentVerification {
+  const TaxDocumentVerification({
+    required this.verificationStatus,
+    required this.ocrConfidence,
+    required this.fraudRiskScore,
+    required this.riskLevel,
+    required this.manualReviewRequired,
+    required this.extractedFields,
+    required this.missingRequiredFields,
+    required this.rejectionReasons,
+    required this.documentModelVersion,
+    required this.source,
+  });
+
+  final String verificationStatus;
+  final double ocrConfidence;
+  final double fraudRiskScore;
+  final String riskLevel;
+  final bool manualReviewRequired;
+  final Map<String, String> extractedFields;
+  final List<String> missingRequiredFields;
+  final List<String> rejectionReasons;
+  final String documentModelVersion;
+  final String source;
+
+  String get confidenceDisplay =>
+      '${(ocrConfidence * 100).clamp(0, 100).toStringAsFixed(0)}%';
+
+  static TaxDocumentVerification fromJson(Map<String, dynamic> json) {
+    return TaxDocumentVerification(
+      verificationStatus: _string(json['verificationStatus'], fallback: ''),
+      ocrConfidence: _double(json['ocrConfidence']),
+      fraudRiskScore: _double(json['fraudRiskScore']),
+      riskLevel: _string(json['riskLevel'], fallback: 'MEDIUM'),
+      manualReviewRequired: json['manualReviewRequired'] as bool? ?? true,
+      extractedFields: _stringMap(json['extractedFields']),
+      missingRequiredFields: _list(json['missingRequiredFields'])
+          .map((value) => '$value')
+          .toList(growable: false),
+      rejectionReasons: _list(json['rejectionReasons'])
+          .map((value) => '$value')
+          .toList(growable: false),
+      documentModelVersion:
+          _string(json['documentModelVersion'], fallback: 'unavailable'),
+      source: _string(json['source'], fallback: 'HANA_OMNILENS_API'),
     );
   }
 }
@@ -433,6 +489,10 @@ class TaxController extends ValueNotifier<TaxState> {
     }
     return null;
   }
+
+  bool hasVerifiedDocument(String documentType) {
+    return _document(documentType)?.isVerified ?? false;
+  }
 }
 
 Map<String, dynamic> _map(Object? value) {
@@ -465,6 +525,20 @@ int _int(Object? value) {
     return value.toInt();
   }
   return int.tryParse('$value') ?? 0;
+}
+
+double _double(Object? value) {
+  if (value is num) {
+    return value.toDouble();
+  }
+  return double.tryParse('$value') ?? 0;
+}
+
+Map<String, String> _stringMap(Object? value) {
+  if (value is! Map) {
+    return const {};
+  }
+  return value.map((key, value) => MapEntry('$key', '$value'));
 }
 
 DateTime? _dateTime(Object? value) {

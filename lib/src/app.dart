@@ -581,6 +581,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           sessionController: _sessionController,
           accountController: _accountController,
           tradeController: _tradeController,
+          taxController: _taxController,
           onSignInTap: _openMyTabFromNestedFlow,
         ),
         MarketNewsScreen(
