@@ -25,6 +25,7 @@ class _StockNewsTab extends StatefulWidget {
 
 class _StockNewsTabState extends State<_StockNewsTab> {
   static const _layoutTransitionDuration = Duration(milliseconds: 240);
+  static const _maxRenderedItemsPerSource = 40;
 
   _StockNewsLayout _layout = _StockNewsLayout.list;
 
@@ -160,6 +161,7 @@ class _StockNewsTabState extends State<_StockNewsTab> {
         .toList(growable: false);
     if (filtered.isNotEmpty) {
       return filtered
+          .take(_maxRenderedItemsPerSource)
           .map(
             (item) => _StockNewsItemViewModel.fromFeedItem(
               item,

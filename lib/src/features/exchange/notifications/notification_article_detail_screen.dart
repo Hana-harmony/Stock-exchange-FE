@@ -781,50 +781,10 @@ class _NotificationArticleDetailData {
   static List<_StockNewsSummaryRowData> _analysisRowsFromIntelligence(
     StockIntelligenceItem item,
   ) {
-    final rows = <_StockNewsSummaryRowData>[
-      if (item.summaryLines.what.isNotEmpty)
-        _StockNewsSummaryRowData(
-          label: 'What',
-          value: item.summaryLines.what,
-        ),
-      if (item.summaryLines.why.isNotEmpty)
-        _StockNewsSummaryRowData(
-          label: 'Why',
-          value: item.summaryLines.why,
-        ),
-      if (item.summaryLines.impact.isNotEmpty)
-        _StockNewsSummaryRowData(
-          label: 'Impact',
-          value: item.summaryLines.impact,
-        ),
-    ];
-
-    if (rows.isNotEmpty) {
-      return rows;
-    }
-
-    return [
-      _StockNewsSummaryRowData(
-        label: 'What',
-        value: item.summary.isNotEmpty ? item.summary : item.translatedSummary,
-      ),
-      _StockNewsSummaryRowData(
-        label: 'Why',
-        value: item.originalContent.isNotEmpty
-            ? item.originalContent
-            : item.summary.isNotEmpty
-                ? item.summary
-                : item.title,
-      ),
-      _StockNewsSummaryRowData(
-        label: 'Impact',
-        value: item.contentPreview.isNotEmpty
-            ? item.contentPreview
-            : item.originalContent.isNotEmpty
-                ? item.originalContent
-                : item.title,
-      ),
-    ];
+    return _analysisRowsFromStockIntelligence(
+      item,
+      fallbackText: item.title,
+    );
   }
 }
 

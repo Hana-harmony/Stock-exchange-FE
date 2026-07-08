@@ -576,9 +576,13 @@ class ExchangeApiClient {
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getStockIntelligenceFeed(
-    String stockCode,
-  ) {
-    return get<Map<String, dynamic>>('/api/v1/stocks/$stockCode/intelligence');
+    String stockCode, {
+    int limit = 40,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/stocks/$stockCode/intelligence',
+      query: {'limit': '$limit'},
+    );
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getMarketNews({int limit = 10}) {

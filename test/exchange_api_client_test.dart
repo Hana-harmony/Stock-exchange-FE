@@ -200,7 +200,8 @@ void main() {
       baseUri: Uri.parse('http://localhost:3000'),
       sessionProvider: () => session,
       httpClient: MockClient((request) async {
-        seenPaths.add('${request.method} ${request.url.path}');
+        seenPaths.add('${request.method} ${request.url.path}'
+            '${request.url.hasQuery ? '?${request.url.query}' : ''}');
         expect(_header(request, 'authorization'), 'Bearer access-token');
         return _jsonResponse({
           'success': true,
@@ -224,7 +225,7 @@ void main() {
     expect(seenPaths, [
       'GET /api/v1/accounts/ACC-ABC123456789/notifications',
       'GET /api/v1/accounts/ACC-ABC123456789/notifications/devices',
-      'GET /api/v1/stocks/005930/intelligence',
+      'GET /api/v1/stocks/005930/intelligence?limit=40',
       'POST /api/v1/accounts/ACC-ABC123456789/notifications/NTF-ABC123456789/read',
     ]);
   });

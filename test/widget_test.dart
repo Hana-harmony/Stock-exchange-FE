@@ -1203,6 +1203,11 @@ void main() {
 
     expect(find.text('AI Analysis'), findsOneWidget);
     expect(
+      find.text('() crisis intraday Korean stock market.'),
+      findsNothing,
+    );
+    expect(find.text('카카오는 신규 콘텐츠 제휴를 체결했다.'), findsOneWidget);
+    expect(
       find.byWidgetPredicate(
         (widget) =>
             widget is RichText &&
@@ -2745,11 +2750,14 @@ Map<String, Object?> _stockIntelligenceJson() {
         'eventId': 'NEWS-1',
         'sourceType': 'NEWS',
         'title': 'Kakao expands global content partnerships',
-        'summary': 'Kakao signs new content distribution partnerships.',
+        'summary': '카카오는 신규 콘텐츠 제휴를 체결했다. '
+            '해외 수익화 확대가 주요 배경이다. '
+            '투자자는 플랫폼 성장 재평가를 확인해야 한다.',
         'summaryLines': {
-          'what': 'Kakao signed new content partnerships.',
-          'why': 'The deals expand overseas monetization.',
-          'impact': 'Investors may reassess platform growth.',
+          'what': '() crisis intraday Korean stock market.',
+          'why': '.',
+          'impact':
+              '(WTI) 72.69 3% surge (-4.60%), (-3.43%) stock price, SK (-6.34%), (-10.25%) IT· ·.',
         },
         'translatedSummary':
             'Kakao signs new content distribution partnerships.',
