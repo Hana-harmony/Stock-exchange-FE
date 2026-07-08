@@ -13,6 +13,8 @@ class NotificationController extends ValueNotifier<NotificationState> {
         super(const NotificationState.idle());
 
   final ExchangeApiClient _apiClient;
+  String? _loadedFeedStockCode;
+  Future<void>? _feedLoadFuture;
 
   void setFilter(NotificationFilter filter) {
     value = value.copyWithFilter(filter);
@@ -108,6 +110,15 @@ class NotificationController extends ValueNotifier<NotificationState> {
       _setFailure('Enter a 6 digit Korean stock code.');
       return;
     }
+    if (_loadedFeedStockCode == normalizedStockCode &&
+        value.feed?.stockCode == normalizedStockCode &&
+        value.feed?.items.isNotEmpty == true) {
+      return;
+    }
+    final activeLoad = _feedLoadFuture;
+    if (activeLoad != null && _loadedFeedStockCode == normalizedStockCode) {
+      return activeLoad;
+    }
 
     value = NotificationState.loading(
       inbox: value.inbox,
@@ -116,7 +127,8 @@ class NotificationController extends ValueNotifier<NotificationState> {
       selectedFilter: value.selectedFilter,
     );
 
-    try {
+    _loadedFeedStockCode = normalizedStockCode;
+    final loadFuture = () async {
       final response =
           await _apiClient.getStockIntelligenceFeed(normalizedStockCode);
       _setLoaded(
@@ -124,10 +136,21 @@ class NotificationController extends ValueNotifier<NotificationState> {
         feed: StockIntelligenceFeed.fromJson(response.data ?? {}),
         devices: value.devices,
       );
+    }();
+    _feedLoadFuture = loadFuture;
+
+    try {
+      await loadFuture;
     } on ExchangeApiException catch (error) {
+      _loadedFeedStockCode = null;
       _setFailure(error.message);
     } on Object {
+      _loadedFeedStockCode = null;
       _setFailure('Unable to load stock intelligence feed.');
+    } finally {
+      if (identical(_feedLoadFuture, loadFuture)) {
+        _feedLoadFuture = null;
+      }
     }
   }
 
