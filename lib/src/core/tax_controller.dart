@@ -332,6 +332,7 @@ class TaxController extends ValueNotifier<TaxState> {
     required String documentType,
     required String fileName,
     required Uint8List bytes,
+    String? contentType,
   }) async {
     if (accountId == null || accountId.isEmpty) {
       value = TaxState.failure(
@@ -360,6 +361,7 @@ class TaxController extends ValueNotifier<TaxState> {
         documentType: documentType,
         fileName: fileName.trim(),
         bytes: bytes,
+        contentType: contentType,
       );
       final uploaded = TaxDocumentUpload.fromJson(response.data ?? {});
       value = TaxState.loaded(

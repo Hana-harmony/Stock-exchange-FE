@@ -586,6 +586,7 @@ void main() {
         );
         expect(request.body, contains('RESIDENCE_CERTIFICATE'));
         expect(request.body, contains('residence.pdf'));
+        expect(request.body, contains('content-type: application/pdf'));
 
         return _jsonResponse({
           'success': true,
@@ -619,6 +620,7 @@ void main() {
       documentType: 'RESIDENCE_CERTIFICATE',
       fileName: 'residence.pdf',
       bytes: Uint8List.fromList(utf8.encode('document')),
+      contentType: 'application/pdf',
     );
 
     expect(response.data?['documentId'], 'DOC-1');
