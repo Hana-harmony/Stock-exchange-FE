@@ -162,12 +162,7 @@ class _StockNewsTabState extends State<_StockNewsTab> {
     if (filtered.isNotEmpty) {
       return filtered
           .take(_maxRenderedItemsPerSource)
-          .map(
-            (item) => _StockNewsItemViewModel.fromFeedItem(
-              item,
-              fallbackCompanyLabel: _companyLabel(widget.stockName),
-            ),
-          )
+          .map(_StockNewsItemViewModel.fromFeedItem)
           .toList();
     }
 
