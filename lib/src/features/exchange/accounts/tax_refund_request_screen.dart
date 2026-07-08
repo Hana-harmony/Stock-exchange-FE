@@ -75,9 +75,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
 
   bool get _hasAllDocuments {
     return _documents.every((document) {
-      final uploaded = _uploaded(document.type);
-      return uploaded != null &&
-          uploaded.verification?.verificationStatus != 'REJECTED';
+      return _isVerified(_uploaded(document.type));
     });
   }
 
@@ -116,14 +114,11 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       contentType: file.contentType,
     );
     final uploaded = _uploaded(document.type);
-    final rejected = uploaded?.verification?.verificationStatus == 'REJECTED';
-    if (!mounted || rejected) {
+    if (!mounted || !_isVerified(uploaded)) {
       return;
     }
     final nextIndex = _documents.indexWhere((item) {
-      final current = _uploaded(item.type);
-      return current == null ||
-          current.verification?.verificationStatus == 'REJECTED';
+      return !_isVerified(_uploaded(item.type));
     });
     if (nextIndex == -1) {
       setState(() {
@@ -137,6 +132,13 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
   }
 
   Future<void> _submit() async {
+    if (!_hasAllDocuments) {
+      setState(() {
+        _fileErrorMessage =
+            'Complete Hana Montana OCR verification for every required document.';
+      });
+      return;
+    }
     await widget.taxController.submitRefundCase(
       accountId: widget.accountId,
       taxYear: DateTime.now().toUtc().year,
@@ -212,6 +214,10 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       onReview: () => setState(() => _step = 4),
     );
   }
+}
+
+bool _isVerified(TaxDocumentUpload? upload) {
+  return upload?.isVerified ?? false;
 }
 
 Future<_PickedTaxDocumentFile?> _pickTaxDocumentFile() async {
@@ -473,7 +479,7 @@ class _TaxDocumentStep extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final verification = uploaded?.verification;
-    final analyzing = loading && uploaded == null;
+    final verifying = loading;
     return ListView(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 24),
       children: [
@@ -489,7 +495,7 @@ class _TaxDocumentStep extends StatelessWidget {
             border: Border.all(color: AppColors.gray200),
           ),
           child: Center(
-            child: analyzing
+            child: verifying
                 ? const CircularProgressIndicator(color: AppColors.orange500)
                 : Icon(
                     uploaded == null
@@ -511,7 +517,10 @@ class _TaxDocumentStep extends StatelessWidget {
           _TaxFileErrorPanel(message: fileErrorMessage!),
           const SizedBox(height: 12),
         ],
-        _TaxVerificationPanel(verification: verification),
+        _TaxVerificationPanel(
+          verification: verification,
+          verifying: verifying,
+        ),
         const SizedBox(height: 24),
         SizedBox(
           height: 45,
@@ -522,7 +531,13 @@ class _TaxDocumentStep extends StatelessWidget {
               backgroundColor: AppColors.orange500,
               radius: 8,
             ),
-            child: Text(uploaded == null ? 'Upload File' : 'Re-upload File'),
+            child: Text(
+              verifying
+                  ? 'Verifying with Hana Montana...'
+                  : uploaded == null
+                      ? 'Upload File'
+                      : 'Re-upload File',
+            ),
           ),
         ),
       ],
@@ -703,46 +718,102 @@ class _TaxInfoPanel extends StatelessWidget {
 }
 
 class _TaxVerificationPanel extends StatelessWidget {
-  const _TaxVerificationPanel({required this.verification});
+  const _TaxVerificationPanel({
+    required this.verification,
+    required this.verifying,
+  });
 
   final TaxDocumentVerification? verification;
+  final bool verifying;
 
   @override
   Widget build(BuildContext context) {
-    final status = verification?.verificationStatus ?? 'NOT_UPLOADED';
-    final color = status == 'REJECTED'
+    final verified = verification?.isHanaMontanaVerified ?? false;
+    final blocked = verification != null && !verified;
+    final color = blocked
         ? AppColors.red500
-        : status == 'VERIFIED'
+        : verified
             ? AppColors.green500
             : AppColors.orange500;
+    final progress =
+        ((verification?.progressPercent ?? 0) / 100).clamp(0.0, 1.0).toDouble();
+    final text = verifying
+        ? verification == null
+            ? 'Uploading to OmniLens · Verifying with Hana Montana OCR'
+            : '${verification!.stageDisplay} · ${verification!.progressPercent}%'
+        : verification == null
+            ? 'Waiting for OCR verification'
+            : verified
+                ? 'VERIFIED · Hana Montana OCR ${verification!.confidenceDisplay}'
+                : _blockedVerificationText(verification!);
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.gray50,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Row(
+      child: Column(
         children: [
-          Icon(Icons.verified_outlined, color: color, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              verification == null
-                  ? 'Waiting for OCR verification'
-                  : '$status · OCR ${verification!.confidenceDisplay}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    fontSize: 14,
-                    color: AppColors.gray900,
-                    fontWeight: FontWeight.w500,
-                  ),
-            ),
+          Row(
+            children: [
+              verifying
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.orange500,
+                      ),
+                    )
+                  : Icon(
+                      verified ? Icons.verified_outlined : Icons.error_outline,
+                      color: color,
+                      size: 20,
+                    ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  text,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
+                        color: AppColors.gray900,
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ),
+            ],
           ),
+          if (verifying) ...[
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                minHeight: 6,
+                value: progress == 0 ? null : progress,
+                backgroundColor: AppColors.gray200,
+                color: AppColors.orange500,
+              ),
+            ),
+          ],
         ],
       ),
     );
   }
+}
+
+String _blockedVerificationText(TaxDocumentVerification verification) {
+  if (verification.verificationStatus == 'PENDING') {
+    return 'PENDING · Hana Montana OCR has not approved this document yet';
+  }
+  if (verification.manualReviewRequired) {
+    return 'MANUAL REVIEW · Re-upload a clearer approved document';
+  }
+  if (verification.source != 'HANNAH_MONTANA_AI_TAX_OCR') {
+    return 'UNVERIFIED SOURCE · Hana Montana OCR verification required';
+  }
+  return '${verification.verificationStatus} · Re-upload required';
 }
 
 class _TaxSelectedFilePanel extends StatelessWidget {
@@ -823,7 +894,8 @@ class _TaxDocumentStatusRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final status = upload?.verification?.verificationStatus ?? 'MISSING';
-    final blocked = status == 'REJECTED' || status == 'MISSING';
+    final verified = upload?.isVerified ?? false;
+    final blocked = !verified;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -852,7 +924,7 @@ class _TaxDocumentStatusRow extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Text(
-            status,
+            verified ? 'VERIFIED' : status,
             style: Theme.of(context).textTheme.labelMedium?.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,

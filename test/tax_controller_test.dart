@@ -66,19 +66,41 @@ void main() {
           paths.add('${request.method} ${request.url.path}');
           if (request.url.path.endsWith('/tax/documents')) {
             final isResidence = request.body.contains('RESIDENCE_CERTIFICATE');
+            final isApostille = request.body.contains('APOSTILLE');
             return _jsonResponse({
-              'documentId': isResidence ? 'DOC-RES' : 'DOC-RED',
+              'documentId': isResidence
+                  ? 'DOC-RES'
+                  : isApostille
+                      ? 'DOC-APO'
+                      : 'DOC-RED',
               'documentType': isResidence
                   ? 'RESIDENCE_CERTIFICATE'
-                  : 'REDUCED_TAX_APPLICATION',
-              'originalFileName':
-                  isResidence ? 'residence.pdf' : 'reduced-tax.pdf',
+                  : isApostille
+                      ? 'APOSTILLE'
+                      : 'REDUCED_TAX_APPLICATION',
+              'originalFileName': isResidence
+                  ? 'residence.pdf'
+                  : isApostille
+                      ? 'apostille.pdf'
+                      : 'reduced-tax.pdf',
               'sizeBytes': 12,
               'createdAt': '2026-06-18T06:00:00Z',
-              'verification': _verificationJson(isResidence
+              'verification': _pendingVerificationJson(isResidence
                   ? 'RESIDENCE_CERTIFICATE'
-                  : 'REDUCED_TAX_APPLICATION'),
+                  : isApostille
+                      ? 'APOSTILLE'
+                      : 'REDUCED_TAX_APPLICATION'),
             });
+          }
+          if (request.url.path.endsWith('/verification')) {
+            final documentId = request.url.pathSegments[
+                request.url.pathSegments.indexOf('documents') + 1];
+            final documentType = switch (documentId) {
+              'DOC-RES' => 'RESIDENCE_CERTIFICATE',
+              'DOC-APO' => 'APOSTILLE',
+              _ => 'REDUCED_TAX_APPLICATION',
+            };
+            return _jsonResponse(_verificationJson(documentType));
           }
           if (request.url.path.endsWith('/tax/refund-cases')) {
             expect(jsonDecode(request.body), {
@@ -87,6 +109,7 @@ void main() {
               'residenceCertificateFileName': 'residence.pdf',
               'reducedTaxApplicationFileName': 'reduced-tax.pdf',
               'residenceCertificateDocumentId': 'DOC-RES',
+              'apostilleDocumentId': 'DOC-APO',
               'reducedTaxApplicationDocumentId': 'DOC-RED',
               'advancePaymentRequested': true,
             });
@@ -116,6 +139,12 @@ void main() {
       fileName: 'reduced-tax.pdf',
       bytes: Uint8List.fromList(utf8.encode('reduced')),
     );
+    await controller.uploadDocument(
+      accountId: 'ACC-ABC123456789',
+      documentType: 'APOSTILLE',
+      fileName: 'apostille.pdf',
+      bytes: Uint8List.fromList(utf8.encode('apostille')),
+    );
     await controller.submitRefundCase(
       accountId: 'ACC-ABC123456789',
       taxYear: 2026,
@@ -127,7 +156,7 @@ void main() {
     await controller.syncRefundStatus('ACC-ABC123456789');
 
     expect(controller.value.status, TaxStatus.loaded);
-    expect(controller.value.uploadedDocuments, hasLength(2));
+    expect(controller.value.uploadedDocuments, hasLength(3));
     expect(controller.hasVerifiedDocument('RESIDENCE_CERTIFICATE'), isTrue);
     expect(
       controller.value.uploadedDocuments.first.verification?.source,
@@ -136,10 +165,49 @@ void main() {
     expect(controller.value.refundCase?.status, 'ADVANCE_PAID');
     expect(paths, [
       'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
+      'GET /api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-RES/verification',
       'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
+      'GET /api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-RED/verification',
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
+      'GET /api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-APO/verification',
       'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-cases',
       'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-status/sync',
     ]);
+  });
+
+  test(
+      'blocks submission until every required document passes Hana Montana OCR',
+      () async {
+    var submitCalled = false;
+    final controller = TaxController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/tax/refund-cases')) {
+            submitCalled = true;
+            return _jsonResponse(_taxCaseJson());
+          }
+          return _jsonResponse({});
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.submitRefundCase(
+      accountId: 'ACC-ABC123456789',
+      taxYear: 2026,
+      treatyCountry: 'US',
+      residenceCertificateFileName: 'residence.pdf',
+      reducedTaxApplicationFileName: 'reduced-tax.pdf',
+      advancePaymentRequested: true,
+    );
+
+    expect(submitCalled, isFalse);
+    expect(controller.value.status, TaxStatus.failure);
+    expect(
+      controller.value.errorMessage,
+      'Complete Hana Montana OCR verification for every required tax document before submitting.',
+    );
   });
 }
 
@@ -157,6 +225,29 @@ Map<String, Object?> _verificationJson(String documentType) {
     'rejectionReasons': <Object?>[],
     'documentModelVersion': 'hanah-tax-ocr-e2e-review-v1',
     'source': 'HANNAH_MONTANA_AI_TAX_OCR',
+    'progressPercent': 100,
+    'stage': 'VERIFICATION_COMPLETE',
+    'updatedAt': '2026-06-18T06:00:01Z',
+  };
+}
+
+Map<String, Object?> _pendingVerificationJson(String documentType) {
+  return {
+    'documentType': documentType,
+    'fileName': '$documentType.txt',
+    'verificationStatus': 'PENDING',
+    'ocrConfidence': 0.0,
+    'fraudRiskScore': 0.0,
+    'riskLevel': 'MEDIUM',
+    'manualReviewRequired': true,
+    'extractedFields': <String, String>{},
+    'missingRequiredFields': <Object?>[],
+    'rejectionReasons': <Object?>[],
+    'documentModelVersion': 'pending',
+    'source': 'HANA_EXCHANGE_BE',
+    'progressPercent': 45,
+    'stage': 'SENT_TO_OMNILENS',
+    'updatedAt': '2026-06-18T06:00:00Z',
   };
 }
 
