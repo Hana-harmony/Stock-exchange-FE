@@ -428,20 +428,7 @@ class _TaxRequestHeader extends StatelessWidget {
         child: Row(
           children: [
             Image.asset(AppAssets.logoSymbol, width: 36, height: 36),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                'Tax Refund Request',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontSize: 22,
-                      height: 31 / 22,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.gray1000,
-                    ),
-              ),
-            ),
+            const Spacer(),
             _TaxHeaderIconButton(
               tooltip: 'Information',
               onPressed: () {},
@@ -865,12 +852,11 @@ class _TaxDocumentUploadStep extends StatelessWidget {
           Text(document.uploadTitle, style: _taxTitleStyle(context)),
           const SizedBox(height: 12),
           Text(document.uploadDescription, style: _taxBodyStyle(context)),
-          const SizedBox(height: 18),
+          const SizedBox(height: 46),
           const SizedBox(
             height: 240,
             child: _TaxUploadIllustration(),
           ),
-          const SizedBox(height: 10),
           _TaxInfoCallout(title: document.infoTitle, body: document.infoText),
           if (uploaded != null) ...[
             const SizedBox(height: 10),
@@ -898,43 +884,14 @@ class _TaxUploadIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     return Align(
       alignment: Alignment.centerRight,
-      child: SizedBox(
-        width: 294,
-        height: 240,
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            Positioned(
-              right: 12,
-              top: 18,
-              child: Icon(
-                Icons.description,
-                size: 126,
-                color: AppColors.gray200.withValues(alpha: 0.95),
-              ),
-            ),
-            Positioned(
-              right: 74,
-              bottom: 34,
-              child: Icon(
-                Icons.cloud_upload,
-                size: 118,
-                color: AppColors.orange300.withValues(alpha: 0.95),
-              ),
-            ),
-            Positioned(
-              right: 92,
-              bottom: 58,
-              child: Container(
-                width: 52,
-                height: 52,
-                decoration: const BoxDecoration(
-                  color: AppColors.orange500,
-                  shape: BoxShape.circle,
-                ),
-              ),
-            ),
-          ],
+      child: Transform.translate(
+        offset: const Offset(16, 0),
+        child: Image.asset(
+          AppAssets.taxUploadDocument,
+          width: 294,
+          height: 240,
+          fit: BoxFit.fill,
+          filterQuality: FilterQuality.high,
         ),
       ),
     );
@@ -952,9 +909,11 @@ class _TaxInfoCallout extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final height = title.contains('\n') ? 134.0 : 129.0;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      height: height,
+      padding: const EdgeInsets.fromLTRB(12, 32, 12, 16),
       decoration: BoxDecoration(
         color: AppColors.orange100,
         borderRadius: BorderRadius.circular(8),

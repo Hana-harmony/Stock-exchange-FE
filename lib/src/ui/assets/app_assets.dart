@@ -85,6 +85,8 @@ abstract final class AppAssets {
       'assets/illustrations/stock_question_comparison_intel.png';
   static const stockQuestionComparisonTsmc =
       'assets/illustrations/stock_question_comparison_tsmc.png';
+  static const taxUploadDocument =
+      'assets/illustrations/tax_upload_document.png';
   static const emptyState = 'assets/illustrations/empty_state.png';
   static const errorState = 'assets/illustrations/error_state.png';
 }
