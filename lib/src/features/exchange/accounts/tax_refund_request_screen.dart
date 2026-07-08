@@ -16,46 +16,36 @@ class TaxRefundRequestScreen extends StatefulWidget {
 
 class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
   var _step = 0;
+  String? _fileErrorMessage;
+
+  static const _maxUploadBytes = 10 * 1024 * 1024;
+  static const _allowedExtensions = {'pdf', 'png', 'jpg', 'jpeg', 'txt'};
+  static const _documentTypeGroup = XTypeGroup(
+    label: 'Tax documents',
+    extensions: ['pdf', 'png', 'jpg', 'jpeg', 'txt'],
+    mimeTypes: [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'text/plain',
+    ],
+  );
 
   static const _documents = <_TaxRequiredDocument>[
     _TaxRequiredDocument(
       type: 'RESIDENCE_CERTIFICATE',
       title: 'Certificate of Tax Residence',
       subtitle: 'Verifies your tax residency to determine eligibility.',
-      fileName: 'residence-certificate.txt',
-      sampleText: '''
-United States of America
-Certification of U.S. Tax Residency
-US_USER_1234 987-65-4321
-Year 2026
-January 12, 2026
-''',
     ),
     _TaxRequiredDocument(
       type: 'APOSTILLE',
       title: 'Apostille Certificate',
       subtitle: 'Certifies authenticity for international use.',
-      fileName: 'apostille-certificate.txt',
-      sampleText: '''
-APOSTILLE
-United States of America
-Signed by Sample Notary
-Secretary of State
-Certificate No. 5008
-''',
     ),
     _TaxRequiredDocument(
       type: 'REDUCED_TAX_APPLICATION',
       title: 'Reduced Withholding Tax Rate Application',
       subtitle: 'Requests the treaty withholding tax rate.',
-      fileName: 'reduced-tax-application.txt',
-      sampleText: '''
-Application for Reduced Withholding Tax Rate
-US_USER_1234 MARIA L CHEN
-United States of America
-Treaty dividend tax rate 15%
-Signature date 2026-01-12
-''',
     ),
   ];
 
@@ -95,12 +85,29 @@ Signature date 2026-01-12
   }
 
   Future<void> _upload(_TaxRequiredDocument document) async {
-    final bytes = Uint8List.fromList(document.sampleText.codeUnits);
+    setState(() {
+      _fileErrorMessage = null;
+    });
+    final _PickedTaxDocumentFile? file;
+    try {
+      file = await _pickTaxDocumentFile();
+    } on _TaxFileSelectionException catch (error) {
+      if (mounted) {
+        setState(() {
+          _fileErrorMessage = error.message;
+        });
+      }
+      return;
+    }
+    if (file == null) {
+      return;
+    }
     await widget.taxController.uploadDocument(
       accountId: widget.accountId,
       documentType: document.type,
-      fileName: document.fileName,
-      bytes: bytes,
+      fileName: file.name,
+      bytes: file.bytes,
+      contentType: file.contentType,
     );
     final uploaded = _uploaded(document.type);
     final rejected = uploaded?.verification?.verificationStatus == 'REJECTED';
@@ -180,6 +187,7 @@ Signature date 2026-01-12
         document: document,
         uploaded: _uploaded(document.type),
         loading: loading,
+        fileErrorMessage: _fileErrorMessage,
         onUpload: () => _upload(document),
       );
     }
@@ -200,20 +208,103 @@ Signature date 2026-01-12
   }
 }
 
+Future<_PickedTaxDocumentFile?> _pickTaxDocumentFile() async {
+  final selected = await openFile(acceptedTypeGroups: [
+    _TaxRefundRequestScreenState._documentTypeGroup,
+  ]);
+  if (selected == null) {
+    return null;
+  }
+  final fileName = _safeTaxFileName(selected.name);
+  if (!_isAllowedTaxFileName(fileName)) {
+    throw const _TaxFileSelectionException(
+      'Upload PDF, PNG, JPG, JPEG, or TXT documents only.',
+    );
+  }
+  final length = await selected.length();
+  if (length <= 0) {
+    throw const _TaxFileSelectionException('Select a non-empty file.');
+  }
+  if (length > _TaxRefundRequestScreenState._maxUploadBytes) {
+    throw const _TaxFileSelectionException('File must be 10 MB or smaller.');
+  }
+  final bytes = await selected.readAsBytes();
+  if (bytes.isEmpty) {
+    throw const _TaxFileSelectionException('Select a non-empty file.');
+  }
+  if (bytes.length > _TaxRefundRequestScreenState._maxUploadBytes) {
+    throw const _TaxFileSelectionException('File must be 10 MB or smaller.');
+  }
+  return _PickedTaxDocumentFile(
+    name: fileName,
+    bytes: bytes,
+    contentType: selected.mimeType ?? _contentTypeForTaxFile(fileName),
+  );
+}
+
+String _safeTaxFileName(String rawName) {
+  final normalized = rawName.replaceAll('\\', '/');
+  final fileName = normalized.substring(normalized.lastIndexOf('/') + 1).trim();
+  return fileName.isEmpty ? 'tax-document' : fileName;
+}
+
+bool _isAllowedTaxFileName(String fileName) {
+  final extension = _taxFileExtension(fileName);
+  return _TaxRefundRequestScreenState._allowedExtensions.contains(extension);
+}
+
+String _taxFileExtension(String fileName) {
+  final index = fileName.lastIndexOf('.');
+  if (index < 0 || index == fileName.length - 1) {
+    return '';
+  }
+  return fileName.substring(index + 1).toLowerCase();
+}
+
+String _contentTypeForTaxFile(String fileName) {
+  switch (_taxFileExtension(fileName)) {
+    case 'pdf':
+      return 'application/pdf';
+    case 'png':
+      return 'image/png';
+    case 'jpg':
+    case 'jpeg':
+      return 'image/jpeg';
+    case 'txt':
+      return 'text/plain';
+    default:
+      return 'application/octet-stream';
+  }
+}
+
+class _PickedTaxDocumentFile {
+  const _PickedTaxDocumentFile({
+    required this.name,
+    required this.bytes,
+    required this.contentType,
+  });
+
+  final String name;
+  final Uint8List bytes;
+  final String contentType;
+}
+
+class _TaxFileSelectionException implements Exception {
+  const _TaxFileSelectionException(this.message);
+
+  final String message;
+}
+
 class _TaxRequiredDocument {
   const _TaxRequiredDocument({
     required this.type,
     required this.title,
     required this.subtitle,
-    required this.fileName,
-    required this.sampleText,
   });
 
   final String type;
   final String title;
   final String subtitle;
-  final String fileName;
-  final String sampleText;
 }
 
 class _TaxRequestHeader extends StatelessWidget {
@@ -363,12 +454,14 @@ class _TaxDocumentStep extends StatelessWidget {
     required this.document,
     required this.uploaded,
     required this.loading,
+    required this.fileErrorMessage,
     required this.onUpload,
   });
 
   final _TaxRequiredDocument document;
   final TaxDocumentUpload? uploaded;
   final bool loading;
+  final String? fileErrorMessage;
   final VoidCallback onUpload;
 
   @override
@@ -404,6 +497,14 @@ class _TaxDocumentStep extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
+        if (uploaded != null) ...[
+          _TaxSelectedFilePanel(uploaded: uploaded!),
+          const SizedBox(height: 12),
+        ],
+        if (fileErrorMessage != null) ...[
+          _TaxFileErrorPanel(message: fileErrorMessage!),
+          const SizedBox(height: 12),
+        ],
         _TaxVerificationPanel(verification: verification),
         const SizedBox(height: 24),
         SizedBox(
@@ -638,6 +739,72 @@ class _TaxVerificationPanel extends StatelessWidget {
   }
 }
 
+class _TaxSelectedFilePanel extends StatelessWidget {
+  const _TaxSelectedFilePanel({required this.uploaded});
+
+  final TaxDocumentUpload uploaded;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.gray50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.description_outlined,
+            color: AppColors.green500,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              '${uploaded.originalFileName} · ${_formatTaxFileSize(uploaded.sizeBytes)}',
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: _taxBodyStyle(context, fontSize: 13),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TaxFileErrorPanel extends StatelessWidget {
+  const _TaxFileErrorPanel({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.red100,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.red500, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: _taxBodyStyle(context, fontSize: 13)?.copyWith(
+                color: AppColors.red500,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _TaxDocumentStatusRow extends StatelessWidget {
   const _TaxDocumentStatusRow({
     required this.title,
@@ -690,6 +857,16 @@ class _TaxDocumentStatusRow extends StatelessWidget {
       ),
     );
   }
+}
+
+String _formatTaxFileSize(int bytes) {
+  if (bytes >= 1024 * 1024) {
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  if (bytes >= 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+  return '$bytes B';
 }
 
 TextStyle? _taxTitleStyle(BuildContext context) {

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 class ExchangeEnvironment {
   const ExchangeEnvironment({
@@ -655,6 +656,7 @@ class ExchangeApiClient {
     required String documentType,
     required String fileName,
     required Uint8List bytes,
+    String? contentType,
   }) async {
     final request = http.MultipartRequest(
       'POST',
@@ -665,8 +667,14 @@ class ExchangeApiClient {
       ...?_sessionProvider()?.authHeaders,
     });
     request.fields['documentType'] = documentType;
+    final mediaType = _parseMediaType(contentType);
     request.files.add(
-      http.MultipartFile.fromBytes('file', bytes, filename: fileName),
+      http.MultipartFile.fromBytes(
+        'file',
+        bytes,
+        filename: fileName,
+        contentType: mediaType,
+      ),
     );
 
     final streamedResponse = await _sendWithTimeout(
@@ -678,6 +686,18 @@ class ExchangeApiClient {
       response,
       (value) => _asMap(value),
     );
+  }
+
+  MediaType? _parseMediaType(String? contentType) {
+    final normalized = contentType?.trim();
+    if (normalized == null || normalized.isEmpty) {
+      return null;
+    }
+    try {
+      return MediaType.parse(normalized);
+    } on FormatException {
+      return null;
+    }
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> createTaxRefundCase({
