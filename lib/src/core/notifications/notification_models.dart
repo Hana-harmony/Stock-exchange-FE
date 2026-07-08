@@ -281,9 +281,26 @@ class StockIntelligenceItem {
     return translatedSummary.isNotEmpty ? translatedSummary : summary;
   }
 
+  String get displayBody {
+    if (_isArticleBodyCandidate(
+      translatedContent,
+      summaryLines: summaryLines,
+      translatedSummary: translatedSummary,
+    )) {
+      return translatedContent;
+    }
+    if (_isArticleBodyCandidate(
+      originalContent,
+      summaryLines: summaryLines,
+      translatedSummary: translatedSummary,
+    )) {
+      return originalContent;
+    }
+    return '';
+  }
+
   String get contentPreview {
-    final content =
-        translatedContent.isNotEmpty ? translatedContent : originalContent;
+    final content = displayBody;
     if (content.isEmpty) {
       return '';
     }

@@ -6,12 +6,14 @@ class AccountsScreen extends StatefulWidget {
     required this.sessionController,
     required this.accountController,
     required this.tradeController,
+    required this.taxController,
     required this.onSignInTap,
   });
 
   final ExchangeSessionController sessionController;
   final AccountController accountController;
   final TradeController tradeController;
+  final TaxController taxController;
   final VoidCallback onSignInTap;
 
   @override
@@ -76,6 +78,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
         widget.sessionController,
         widget.accountController,
         widget.tradeController,
+        widget.taxController,
       ]),
       builder: (context, _) {
         final session = widget.sessionController.session;
@@ -137,49 +140,62 @@ class _AccountsScreenState extends State<AccountsScreen> {
           color: AppColors.white,
           child: SafeArea(
             bottom: false,
-            child: Column(
+            child: Stack(
               children: [
-                _AccountsHeaderSection(
-                  snapshot: snapshot,
-                  selectedPrimaryTab: _selectedPrimaryTab,
-                  onPrimaryTabSelected: (index) {
-                    if (index > 1) {
-                      unawaited(
-                        _showComingSoonDialog(
-                          context,
-                          featureName:
-                              _AccountsPrimaryTabs.labelForIndex(index),
-                        ),
-                      );
-                      return;
-                    }
-                    setState(() {
-                      _selectedPrimaryTab = index;
-                    });
-                  },
+                Column(
+                  children: [
+                    _AccountsHeaderSection(
+                      snapshot: snapshot,
+                      selectedPrimaryTab: _selectedPrimaryTab,
+                      onPrimaryTabSelected: (index) {
+                        if (index > 1) {
+                          unawaited(
+                            _showComingSoonDialog(
+                              context,
+                              featureName:
+                                  _AccountsPrimaryTabs.labelForIndex(index),
+                            ),
+                          );
+                          return;
+                        }
+                        setState(() {
+                          _selectedPrimaryTab = index;
+                        });
+                      },
+                    ),
+                    SizedBox(
+                      height: 34,
+                      child: _AccountsAssetFilterTabs(
+                        selectedIndex: _selectedAssetFilter,
+                        onSelected: (index) {
+                          setState(() {
+                            _selectedAssetFilter = index;
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                      child: _AccountsHoldingsSection(
+                        snapshot: snapshot,
+                        showAllocationChart: _selectedPrimaryTab == 1,
+                        selectedMarketScope: _selectedMarketScope,
+                        onMarketScopeSelected: (index) {
+                          setState(() {
+                            _selectedMarketScope = index;
+                          });
+                        },
+                      ),
+                    ),
+                  ],
                 ),
-                SizedBox(
-                  height: 34,
-                  child: _AccountsAssetFilterTabs(
-                    selectedIndex: _selectedAssetFilter,
-                    onSelected: (index) {
-                      setState(() {
-                        _selectedAssetFilter = index;
-                      });
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Expanded(
-                  child: _AccountsHoldingsSection(
-                    snapshot: snapshot,
-                    showAllocationChart: _selectedPrimaryTab == 1,
-                    selectedMarketScope: _selectedMarketScope,
-                    onMarketScopeSelected: (index) {
-                      setState(() {
-                        _selectedMarketScope = index;
-                      });
-                    },
+                Positioned(
+                  left: 16,
+                  right: 16,
+                  bottom: 96,
+                  child: _TaxRefundEntryCard(
+                    taxState: widget.taxController.value,
+                    onTap: () => _openTaxRefundRequest(session.accountId),
                   ),
                 ),
               ],
@@ -187,6 +203,105 @@ class _AccountsScreenState extends State<AccountsScreen> {
           ),
         );
       },
+    );
+  }
+
+  Future<void> _openTaxRefundRequest(String accountId) {
+    return Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (context) => TaxRefundRequestScreen(
+          accountId: accountId,
+          taxController: widget.taxController,
+        ),
+      ),
+    );
+  }
+}
+
+class _TaxRefundEntryCard extends StatelessWidget {
+  const _TaxRefundEntryCard({
+    required this.taxState,
+    required this.onTap,
+  });
+
+  final TaxState taxState;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final submitted = taxState.refundCase?.status == 'READY_FOR_HANA_SYNC' ||
+        taxState.refundCase?.status == 'SYNCED_WITH_HANA' ||
+        taxState.refundCase?.status == 'ADVANCE_PAID';
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Material(
+        key: const ValueKey('tax-refund-entry-card'),
+        color: AppColors.gray50,
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: const BoxDecoration(
+                    color: AppColors.green100,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Icons.description_outlined,
+                    size: 21,
+                    color: AppColors.green500,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Reduced Withholding Tax Rate Available',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 15,
+                                  height: 1.35,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.gray900,
+                                ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        submitted
+                            ? 'Documents submitted for Hana review.'
+                            : 'OCR verify and submit tax documents.',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 13,
+                              height: 1.35,
+                              color: AppColors.gray600,
+                            ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 22,
+                  color: AppColors.gray600,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

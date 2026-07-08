@@ -75,6 +75,9 @@ void main() {
                   isResidence ? 'residence.pdf' : 'reduced-tax.pdf',
               'sizeBytes': 12,
               'createdAt': '2026-06-18T06:00:00Z',
+              'verification': _verificationJson(isResidence
+                  ? 'RESIDENCE_CERTIFICATE'
+                  : 'REDUCED_TAX_APPLICATION'),
             });
           }
           if (request.url.path.endsWith('/tax/refund-cases')) {
@@ -125,6 +128,11 @@ void main() {
 
     expect(controller.value.status, TaxStatus.loaded);
     expect(controller.value.uploadedDocuments, hasLength(2));
+    expect(controller.hasVerifiedDocument('RESIDENCE_CERTIFICATE'), isTrue);
+    expect(
+      controller.value.uploadedDocuments.first.verification?.source,
+      'HANNAH_MONTANA_AI_TAX_OCR',
+    );
     expect(controller.value.refundCase?.status, 'ADVANCE_PAID');
     expect(paths, [
       'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
@@ -133,6 +141,23 @@ void main() {
       'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-status/sync',
     ]);
   });
+}
+
+Map<String, Object?> _verificationJson(String documentType) {
+  return {
+    'documentType': documentType,
+    'fileName': '$documentType.txt',
+    'verificationStatus': 'VERIFIED',
+    'ocrConfidence': 0.93,
+    'fraudRiskScore': 0.02,
+    'riskLevel': 'LOW',
+    'manualReviewRequired': false,
+    'extractedFields': {'residency_country_code': 'US'},
+    'missingRequiredFields': <Object?>[],
+    'rejectionReasons': <Object?>[],
+    'documentModelVersion': 'hanah-tax-ocr-e2e-review-v1',
+    'source': 'HANNAH_MONTANA_AI_TAX_OCR',
+  };
 }
 
 http.Response _jsonResponse(Map<String, Object?> data) {

@@ -68,6 +68,48 @@ void main() {
     });
   });
 
+  test('signup validation error exposes field-specific message', () async {
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async {
+        expect(request.method, 'POST');
+        expect(request.url.path, '/api/v1/auth/signup');
+        return _jsonResponse(
+          {
+            'success': false,
+            'status': 400,
+            'code': 'COMMON_002',
+            'message': 'Request validation failed',
+            'errors': [
+              {
+                'field': 'username',
+                'reason': 'must match "^[A-Za-z0-9_]{4,30}\$"',
+              },
+              {
+                'field': 'password',
+                'reason': 'size must be between 8 and 72',
+              },
+            ],
+            'timestamp': '2026-06-18T06:00:00Z',
+          },
+          statusCode: 400,
+        );
+      }),
+    );
+
+    await expectLater(
+      client.signUp(username: '한나', password: 'short'),
+      throwsA(
+        isA<ExchangeApiException>().having(
+          (error) => error.message,
+          'message',
+          'Username must be 4-30 letters, numbers, or underscores.\n'
+              'Password must be 8-72 characters.',
+        ),
+      ),
+    );
+  });
+
   test('market quote snapshot sends query and bearer token', () async {
     const session = AuthSession(
       username: 'hana',
@@ -554,6 +596,18 @@ void main() {
             'documentId': 'DOC-1',
             'documentType': 'RESIDENCE_CERTIFICATE',
             'originalFileName': 'residence.pdf',
+            'verification': {
+              'verificationStatus': 'VERIFIED',
+              'ocrConfidence': 0.92,
+              'fraudRiskScore': 0.02,
+              'riskLevel': 'LOW',
+              'manualReviewRequired': false,
+              'extractedFields': {'residency_country_code': 'US'},
+              'missingRequiredFields': [],
+              'rejectionReasons': [],
+              'documentModelVersion': 'hanah-tax-ocr-e2e-review-v1',
+              'source': 'HANNAH_MONTANA_AI_TAX_OCR',
+            },
           },
           'timestamp': '2026-06-18T06:00:00Z',
         });
@@ -568,6 +622,10 @@ void main() {
     );
 
     expect(response.data?['documentId'], 'DOC-1');
+    expect(
+      (response.data?['verification'] as Map<String, dynamic>?)?['source'],
+      'HANNAH_MONTANA_AI_TAX_OCR',
+    );
   });
 
   test('tax refund request and sync use account scoped bearer contract',

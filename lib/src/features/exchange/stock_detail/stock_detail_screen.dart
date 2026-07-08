@@ -304,11 +304,19 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                     _StockOrderTab(snapshot: snapshot),
                                     _StockChartTab(
                                       chart: detailState.chart,
+                                      chartPoints: _chartPointsForSnapshot(
+                                        chart: detailState.chart,
+                                        liveQuote: liveQuote,
+                                        marketDataTime:
+                                            liveQuote?.marketDataTime ??
+                                                _currentDetail?.marketDataTime,
+                                      ),
                                       status: detailState.status,
                                       errorMessage: detailState.errorMessage,
                                       marketDataTime:
                                           liveQuote?.marketDataTime ??
                                               _currentDetail?.marketDataTime,
+                                      liveQuote: liveQuote,
                                       selectedPeriod: _chartPeriod,
                                       onPeriodChanged:
                                           _handleChartPeriodChanged,
@@ -377,6 +385,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       liveQuote: liveQuote,
       chartPoints: _chartPointsForSnapshot(
         chart: detailState.chart,
+        liveQuote: liveQuote,
         marketDataTime:
             liveQuote?.marketDataTime ?? _currentDetail?.marketDataTime,
       ),
@@ -389,14 +398,25 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   List<MarketChartPoint>? _chartPointsForSnapshot({
     required MarketChart? chart,
+    required MarketQuote? liveQuote,
     required DateTime? marketDataTime,
   }) {
     final points = chart?.points;
     if (points == null || points.isEmpty) {
+      if (_chartPeriod == _StockChartPeriod.oneDay) {
+        final livePoints = _oneDayChartPointsWithLiveQuote(
+          const <MarketChartPoint>[],
+          liveQuote,
+        );
+        return livePoints.isEmpty ? null : livePoints;
+      }
       return null;
     }
     if (_chartPeriod == _StockChartPeriod.oneDay) {
-      return _visibleOneDayChartPoints(points, marketDataTime);
+      return _visibleOneDayChartPoints(
+        _oneDayChartPointsWithLiveQuote(points, liveQuote),
+        marketDataTime,
+      );
     }
     return points;
   }

@@ -45,7 +45,7 @@ void main() {
       }),
     );
 
-    await controller.login(username: 'hana', password: 'secret');
+    await controller.login(username: 'hana', password: 'secret123');
 
     expect(controller.value.status, ExchangeSessionStatus.signedIn);
     expect(controller.value.session?.accessToken, 'new-access-token');
@@ -69,7 +69,7 @@ void main() {
       }),
     );
 
-    await controller.login(username: 'hana', password: 'wrong');
+    await controller.login(username: 'hana', password: 'wrong123');
 
     expect(controller.value.status, ExchangeSessionStatus.failure);
     expect(controller.value.errorMessage, 'Invalid username or password');
@@ -92,6 +92,46 @@ void main() {
     expect(controller.value.status, ExchangeSessionStatus.failure);
     expect(
         controller.value.errorMessage, 'Username and password are required.');
+  });
+
+  test('sign up validates username format before API call', () async {
+    var requestCount = 0;
+    final controller = ExchangeSessionController(
+      sessionStore: MemoryExchangeSessionStore(),
+      apiClient: _client((request) async {
+        requestCount++;
+        return _jsonResponse({});
+      }),
+    );
+
+    await controller.signUpAndLogin(
+      username: '한나',
+      password: 'secret123',
+    );
+
+    expect(requestCount, 0);
+    expect(controller.value.status, ExchangeSessionStatus.failure);
+    expect(
+      controller.value.errorMessage,
+      'Username must be 4-30 letters, numbers, or underscores.',
+    );
+  });
+
+  test('sign up validates password length before API call', () async {
+    var requestCount = 0;
+    final controller = ExchangeSessionController(
+      sessionStore: MemoryExchangeSessionStore(),
+      apiClient: _client((request) async {
+        requestCount++;
+        return _jsonResponse({});
+      }),
+    );
+
+    await controller.signUpAndLogin(username: 'hana_user', password: 'short');
+
+    expect(requestCount, 0);
+    expect(controller.value.status, ExchangeSessionStatus.failure);
+    expect(controller.value.errorMessage, 'Password must be 8-72 characters.');
   });
 
   test('sign up creates an account and then signs in', () async {
@@ -125,7 +165,10 @@ void main() {
       }),
     );
 
-    await controller.signUpAndLogin(username: ' hana ', password: 'secret');
+    await controller.signUpAndLogin(
+      username: ' hana ',
+      password: 'secret123',
+    );
 
     expect(paths, ['/api/v1/auth/signup', '/api/v1/auth/login']);
     expect(controller.value.status, ExchangeSessionStatus.signedIn);

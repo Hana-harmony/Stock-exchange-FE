@@ -677,13 +677,9 @@ class _NotificationArticleDetailData {
     StockIntelligenceItem? intelligenceItem,
   }) {
     final resolvedBodyText = intelligenceItem != null
-        ? intelligenceItem.translatedContent.isNotEmpty
-            ? intelligenceItem.translatedContent
-            : intelligenceItem.translatedSummary.isNotEmpty
-                ? intelligenceItem.translatedSummary
-                : intelligenceItem.originalContent.isNotEmpty
-                    ? intelligenceItem.originalContent
-                    : intelligenceItem.displaySummary
+        ? intelligenceItem.displayBody.isNotEmpty
+            ? intelligenceItem.displayBody
+            : _articleBodyUnavailableText
         : item.summary.isNotEmpty
             ? '${item.title}\n${item.summary}'
             : item.title;
@@ -771,7 +767,7 @@ class _NotificationArticleDetailData {
       sentiment: _StockNewsSentiment.positive,
       priority: _StockNewsPriority.medium,
       analysisRows: rows,
-      bodyText: bodyText.isNotEmpty ? bodyText : item.displayTitle,
+      bodyText: bodyText.isNotEmpty ? bodyText : _articleBodyUnavailableText,
       glossaryEntries: _glossaryEntriesFromTerms(
         item.glossaryTerms,
         bodyText,
@@ -831,6 +827,9 @@ class _NotificationArticleDetailData {
     ];
   }
 }
+
+const String _articleBodyUnavailableText =
+    'Full article text is unavailable from the source.';
 
 class _NotificationArticleGlossaryEntry {
   const _NotificationArticleGlossaryEntry({

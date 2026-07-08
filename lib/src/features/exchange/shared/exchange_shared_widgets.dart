@@ -165,13 +165,16 @@ class _SearchResultAvatar extends StatelessWidget {
               ),
             ],
           ),
-          clipBehavior: Clip.antiAlias,
-          child: Image.asset(
-            logoAssetPath,
-            fit: BoxFit.cover,
-            errorBuilder: (context, error, stackTrace) {
-              return _fallbackAvatar(context);
-            },
+          child: ClipOval(
+            child: Image.asset(
+              logoAssetPath,
+              fit: BoxFit.cover,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) {
+                return Center(
+                    child: Text(_stockLogoLabel(stockCode, stockName)));
+              },
+            ),
           ),
         ),
       );

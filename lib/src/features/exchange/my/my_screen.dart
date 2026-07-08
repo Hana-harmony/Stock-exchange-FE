@@ -197,9 +197,15 @@ class _MySignInCard extends StatelessWidget {
               key: const ValueKey('my-login-username'),
               controller: usernameController,
               enabled: !isLoading,
+              autocorrect: false,
+              enableSuggestions: false,
+              maxLength: 30,
               textInputAction: TextInputAction.next,
+              autofillHints: const [AutofillHints.username],
               decoration: const InputDecoration(
                 labelText: 'Username',
+                helperText: '4-30 letters, numbers, or underscores',
+                counterText: '',
                 border: OutlineInputBorder(),
               ),
             ),
@@ -209,6 +215,10 @@ class _MySignInCard extends StatelessWidget {
               controller: passwordController,
               enabled: !isLoading,
               obscureText: true,
+              autocorrect: false,
+              enableSuggestions: false,
+              textInputAction: TextInputAction.done,
+              autofillHints: const [AutofillHints.password],
               onSubmitted: (_) {
                 if (!isLoading) {
                   unawaited(onSignIn());
@@ -216,6 +226,7 @@ class _MySignInCard extends StatelessWidget {
               },
               decoration: const InputDecoration(
                 labelText: 'Password',
+                helperText: '8-72 characters',
                 border: OutlineInputBorder(),
               ),
             ),
