@@ -58,14 +58,8 @@ class _StockNewsItemViewModel {
   final String relativeTimeLabel;
   final List<_StockNewsSummaryRowData> summaryRows;
 
-  factory _StockNewsItemViewModel.fromFeedItem(
-    StockIntelligenceItem item, {
-    required String fallbackCompanyLabel,
-  }) {
-    final rows = _analysisRowsFromStockIntelligence(
-      item,
-      fallbackText: fallbackCompanyLabel,
-    );
+  factory _StockNewsItemViewModel.fromFeedItem(StockIntelligenceItem item) {
+    final rows = _analysisRowsFromStockIntelligence(item);
 
     return _StockNewsItemViewModel(
       sourceItem: item,
@@ -83,9 +77,8 @@ class _StockNewsItemViewModel {
 }
 
 List<_StockNewsSummaryRowData> _analysisRowsFromStockIntelligence(
-  StockIntelligenceItem item, {
-  required String fallbackText,
-}) {
+  StockIntelligenceItem item,
+) {
   final rawRows = [
     (label: 'What', value: item.summaryLines.what),
     (label: 'Why', value: item.summaryLines.why),
@@ -101,18 +94,7 @@ List<_StockNewsSummaryRowData> _analysisRowsFromStockIntelligence(
   if (cleanRows.every((row) => row.value.isNotEmpty)) {
     return cleanRows;
   }
-
-  final fallbackLines = _fallbackAnalysisLines(
-    primaryText: item.summary,
-    secondaryText: item.originalContent,
-    tertiaryText: item.translatedSummary,
-    finalFallback: item.title.isNotEmpty ? item.title : fallbackText,
-  );
-  return [
-    _StockNewsSummaryRowData(label: 'What', value: fallbackLines[0]),
-    _StockNewsSummaryRowData(label: 'Why', value: fallbackLines[1]),
-    _StockNewsSummaryRowData(label: 'Impact', value: fallbackLines[2]),
-  ];
+  return const [];
 }
 
 String _cleanAnalysisLine(String value) {
@@ -136,69 +118,6 @@ String _cleanAnalysisLine(String value) {
     return '';
   }
   return normalized;
-}
-
-List<String> _fallbackAnalysisLines({
-  required String primaryText,
-  required String secondaryText,
-  required String tertiaryText,
-  required String finalFallback,
-}) {
-  final candidates = [
-    ..._analysisSentenceCandidates(primaryText),
-    ..._analysisSentenceCandidates(secondaryText),
-    ..._analysisSentenceCandidates(tertiaryText),
-  ];
-  final deduped = <String>[];
-  for (final candidate in candidates) {
-    if (deduped.any((line) => line == candidate)) {
-      continue;
-    }
-    deduped.add(candidate);
-    if (deduped.length == 3) {
-      break;
-    }
-  }
-
-  final safeFallback = _trimAnalysisLine(finalFallback);
-  while (deduped.length < 3) {
-    deduped.add(safeFallback);
-  }
-  return deduped;
-}
-
-List<String> _analysisSentenceCandidates(String text) {
-  final normalized = text
-      .replaceAll('\r', '\n')
-      .replaceAll(RegExp(r'[◆•●▶]'), '\n')
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .trim();
-  if (normalized.isEmpty) {
-    return const [];
-  }
-  final matches = RegExp(r'[^.!?。]+(?:[.!?。]|다\.|요\.|니다\.|습니다\.)')
-      .allMatches(normalized)
-      .map((match) => _trimAnalysisLine(match.group(0) ?? ''))
-      .where((line) => line.length >= 12)
-      .toList();
-  if (matches.isNotEmpty) {
-    return matches;
-  }
-  return [_trimAnalysisLine(normalized)]
-      .where((line) => line.isNotEmpty)
-      .toList();
-}
-
-String _trimAnalysisLine(String value) {
-  final normalized = value
-      .replaceAll(RegExp(r'\s+'), ' ')
-      .replaceAll(RegExp(r'^[\s:;,\-]+'), '')
-      .trim();
-  if (normalized.length <= 140) {
-    return normalized;
-  }
-  final clipped = normalized.substring(0, 140).trimRight();
-  return '$clipped...';
 }
 
 _StockNewsSentiment _sentimentFromString(String value) {

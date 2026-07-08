@@ -783,7 +783,6 @@ class _NotificationArticleDetailData {
   ) {
     return _analysisRowsFromStockIntelligence(
       item,
-      fallbackText: item.title,
     );
   }
 }

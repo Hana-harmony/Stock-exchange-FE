@@ -1201,12 +1201,12 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stock-news-list-tile-NEWS-1')));
     await tester.pumpAndSettle();
 
-    expect(find.text('AI Analysis'), findsOneWidget);
+    expect(find.text('AI Analysis'), findsNothing);
     expect(
       find.text('() crisis intraday Korean stock market.'),
       findsNothing,
     );
-    expect(find.text('카카오는 신규 콘텐츠 제휴를 체결했다.'), findsOneWidget);
+    expect(find.text('카카오는 신규 콘텐츠 제휴를 체결했다.'), findsNothing);
     expect(
       find.byWidgetPredicate(
         (widget) =>

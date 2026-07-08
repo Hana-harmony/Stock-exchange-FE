@@ -289,13 +289,6 @@ class StockIntelligenceItem {
     )) {
       return translatedContent;
     }
-    if (_isArticleBodyCandidate(
-      originalContent,
-      summaryLines: summaryLines,
-      translatedSummary: translatedSummary,
-    )) {
-      return originalContent;
-    }
     return '';
   }
 
