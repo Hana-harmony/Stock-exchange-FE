@@ -596,6 +596,18 @@ void main() {
             'documentId': 'DOC-1',
             'documentType': 'RESIDENCE_CERTIFICATE',
             'originalFileName': 'residence.pdf',
+            'verification': {
+              'verificationStatus': 'VERIFIED',
+              'ocrConfidence': 0.92,
+              'fraudRiskScore': 0.02,
+              'riskLevel': 'LOW',
+              'manualReviewRequired': false,
+              'extractedFields': {'residency_country_code': 'US'},
+              'missingRequiredFields': [],
+              'rejectionReasons': [],
+              'documentModelVersion': 'hanah-tax-ocr-e2e-review-v1',
+              'source': 'HANNAH_MONTANA_AI_TAX_OCR',
+            },
           },
           'timestamp': '2026-06-18T06:00:00Z',
         });
@@ -610,6 +622,10 @@ void main() {
     );
 
     expect(response.data?['documentId'], 'DOC-1');
+    expect(
+      (response.data?['verification'] as Map<String, dynamic>?)?['source'],
+      'HANNAH_MONTANA_AI_TAX_OCR',
+    );
   });
 
   test('tax refund request and sync use account scoped bearer contract',

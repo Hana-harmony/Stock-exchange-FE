@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -16,6 +17,7 @@ import '../../core/market_news_controller.dart';
 import '../../core/market_quote_controller.dart';
 import '../../core/market_quote_live_client.dart';
 import '../../core/notification_controller.dart';
+import '../../core/tax_controller.dart';
 import '../../core/trade_controller.dart';
 import '../../core/watchlist_controller.dart';
 import '../../ui/assets/app_assets.dart';
@@ -33,6 +35,7 @@ part 'notifications/notification_article_detail_screen.dart';
 part 'notifications/notification_inbox_screen.dart';
 part 'watchlist/watchlist_screen.dart';
 part 'accounts/accounts_screen.dart';
+part 'accounts/tax_refund_request_screen.dart';
 part 'search/search_screens.dart';
 part 'search/search_widgets.dart';
 part 'shared/exchange_logic.dart';
