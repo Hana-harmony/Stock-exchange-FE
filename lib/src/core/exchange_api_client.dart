@@ -93,6 +93,7 @@ class ApiEnvelope<T> {
     required this.code,
     required this.message,
     required this.data,
+    this.errors = const [],
     this.timestamp,
   });
 
@@ -101,6 +102,7 @@ class ApiEnvelope<T> {
   final String code;
   final String message;
   final T? data;
+  final List<ApiFieldError> errors;
   final DateTime? timestamp;
 
   static ApiEnvelope<T> fromJson<T>(
@@ -115,7 +117,35 @@ class ApiEnvelope<T> {
       data: json.containsKey('data') && json['data'] != null
           ? decodeData(json['data'])
           : null,
+      errors: _parseFieldErrors(json['errors']),
       timestamp: AuthSession._parseDateTime(json['timestamp']),
+    );
+  }
+
+  static List<ApiFieldError> _parseFieldErrors(Object? value) {
+    if (value is! List) {
+      return const [];
+    }
+    return value
+        .whereType<Map>()
+        .map((item) => ApiFieldError.fromJson(item))
+        .toList(growable: false);
+  }
+}
+
+class ApiFieldError {
+  const ApiFieldError({
+    required this.field,
+    required this.reason,
+  });
+
+  final String field;
+  final String reason;
+
+  static ApiFieldError fromJson(Map<dynamic, dynamic> json) {
+    return ApiFieldError(
+      field: '${json['field'] ?? ''}',
+      reason: '${json['reason'] ?? ''}',
     );
   }
 }
@@ -125,11 +155,13 @@ class ExchangeApiException implements Exception {
     required this.status,
     required this.code,
     required this.message,
+    this.errors = const [],
   });
 
   final int status;
   final String code;
   final String message;
+  final List<ApiFieldError> errors;
 
   @override
   String toString() {
@@ -776,7 +808,8 @@ class ExchangeApiClient {
       throw ExchangeApiException(
         status: envelope.status == 0 ? response.statusCode : envelope.status,
         code: envelope.code,
-        message: envelope.message,
+        message: _errorMessage(envelope),
+        errors: envelope.errors,
       );
     }
 
@@ -813,6 +846,43 @@ class ExchangeApiClient {
   static Map<String, dynamic> _decodeJsonObject(String responseBody) {
     final decoded = jsonDecode(responseBody);
     return _asMap(decoded);
+  }
+
+  static String _errorMessage<T>(ApiEnvelope<T> envelope) {
+    if (envelope.code == 'COMMON_002' && envelope.errors.isNotEmpty) {
+      final messages = envelope.errors
+          .map(_validationMessage)
+          .where((message) => message.isNotEmpty)
+          .toSet()
+          .toList(growable: false);
+      if (messages.isNotEmpty) {
+        return messages.join('\n');
+      }
+    }
+    return envelope.message;
+  }
+
+  static String _validationMessage(ApiFieldError error) {
+    final field = error.field.toLowerCase();
+    final reason = error.reason.toLowerCase();
+    final isRequired = reason.contains('blank') ||
+        reason.contains('null') ||
+        reason.contains('empty') ||
+        reason.contains('required');
+    if (field.endsWith('username')) {
+      return isRequired
+          ? 'Username is required.'
+          : 'Username must be 4-30 letters, numbers, or underscores.';
+    }
+    if (field.endsWith('password')) {
+      return isRequired
+          ? 'Password is required.'
+          : 'Password must be 8-72 characters.';
+    }
+    final label = error.field.isEmpty ? 'Field' : error.field;
+    return error.reason.isEmpty
+        ? '$label is invalid.'
+        : '$label: ${error.reason}';
   }
 
   static Map<String, dynamic> _asMap(Object? value) {
