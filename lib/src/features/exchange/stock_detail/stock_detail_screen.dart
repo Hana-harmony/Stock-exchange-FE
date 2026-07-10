@@ -181,7 +181,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 5,
+      length: 4,
       child: AppScaffold(
         bodySafeAreaBottom: false,
         extendBody: true,
@@ -322,10 +322,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                       selectedPeriod: _chartPeriod,
                                       onPeriodChanged:
                                           _handleChartPeriodChanged,
-                                    ),
-                                    _StockFundamentalsTab(
-                                      snapshot: snapshot,
-                                      detail: _currentDetail,
                                     ),
                                     _StockNewsTab(
                                       notificationController:

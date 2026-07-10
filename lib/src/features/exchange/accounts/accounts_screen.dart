@@ -321,7 +321,6 @@ class _AccountsHeaderSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        _AccountsPageTitle(),
         _AccountsPrimaryTabs(
           selectedIndex: selectedPrimaryTab,
           onSelected: onPrimaryTabSelected,
@@ -364,95 +363,6 @@ class _AccountsSignedOutState extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AccountsPageTitle extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      key: const ValueKey('accounts-page-title'),
-      height: 44,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 36,
-              height: 36,
-              child: Image.asset(
-                AppAssets.logoSymbol,
-                fit: BoxFit.contain,
-              ),
-            ),
-            const SizedBox(width: 4),
-            Expanded(
-              child: Text(
-                'Accounts',
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontSize: 22,
-                      height: 31 / 22,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.gray1000,
-                    ),
-              ),
-            ),
-            _AccountsHeaderIconButton(
-              buttonKey: const ValueKey('accounts-header-more'),
-              semanticLabel: 'Accounts More',
-              assetPath: AppAssets.headerMoreIcon,
-            ),
-            const SizedBox(width: 4),
-            _AccountsHeaderIconButton(
-              buttonKey: const ValueKey('accounts-header-settings'),
-              semanticLabel: 'Accounts Settings',
-              assetPath: AppAssets.settingsIcon,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _AccountsHeaderIconButton extends StatelessWidget {
-  const _AccountsHeaderIconButton({
-    required this.buttonKey,
-    required this.semanticLabel,
-    required this.assetPath,
-  });
-
-  final Key buttonKey;
-  final String semanticLabel;
-  final String assetPath;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      label: semanticLabel,
-      child: InkResponse(
-        key: buttonKey,
-        onTap: () {},
-        radius: 20,
-        splashFactory: NoSplash.splashFactory,
-        highlightColor: Colors.transparent,
-        child: SizedBox(
-          width: 36,
-          height: 36,
-          child: Center(
-            child: Image.asset(
-              assetPath,
-              width: 36,
-              height: 36,
-              fit: BoxFit.contain,
-            ),
-          ),
-        ),
       ),
     );
   }
