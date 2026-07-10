@@ -455,6 +455,30 @@ class OrderBookLevel {
   }
 }
 
+const Set<String> _globalPeerStrengthIconKeys = {
+  'memory',
+  'foundry',
+  'ai',
+  'ecosystem',
+  'semiconductor',
+  'consumer_electronics',
+  'software_platform',
+  'financial_services',
+  'payments',
+  'biotechnology',
+  'drug_delivery',
+  'battery',
+  'automotive',
+  'telecommunications',
+  'energy',
+  'materials',
+  'industrial',
+  'commerce',
+  'media',
+  'global_business',
+  'operational_scale',
+};
+
 class GlobalPeerMatch {
   const GlobalPeerMatch({
     required this.stockCode,
@@ -507,6 +531,29 @@ class GlobalPeerMatch {
     ];
     final comparisonValues = json['comparisons'];
     final keyStrengthValues = json['keyStrengths'];
+    final parsedComparisons = comparisonValues is List
+        ? comparisonValues
+            .map((value) => GlobalPeerComparison.fromJson(_map(value)))
+            .where((comparison) => comparison.isComplete)
+            .take(3)
+            .toList(growable: false)
+        : const <GlobalPeerComparison>[];
+    final parsedKeyStrengths = keyStrengthValues is List
+        ? keyStrengthValues
+            .map((value) => GlobalPeerKeyStrength.fromJson(_map(value)))
+            .where((strength) => strength.isComplete)
+            .take(4)
+            .toList(growable: false)
+        : const <GlobalPeerKeyStrength>[];
+    final comparisonCount =
+        comparisonValues is List ? comparisonValues.length : 0;
+    final keyStrengthCount =
+        keyStrengthValues is List ? keyStrengthValues.length : 0;
+    final hasCompleteInsightContract = comparisonCount >= 1 &&
+        comparisonCount <= 3 &&
+        parsedComparisons.length == comparisonCount &&
+        keyStrengthCount == 4 &&
+        parsedKeyStrengths.length == keyStrengthCount;
 
     return GlobalPeerMatch(
       stockCode: _string(json['stockCode'], fallback: ''),
@@ -515,19 +562,11 @@ class GlobalPeerMatch {
       headline: _string(json['headline'], fallback: ''),
       summary: _string(json['summary'], fallback: ''),
       peers: peers,
-      comparisons: comparisonValues is List
-          ? comparisonValues
-              .map((value) => GlobalPeerComparison.fromJson(_map(value)))
-              .where((comparison) => comparison.isComplete)
-              .take(3)
-              .toList(growable: false)
+      comparisons: hasCompleteInsightContract
+          ? parsedComparisons
           : const <GlobalPeerComparison>[],
-      keyStrengths: keyStrengthValues is List
-          ? keyStrengthValues
-              .map((value) => GlobalPeerKeyStrength.fromJson(_map(value)))
-              .where((strength) => strength.isComplete)
-              .take(4)
-              .toList(growable: false)
+      keyStrengths: hasCompleteInsightContract
+          ? parsedKeyStrengths
           : const <GlobalPeerKeyStrength>[],
       confidenceScore: _string(json['confidenceScore'], fallback: '0'),
       confidenceLevel: _string(json['confidenceLevel'], fallback: 'UNKNOWN'),
@@ -552,12 +591,12 @@ class GlobalPeerComparison {
   bool get isComplete =>
       dimension.trim().isNotEmpty &&
       description.trim().isNotEmpty &&
-      peer.companyName.trim().isNotEmpty;
+      peer.isIdentified;
 
   static GlobalPeerComparison fromJson(Map<String, dynamic> json) {
     return GlobalPeerComparison(
-      dimension: _string(json['dimension'], fallback: ''),
-      description: _string(json['description'], fallback: ''),
+      dimension: _strictString(json['dimension']),
+      description: _strictString(json['description']),
       peer: GlobalPeerMatchPeer.fromJson(_map(json['peer'])),
     );
   }
@@ -575,13 +614,15 @@ class GlobalPeerKeyStrength {
   final String iconKey;
 
   bool get isComplete =>
-      title.trim().isNotEmpty && description.trim().isNotEmpty;
+      title.trim().isNotEmpty &&
+      description.trim().isNotEmpty &&
+      _globalPeerStrengthIconKeys.contains(iconKey);
 
   static GlobalPeerKeyStrength fromJson(Map<String, dynamic> json) {
     return GlobalPeerKeyStrength(
-      title: _string(json['title'], fallback: ''),
-      description: _string(json['description'], fallback: ''),
-      iconKey: _string(json['iconKey'], fallback: 'global_business'),
+      title: _strictString(json['title']),
+      description: _strictString(json['description']),
+      iconKey: _strictString(json['iconKey']).toLowerCase(),
     );
   }
 }
@@ -632,6 +673,31 @@ class GlobalPeerMatchPeer {
   final String financialSimilarityScore;
   final List<String> matchedFactors;
   final String rationale;
+
+  bool get isIdentified =>
+      ticker.trim().isNotEmpty &&
+      companyName.trim().isNotEmpty &&
+      companyName != 'Unknown peer';
+
+  String get comparisonLabel {
+    switch (ticker.trim().toUpperCase()) {
+      case 'AAPL':
+        return 'Apple';
+      case 'INTC':
+        return 'Intel';
+      case 'TSM':
+      case 'TSMC':
+        return 'TSMC';
+    }
+    final normalized = companyName.replaceFirst(
+      RegExp(
+        r'(?:[,.]?\s+(?:Holdings?|Inc\.?|Corp\.?|Corporation|Ltd\.?|Limited|PLC|N\.?V\.?))+$',
+        caseSensitive: false,
+      ),
+      '',
+    );
+    return normalized.trim().isEmpty ? companyName : normalized.trim();
+  }
 
   String get displayName =>
       ticker.isEmpty ? companyName : '$companyName ($ticker)';
@@ -1053,6 +1119,10 @@ String _string(Object? value, {required String fallback}) {
   }
   final text = '$value';
   return text.isEmpty ? fallback : text;
+}
+
+String _strictString(Object? value) {
+  return value is String ? value.trim() : '';
 }
 
 int _int(Object? value) {

@@ -790,7 +790,6 @@ class _GlobalPeerSheetContent extends StatelessWidget {
             const SizedBox(height: 20),
             _GlobalPeerStrengthSection(
               items: strengthItems,
-              isExpanded: isExpanded,
             ),
           ],
         ],
@@ -953,10 +952,11 @@ class _GlobalPeerComparisonCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _GlobalPeerCompanyMark(
               label: item.peer.ticker,
+              logoUrl: item.peer.logoUrl,
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -1028,15 +1028,18 @@ class _GlobalPeerComparisonTitle extends StatelessWidget {
 class _GlobalPeerCompanyMark extends StatelessWidget {
   const _GlobalPeerCompanyMark({
     required this.label,
+    required this.logoUrl,
   });
 
   final String label;
+  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
     return _GlobalPeerLogoMark(
       label: label,
       logoAssetPath: _globalPeerComparisonLogoAssetPath(label),
+      logoUrl: logoUrl,
       size: 48,
       backgroundColor: AppColors.gray100,
       foregroundColor: AppColors.orange500,
@@ -1051,6 +1054,7 @@ class _GlobalPeerLogoMark extends StatelessWidget {
     required this.size,
     required this.backgroundColor,
     required this.foregroundColor,
+    this.logoUrl = '',
   });
 
   final String label;
@@ -1058,6 +1062,7 @@ class _GlobalPeerLogoMark extends StatelessWidget {
   final double size;
   final Color backgroundColor;
   final Color foregroundColor;
+  final String logoUrl;
 
   @override
   Widget build(BuildContext context) {
@@ -1072,6 +1077,25 @@ class _GlobalPeerLogoMark extends StatelessWidget {
           child: Image.asset(
             normalizedAssetPath,
             fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              return _fallbackMark(context);
+            },
+          ),
+        ),
+      );
+    }
+    final trustedLogoUri = _trustedGlobalPeerLogoUri(logoUrl, label);
+    if (trustedLogoUri != null) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: size,
+          height: size,
+          color: AppColors.white,
+          child: Image.network(
+            trustedLogoUri.toString(),
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.medium,
             errorBuilder: (context, error, stackTrace) {
               return _fallbackMark(context);
             },
@@ -1111,11 +1135,9 @@ class _GlobalPeerLogoMark extends StatelessWidget {
 class _GlobalPeerStrengthSection extends StatelessWidget {
   const _GlobalPeerStrengthSection({
     required this.items,
-    required this.isExpanded,
   });
 
   final List<_GlobalPeerStrengthItem> items;
-  final bool isExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -1132,25 +1154,21 @@ class _GlobalPeerStrengthSection extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 8),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final itemWidth = (constraints.maxWidth - 8) / 2;
-            return Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final item in items)
-                  SizedBox(
-                    width: itemWidth,
-                    child: _GlobalPeerStrengthCard(
-                      key: ValueKey(
-                        'global-peer-strength-card-${item.iconKey}',
-                      ),
-                      item: item,
-                      isExpanded: isExpanded,
-                    ),
-                  ),
-              ],
+        GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          itemCount: items.length,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            crossAxisSpacing: 8,
+            mainAxisSpacing: 8,
+            mainAxisExtent: 104,
+          ),
+          itemBuilder: (context, index) {
+            final item = items[index];
+            return _GlobalPeerStrengthCard(
+              key: ValueKey('global-peer-strength-card-${item.iconKey}'),
+              item: item,
             );
           },
         ),
@@ -1163,11 +1181,9 @@ class _GlobalPeerStrengthCard extends StatelessWidget {
   const _GlobalPeerStrengthCard({
     super.key,
     required this.item,
-    required this.isExpanded,
   });
 
   final _GlobalPeerStrengthItem item;
-  final bool isExpanded;
 
   @override
   Widget build(BuildContext context) {
@@ -1187,9 +1203,8 @@ class _GlobalPeerStrengthCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               item.title,
-              maxLines: isExpanded ? null : 1,
-              overflow:
-                  isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontSize: 12,
@@ -1200,9 +1215,8 @@ class _GlobalPeerStrengthCard extends StatelessWidget {
             ),
             Text(
               item.description,
-              maxLines: isExpanded ? null : 2,
-              overflow:
-                  isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontSize: 10,
@@ -1259,27 +1273,7 @@ List<_GlobalPeerComparisonItem> _globalPeerComparisonItems(
 }
 
 String _globalPeerShortPeerLabel(GlobalPeerMatchPeer peer) {
-  final ticker = peer.ticker.trim();
-  if (_isKnownTicker(ticker, const ['AAPL'])) {
-    return 'Apple';
-  }
-  if (_isKnownTicker(ticker, const ['INTC'])) {
-    return 'Intel';
-  }
-  if (_isKnownTicker(ticker, const ['TSM', 'TSMC'])) {
-    return 'TSMC';
-  }
-  final companyName = peer.companyName.trim();
-  if (companyName.isEmpty) {
-    return ticker.isEmpty ? 'Peer' : ticker;
-  }
-  final normalized = companyName
-      .replaceAll(RegExp(r'\b(Inc\.?|Corp\.?|Corporation|Ltd\.?)\b'), '')
-      .trim();
-  return normalized.split(RegExp(r'\s+')).firstWhere(
-        (part) => part.isNotEmpty,
-        orElse: () => companyName,
-      );
+  return peer.comparisonLabel;
 }
 
 List<_GlobalPeerStrengthItem> _globalPeerStrengthItems(GlobalPeerMatch match) {
@@ -1299,7 +1293,7 @@ String _globalPeerDimensionLabel(String dimension) {
     case 'overall_business':
       return 'Overall Business';
     case 'semiconductor_ds':
-      return 'Semiconductor (DS)';
+      return 'Semiconductor(DS)';
     case 'consumer_electronics':
       return 'Consumer Electronics';
     case 'software_platform':
@@ -1327,6 +1321,27 @@ String? _globalPeerComparisonLogoAssetPath(String ticker) {
     default:
       return _usStockLogoAssetPath(ticker);
   }
+}
+
+Uri? _trustedGlobalPeerLogoUri(String rawUrl, String ticker) {
+  final normalizedTicker = ticker.trim().toUpperCase();
+  if (!RegExp(r'^[A-Z0-9.-]{1,12}$').hasMatch(normalizedTicker)) {
+    return null;
+  }
+  final uri = Uri.tryParse(rawUrl.trim());
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host != 'financialmodelingprep.com' ||
+      uri.userInfo.isNotEmpty ||
+      (uri.hasPort && uri.port != 443) ||
+      uri.query.isNotEmpty ||
+      uri.fragment.isNotEmpty ||
+      uri.pathSegments.length != 2 ||
+      uri.pathSegments.first != 'image-stock' ||
+      uri.pathSegments.last.toUpperCase() != '$normalizedTicker.PNG') {
+    return null;
+  }
+  return uri;
 }
 
 class _GlobalPeerStrengthIcon extends StatelessWidget {
@@ -1411,10 +1426,6 @@ IconData _globalPeerStrengthIconData(String iconKey) {
     default:
       return Icons.public;
   }
-}
-
-bool _isKnownTicker(String ticker, List<String> values) {
-  return values.contains(ticker.trim().toUpperCase());
 }
 
 String _globalPeerHeadline(GlobalPeerMatch match) {

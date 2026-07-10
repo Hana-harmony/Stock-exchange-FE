@@ -712,10 +712,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.textContaining('Overall Business'), findsOneWidget);
-    expect(find.textContaining('Semiconductor (DS)'), findsOneWidget);
+    expect(find.textContaining('Semiconductor(DS)'), findsOneWidget);
     expect(find.textContaining('Foundry'), findsWidgets);
     expect(find.textContaining('Overall Business Apple'), findsOneWidget);
-    expect(find.textContaining('Semiconductor (DS) Intel'), findsOneWidget);
+    expect(find.textContaining('Semiconductor(DS) Intel'), findsOneWidget);
     expect(find.textContaining('Foundry TSMC'), findsOneWidget);
     expect(find.text('Key Strengths'), findsOneWidget);
     expect(find.text('in Memory'), findsOneWidget);
@@ -756,9 +756,15 @@ void main() {
     );
     expect(foundryCard.left, greaterThan(memoryCard.left));
     expect(foundryCard.top, closeTo(memoryCard.top, 1));
+    expect(foundryCard.width, closeTo(memoryCard.width, 1));
+    expect(foundryCard.height, closeTo(memoryCard.height, 1));
+    expect(foundryCard.bottom, closeTo(memoryCard.bottom, 1));
     expect(ecosystemCard.top, greaterThan(memoryCard.bottom));
     expect(aiCard.left, greaterThan(ecosystemCard.left));
     expect(aiCard.top, closeTo(ecosystemCard.top, 1));
+    expect(aiCard.width, closeTo(ecosystemCard.width, 1));
+    expect(aiCard.height, closeTo(ecosystemCard.height, 1));
+    expect(aiCard.bottom, closeTo(ecosystemCard.bottom, 1));
 
     final headlineText = tester.widget<Text>(
       find.byKey(const ValueKey('global-peer-sheet-headline')),
@@ -779,8 +785,8 @@ void main() {
           )
           .first,
     );
-    expect(strengthDescriptionText.maxLines, isNull);
-    expect(strengthDescriptionText.overflow, TextOverflow.visible);
+    expect(strengthDescriptionText.maxLines, 2);
+    expect(strengthDescriptionText.overflow, TextOverflow.ellipsis);
   });
 
   testWidgets('updates quantity, price, and order amount in order entry',
@@ -2472,6 +2478,21 @@ MarketDetailController _marketDetailController({
                       'description':
                           'Integrated consumer and merchant payments',
                       'iconKey': 'payments',
+                    },
+                    {
+                      'title': 'Software Platform',
+                      'description': 'Daily services in one consumer platform',
+                      'iconKey': 'software_platform',
+                    },
+                    {
+                      'title': 'Service Ecosystem',
+                      'description': 'Messaging, commerce, and mobility reach',
+                      'iconKey': 'ecosystem',
+                    },
+                    {
+                      'title': 'Financial Services',
+                      'description': 'Banking and securities service expansion',
+                      'iconKey': 'financial_services',
                     },
                   ],
             'confidenceScore': '0.88',
