@@ -55,10 +55,10 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     ),
     _TaxRequiredDocument(
       type: 'APOSTILLE',
-      title: 'Appostille Certificate',
+      title: 'Apostille Certificate',
       listDescription:
           'Certifies the authenticity of your official documents for international use.',
-      uploadTitle: 'Upload\nAppostille Certificate',
+      uploadTitle: 'Upload\nApostille Certificate',
       uploadDescription:
           'Upload your Certificate of Tax Residence\nto verify your tax residency.',
       infoTitle: 'Why is an Apostille required?',
