@@ -681,12 +681,12 @@ void main() {
 
     await tester.enterText(
       find.byKey(const ValueKey('market-search-input')),
-      '카카오',
+      'Samsung',
     );
     await tester.testTextInput.receiveAction(TextInputAction.search);
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-005930')));
     await tester.pumpAndSettle();
 
     await tester.tap(
@@ -694,26 +694,77 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Kakao is the Block of South Korea'),
-        findsOneWidget);
-    expect(find.textContaining('Revenue model mixes'), findsOneWidget);
-    expect(find.text('Global Comparison'), findsOneWidget);
-    expect(_findAssetImage('assets/stock_logos/us/SQ.png'), findsOneWidget);
-    expect(_findAssetImage('assets/stock_logos/us/PYPL.png'), findsOneWidget);
-    expect(find.textContaining('Overall Business'), findsOneWidget);
-    expect(find.textContaining('Block'), findsWidgets);
-    expect(find.text('Key Strengths'), findsOneWidget);
-    expect(find.textContaining('Payments'), findsWidgets);
     expect(
-      find.textContaining('Kakao is tagged for payments exposure'),
+      find.textContaining("Samsung Electronics is the 'Apple + TSMC'"),
       findsOneWidget,
     );
+    expect(find.text('Global Comparison'), findsOneWidget);
+    expect(
+      _findAssetImage(AppAssets.stockQuestionComparisonApple),
+      findsOneWidget,
+    );
+    expect(
+      _findAssetImage(AppAssets.stockQuestionComparisonIntel),
+      findsOneWidget,
+    );
+    expect(
+      _findAssetImage(AppAssets.stockQuestionComparisonTsmc),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Overall Business'), findsOneWidget);
+    expect(find.textContaining('Semiconductor(DS)'), findsOneWidget);
+    expect(find.textContaining('Foundry'), findsWidgets);
+    expect(find.textContaining('Overall Business Apple'), findsOneWidget);
+    expect(find.textContaining('Semiconductor(DS) Intel'), findsOneWidget);
+    expect(find.textContaining('Foundry TSMC'), findsOneWidget);
+    expect(find.text('Key Strengths'), findsOneWidget);
+    expect(find.text('in Memory'), findsOneWidget);
+    expect(find.text('Advanced Foundry'), findsOneWidget);
+    expect(find.text('Strong Ecosystem'), findsOneWidget);
+    expect(find.text('AI Growth Driver'), findsOneWidget);
+    expect(
+      _findAssetImage(AppAssets.stockQuestionMemoryIcon),
+      findsOneWidget,
+    );
+    expect(
+      _findAssetImage(AppAssets.stockQuestionFoundryIcon),
+      findsOneWidget,
+    );
+    expect(
+      _findAssetImage(AppAssets.stockQuestionEcosystemIcon),
+      findsOneWidget,
+    );
+    expect(_findAssetImage(AppAssets.stockQuestionAiIcon), findsOneWidget);
 
     await tester.drag(
       find.byKey(const ValueKey('global-peer-bottom-sheet')),
       const Offset(0, -500),
     );
     await tester.pumpAndSettle();
+
+    final memoryCard = tester.getRect(
+      find.byKey(const ValueKey('global-peer-strength-card-memory')),
+    );
+    final foundryCard = tester.getRect(
+      find.byKey(const ValueKey('global-peer-strength-card-foundry')),
+    );
+    final ecosystemCard = tester.getRect(
+      find.byKey(const ValueKey('global-peer-strength-card-ecosystem')),
+    );
+    final aiCard = tester.getRect(
+      find.byKey(const ValueKey('global-peer-strength-card-ai')),
+    );
+    expect(foundryCard.left, greaterThan(memoryCard.left));
+    expect(foundryCard.top, closeTo(memoryCard.top, 1));
+    expect(foundryCard.width, closeTo(memoryCard.width, 1));
+    expect(foundryCard.height, closeTo(memoryCard.height, 1));
+    expect(foundryCard.bottom, closeTo(memoryCard.bottom, 1));
+    expect(ecosystemCard.top, greaterThan(memoryCard.bottom));
+    expect(aiCard.left, greaterThan(ecosystemCard.left));
+    expect(aiCard.top, closeTo(ecosystemCard.top, 1));
+    expect(aiCard.width, closeTo(ecosystemCard.width, 1));
+    expect(aiCard.height, closeTo(ecosystemCard.height, 1));
+    expect(aiCard.bottom, closeTo(ecosystemCard.bottom, 1));
 
     final headlineText = tester.widget<Text>(
       find.byKey(const ValueKey('global-peer-sheet-headline')),
@@ -722,7 +773,7 @@ void main() {
     expect(headlineText.overflow, TextOverflow.visible);
 
     final peerSummaryText = tester.widget<Text>(
-      find.textContaining('PayPal provides a global payments benchmark').first,
+      find.textContaining('Advanced foundry capabilities').first,
     );
     expect(peerSummaryText.maxLines, isNull);
     expect(peerSummaryText.overflow, TextOverflow.visible);
@@ -730,12 +781,12 @@ void main() {
     final strengthDescriptionText = tester.widget<Text>(
       find
           .textContaining(
-            'Kakao is tagged for payments exposure',
+            'Global DRAM and NAND market leader',
           )
           .first,
     );
-    expect(strengthDescriptionText.maxLines, isNull);
-    expect(strengthDescriptionText.overflow, TextOverflow.visible);
+    expect(strengthDescriptionText.maxLines, 2);
+    expect(strengthDescriptionText.overflow, TextOverflow.ellipsis);
   });
 
   testWidgets('updates quantity, price, and order amount in order entry',
@@ -2263,19 +2314,21 @@ MarketDetailController _marketDetailController({
             'stockCode': isSamsung ? '005930' : '035720',
             'stockName': isSamsung ? 'Samsung Electronics' : 'Kakao',
             'headline': isSamsung
-                ? 'Samsung Electronics is the Micron of South Korea'
+                ? "Samsung Electronics is the 'Apple + TSMC' of South Korea"
                 : 'Kakao is the Block of South Korea',
             'summary': isSamsung
                 ? 'Samsung Electronics anchors Korea memory semiconductor exports with global-scale manufacturing.'
                 : 'Kakao combines messaging, commerce, payments, and financial services into a local platform ecosystem.',
             'primaryPeer': {
               'rank': 1,
-              'ticker': 'SQ',
-              'companyName': 'Block Inc.',
-              'exchange': 'NYSE',
+              'ticker': isSamsung ? 'AAPL' : 'SQ',
+              'companyName': isSamsung ? 'Apple Inc.' : 'Block Inc.',
+              'exchange': isSamsung ? 'NASDAQ' : 'NYSE',
               'country': 'US',
               'similarityScore': '0.88',
-              'businessTags': ['payments', 'platform'],
+              'businessTags': isSamsung
+                  ? ['consumer electronics', 'ecosystem']
+                  : ['payments', 'platform'],
               'sector': 'Technology',
               'industry': 'Digital payments',
               'businessModel':
@@ -2349,6 +2402,99 @@ MarketDetailController _marketDetailController({
                     'Shopify gives a commerce ecosystem comparison for Kakao merchant services.',
               },
             ],
+            'comparisons': isSamsung
+                ? [
+                    {
+                      'dimension': 'overall_business',
+                      'description':
+                          'A rare combination of leading consumer electronics and world-class chip manufacturing.',
+                      'peer': {
+                        'rank': 1,
+                        'ticker': 'AAPL',
+                        'companyName': 'Apple Inc.',
+                      },
+                    },
+                    {
+                      'dimension': 'semiconductor_ds',
+                      'description':
+                          'A memory and logic chip leader powering AI servers, PCs, and smartphones.',
+                      'peer': {
+                        'rank': 2,
+                        'ticker': 'INTC',
+                        'companyName': 'Intel Corporation',
+                      },
+                    },
+                    {
+                      'dimension': 'foundry',
+                      'description':
+                          'Advanced foundry capabilities supporting global fabless chip companies.',
+                      'peer': {
+                        'rank': 3,
+                        'ticker': 'TSM',
+                        'companyName': 'Taiwan Semiconductor Manufacturing',
+                      },
+                    },
+                  ]
+                : [
+                    {
+                      'dimension': 'overall_business',
+                      'description':
+                          'A consumer platform benchmark spanning payments and commerce.',
+                      'peer': {
+                        'rank': 1,
+                        'ticker': 'SQ',
+                        'companyName': 'Block Inc.',
+                      },
+                    },
+                  ],
+            'keyStrengths': isSamsung
+                ? [
+                    {
+                      'title': 'in Memory',
+                      'description': 'Global DRAM and NAND market leader',
+                      'iconKey': 'memory',
+                    },
+                    {
+                      'title': 'Advanced Foundry',
+                      'description': '3nm GAA and beyond technology leadership',
+                      'iconKey': 'foundry',
+                    },
+                    {
+                      'title': 'Strong Ecosystem',
+                      'description':
+                          'Smartphones, TVs, home appliances and more',
+                      'iconKey': 'ecosystem',
+                    },
+                    {
+                      'title': 'AI Growth Driver',
+                      'description':
+                          'Powering AI data centers and the next wave of tech',
+                      'iconKey': 'ai',
+                    },
+                  ]
+                : [
+                    {
+                      'title': 'Payments Network',
+                      'description':
+                          'Integrated consumer and merchant payments',
+                      'iconKey': 'payments',
+                    },
+                    {
+                      'title': 'Software Platform',
+                      'description': 'Daily services in one consumer platform',
+                      'iconKey': 'software_platform',
+                    },
+                    {
+                      'title': 'Service Ecosystem',
+                      'description': 'Messaging, commerce, and mobility reach',
+                      'iconKey': 'ecosystem',
+                    },
+                    {
+                      'title': 'Financial Services',
+                      'description': 'Banking and securities service expansion',
+                      'iconKey': 'financial_services',
+                    },
+                  ],
             'confidenceScore': '0.88',
             'confidenceLevel': 'HIGH',
             'modelVersion': 'test',

@@ -262,6 +262,89 @@ void main() {
       'Market data is temporarily unavailable.',
     );
   });
+
+  test('parses complete global comparison contract and keeps brand names', () {
+    final match = GlobalPeerMatch.fromJson(_globalPeerInsightJson());
+
+    expect(match.comparisons, hasLength(1));
+    expect(match.keyStrengths, hasLength(4));
+    expect(
+      match.comparisons.single.peer.comparisonLabel,
+      'Bank of America',
+    );
+  });
+
+  test('hides the whole insight when a nested contract is malformed', () {
+    final missingStrength = _globalPeerInsightJson();
+    (missingStrength['keyStrengths'] as List<Object?>).removeLast();
+
+    final invalidIcon = _globalPeerInsightJson();
+    ((invalidIcon['keyStrengths'] as List<Object?>).first
+        as Map<String, Object?>)['iconKey'] = 'untrusted_icon';
+
+    final missingPeer = _globalPeerInsightJson();
+    ((missingPeer['comparisons'] as List<Object?>).first
+        as Map<String, Object?>)['peer'] = <String, Object?>{};
+
+    for (final payload in [missingStrength, invalidIcon, missingPeer]) {
+      final match = GlobalPeerMatch.fromJson(payload);
+      expect(match.comparisons, isEmpty);
+      expect(match.keyStrengths, isEmpty);
+    }
+  });
+}
+
+Map<String, dynamic> _globalPeerInsightJson() {
+  return {
+    'stockCode': '005930',
+    'stockName': 'Samsung Electronics',
+    'headline': "Samsung Electronics is the 'Apple + TSMC' of South Korea",
+    'summary': 'Diversified technology profile.',
+    'primaryPeer': {
+      'rank': 1,
+      'ticker': 'AAPL',
+      'companyName': 'Apple Inc.',
+    },
+    'peers': <Object?>[],
+    'comparisons': [
+      {
+        'dimension': 'financial_services',
+        'description': 'A diversified global financial-services benchmark.',
+        'peer': {
+          'rank': 1,
+          'ticker': 'BAC',
+          'companyName': 'Bank of America Corporation',
+          'logoUrl': 'https://financialmodelingprep.com/image-stock/BAC.png',
+        },
+      },
+    ],
+    'keyStrengths': [
+      {
+        'title': 'Memory Leadership',
+        'description': 'Global memory market position',
+        'iconKey': 'memory',
+      },
+      {
+        'title': 'Foundry Technology',
+        'description': 'Advanced process capability',
+        'iconKey': 'foundry',
+      },
+      {
+        'title': 'Device Ecosystem',
+        'description': 'Connected consumer devices',
+        'iconKey': 'ecosystem',
+      },
+      {
+        'title': 'AI Infrastructure',
+        'description': 'AI data-center demand exposure',
+        'iconKey': 'ai',
+      },
+    ],
+    'confidenceScore': '0.9',
+    'confidenceLevel': 'HIGH',
+    'modelVersion': 'test',
+    'dataSource': 'Hana-OmniLens-API',
+  };
 }
 
 http.Response _jsonResponse(Map<String, Object?> data) {
