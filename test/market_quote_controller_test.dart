@@ -342,6 +342,36 @@ void main() {
     expect(connections.last.closed, isTrue);
   });
 
+  test('continues reconnecting after configured backoff delays are used',
+      () async {
+    final connections = <_FakeQuoteSocketConnection>[];
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async => _jsonResponse({})),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          final connection = _FakeQuoteSocketConnection();
+          connections.add(connection);
+          return connection;
+        },
+      ),
+      liveReconnectDelays: const [Duration.zero],
+    );
+
+    await controller.subscribeLive(market: 'KOSPI');
+    await connections[0].closeRemote();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+    await connections[1].closeRemote();
+    await Future<void>.delayed(Duration.zero);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(connections, hasLength(3));
+    expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
+
+    await controller.unsubscribeLive();
+  });
+
   test('marks live quotes stale while reconnecting after a received tick',
       () async {
     late _FakeQuoteSocketConnection connection;

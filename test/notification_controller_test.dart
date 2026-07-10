@@ -7,6 +7,32 @@ import 'package:stock_exchange_fe/src/core/exchange_api_client.dart';
 import 'package:stock_exchange_fe/src/core/notification_controller.dart';
 
 void main() {
+  test('merges stock intelligence cursor pages without duplicate event ids',
+      () {
+    final firstJson = _stockIntelligenceJson();
+    final sourceItem = Map<String, Object?>.from(
+      (firstJson['items'] as List<Object?>).single! as Map<String, Object?>,
+    );
+    final first = StockIntelligenceFeed.fromJson({
+      ...firstJson,
+      'nextCursor': 'cursor-2',
+      'items': [sourceItem],
+    });
+    final second = StockIntelligenceFeed.fromJson({
+      ...firstJson,
+      'nextCursor': null,
+      'items': [
+        sourceItem,
+        {...sourceItem, 'eventId': 'EVT-2'},
+      ],
+    });
+
+    final merged = first.merge(second);
+
+    expect(merged.items.map((item) => item.eventId), ['ALERT-1', 'EVT-2']);
+    expect(merged.nextCursor, isNull);
+  });
+
   test('loads notification inbox and K-News feed', () async {
     final controller = NotificationController(
       apiClient: ExchangeApiClient(

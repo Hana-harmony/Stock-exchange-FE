@@ -190,13 +190,24 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
   MarketIndexController({
     required ExchangeApiClient apiClient,
     MarketIndexLiveClient? liveClient,
+    List<Duration> liveReconnectDelays = const [
+      Duration(seconds: 1),
+      Duration(seconds: 3),
+      Duration(seconds: 5),
+    ],
   })  : _apiClient = apiClient,
         _liveClient = liveClient,
+        _liveReconnectDelays = liveReconnectDelays,
         super(const MarketIndexState.idle());
 
   final ExchangeApiClient _apiClient;
   final MarketIndexLiveClient? _liveClient;
+  final List<Duration> _liveReconnectDelays;
   StreamSubscription<Map<String, dynamic>>? _liveSubscription;
+  Timer? _liveReconnectTimer;
+  final Map<String, DateTime> _lastIndexTickBucketByCode = {};
+  int _liveReconnectAttempt = 0;
+  bool _isDisposed = false;
 
   bool get canSubscribeLive => _liveClient != null;
 
@@ -206,11 +217,13 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
       final response = await _apiClient.getMarketIndices();
       final snapshot = MarketIndexSnapshot.fromJson(response.data ?? {});
       final intradaySeriesByCode = await _loadIntradaySeries(snapshot.indices);
+      final indices = _preferNewerLiveIndices(snapshot.indices, value.indices);
+      _recordLatestIndexBuckets(indices);
       value = value.copyWith(
         status: MarketIndexStatus.loaded,
-        indices: snapshot.indices,
+        indices: indices,
         intradaySeriesByCode: _mergeSnapshotCurrentPoints(
-          snapshot.indices,
+          indices,
           intradaySeriesByCode,
         ),
         clearErrorMessage: true,
@@ -237,25 +250,34 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
       );
       return;
     }
+    if (_liveSubscription != null &&
+        (value.liveStatus == MarketIndexLiveStatus.connecting ||
+            value.liveStatus == MarketIndexLiveStatus.live)) {
+      return;
+    }
+    _liveReconnectTimer?.cancel();
+    _liveReconnectTimer = null;
     await _liveSubscription?.cancel();
+    _liveSubscription = null;
+    _liveReconnectAttempt = 0;
     value = value.copyWith(
       liveStatus: MarketIndexLiveStatus.connecting,
       liveMessage: 'Connecting index WebSocket.',
     );
-    _liveSubscription = liveClient.subscribe().listen(
-          (tick) => _applyLiveIndex(MarketIndex.fromJson(tick)),
-          onError: (_) => value = value.copyWith(
-            liveStatus: MarketIndexLiveStatus.failure,
-            liveMessage: 'Index WebSocket disconnected.',
-          ),
-          onDone: () => value = value.copyWith(
-            liveStatus: MarketIndexLiveStatus.disconnected,
-            liveMessage: 'Index WebSocket closed.',
-          ),
-        );
+    _openLiveSubscription(liveClient);
   }
 
   void _applyLiveIndex(MarketIndex tick) {
+    final tickBucket = _indexTickBucket(tick.marketDataTime);
+    final previousBucket = _lastIndexTickBucketByCode[tick.indexCode];
+    if (tickBucket != null &&
+        previousBucket != null &&
+        tickBucket.isBefore(previousBucket)) {
+      return;
+    }
+    final replacesLatestPoint = tickBucket != null &&
+        previousBucket != null &&
+        tickBucket == previousBucket;
     final nextIndices = List<MarketIndex>.of(value.indices);
     final index = nextIndices.indexWhere(
       (item) => item.indexCode == tick.indexCode,
@@ -265,18 +287,86 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
     } else {
       nextIndices.add(tick);
     }
+    _lastIndexTickBucketByCode[tick.indexCode] =
+        tickBucket ?? DateTime.now().toUtc();
+    _liveReconnectAttempt = 0;
     value = value.copyWith(
       status: MarketIndexStatus.loaded,
       indices: nextIndices,
-      intradaySeriesByCode: _appendIntradayPoint(
-        value.intradaySeriesByCode,
-        tick,
-      ),
+      intradaySeriesByCode: replacesLatestPoint
+          ? _replaceLatestIntradayPoint(value.intradaySeriesByCode, tick)
+          : _appendIntradayPoint(value.intradaySeriesByCode, tick),
       liveStatus: MarketIndexLiveStatus.live,
       liveMessage: 'Live index ${tick.indexName} received.',
       lastTickAt: DateTime.now().toUtc(),
       clearErrorMessage: true,
     );
+  }
+
+  void _openLiveSubscription(MarketIndexLiveClient liveClient) {
+    _liveSubscription = liveClient.subscribe().listen(
+          (tick) => _applyLiveIndex(MarketIndex.fromJson(tick)),
+          onError: (_) => _scheduleLiveReconnect(liveClient,
+              reason: 'Index WebSocket disconnected.'),
+          onDone: () => _scheduleLiveReconnect(liveClient,
+              reason: 'Index WebSocket closed.'),
+        );
+  }
+
+  void _scheduleLiveReconnect(
+    MarketIndexLiveClient liveClient, {
+    required String reason,
+  }) {
+    if (_isDisposed) {
+      return;
+    }
+    final delays = _liveReconnectDelays;
+    final delay = delays.isEmpty
+        ? const Duration(seconds: 5)
+        : delays[_liveReconnectAttempt.clamp(0, delays.length - 1)];
+    _liveReconnectAttempt += 1;
+    _liveReconnectTimer?.cancel();
+    value = value.copyWith(
+      liveStatus: MarketIndexLiveStatus.connecting,
+      liveMessage:
+          '$reason Reconnecting index WebSocket in ${delay.inSeconds}s.',
+    );
+    _liveReconnectTimer = Timer(delay, () {
+      if (_isDisposed) {
+        return;
+      }
+      _liveSubscription = null;
+      _openLiveSubscription(liveClient);
+    });
+  }
+
+  List<MarketIndex> _preferNewerLiveIndices(
+    List<MarketIndex> snapshotIndices,
+    List<MarketIndex> visibleIndices,
+  ) {
+    final visibleByCode = {
+      for (final index in visibleIndices) index.indexCode: index,
+    };
+    return snapshotIndices.map((snapshotIndex) {
+      final liveIndex = visibleByCode[snapshotIndex.indexCode];
+      if (liveIndex == null ||
+          !_isLaterMarketDataTime(
+            liveIndex.marketDataTime,
+            snapshotIndex.marketDataTime,
+          )) {
+        return snapshotIndex;
+      }
+      return liveIndex;
+    }).toList(growable: false);
+  }
+
+  void _recordLatestIndexBuckets(Iterable<MarketIndex> indices) {
+    for (final index in indices) {
+      final bucket = _indexTickBucket(index.marketDataTime);
+      if (bucket != null) {
+        _lastIndexTickBucketByCode[index.indexCode] = bucket;
+      }
+    }
   }
 
   Future<Map<String, List<double>>> _loadIntradaySeries(
@@ -311,6 +401,8 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _liveReconnectTimer?.cancel();
     _liveSubscription?.cancel();
     super.dispose();
   }
@@ -346,6 +438,41 @@ Map<String, List<double>> _appendIntradayPoint(
     _double(tick.currentValue),
   );
   return next;
+}
+
+Map<String, List<double>> _replaceLatestIntradayPoint(
+  Map<String, List<double>> existing,
+  MarketIndex tick,
+) {
+  final next = <String, List<double>>{
+    for (final entry in existing.entries)
+      entry.key: List<double>.of(entry.value),
+  };
+  final value = _double(tick.currentValue);
+  final series = next[tick.indexCode];
+  if (value == null || series == null || series.isEmpty) {
+    return _appendIntradayPoint(next, tick);
+  }
+  series[series.length - 1] = value;
+  return next;
+}
+
+DateTime? _indexTickBucket(DateTime? timestamp) {
+  if (timestamp == null) {
+    return null;
+  }
+  final utc = timestamp.toUtc();
+  return DateTime.utc(utc.year, utc.month, utc.day, utc.hour, utc.minute);
+}
+
+bool _isLaterMarketDataTime(DateTime? candidate, DateTime? baseline) {
+  if (candidate == null) {
+    return false;
+  }
+  if (baseline == null) {
+    return true;
+  }
+  return candidate.toUtc().isAfter(baseline.toUtc());
 }
 
 List<double> _appendSeriesPoint(List<double> series, double? value) {

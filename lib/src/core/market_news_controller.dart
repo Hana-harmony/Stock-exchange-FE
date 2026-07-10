@@ -39,8 +39,9 @@ class MarketNewsController extends ValueNotifier<MarketNewsState> {
         super(const MarketNewsState.idle());
 
   final ExchangeApiClient _apiClient;
+  Future<void>? _loadMoreFuture;
 
-  Future<void> loadLatest({int limit = 20}) async {
+  Future<void> loadLatest({int limit = 5}) async {
     value = MarketNewsState.loading(feed: value.feed);
     try {
       final response = await _apiClient.getMarketNews(limit: limit);
@@ -58,6 +59,40 @@ class MarketNewsController extends ValueNotifier<MarketNewsState> {
         feed: value.feed,
       );
     }
+  }
+
+  Future<void> loadMore({int limit = 20}) {
+    final current = value.feed;
+    final cursor = current?.nextCursor;
+    if (current == null || cursor == null || cursor.isEmpty) {
+      return Future.value();
+    }
+    final active = _loadMoreFuture;
+    if (active != null) {
+      return active;
+    }
+    final future = () async {
+      try {
+        final response = await _apiClient.getMarketNews(
+          limit: limit,
+          cursor: cursor,
+        );
+        value = MarketNewsState.loaded(
+          feed: current.merge(MarketNewsFeed.fromJson(response.data ?? {})),
+        );
+      } on Object {
+        value = MarketNewsState.failure(
+          errorMessage: 'Unable to load more Korea market news.',
+          feed: current,
+        );
+      }
+    }();
+    _loadMoreFuture = future;
+    return future.whenComplete(() {
+      if (identical(_loadMoreFuture, future)) {
+        _loadMoreFuture = null;
+      }
+    });
   }
 
   Future<MarketNewsFeed> loadTrending({
@@ -81,10 +116,24 @@ class MarketNewsFeed {
   const MarketNewsFeed({
     required this.newsCount,
     required this.news,
+    this.nextCursor,
   });
 
   final int newsCount;
   final List<MarketNewsItem> news;
+  final String? nextCursor;
+
+  MarketNewsFeed merge(MarketNewsFeed next) {
+    final byId = <String, MarketNewsItem>{
+      for (final item in news) item.newsId: item,
+      for (final item in next.news) item.newsId: item,
+    };
+    return MarketNewsFeed(
+      newsCount: byId.length,
+      news: byId.values.toList(growable: false),
+      nextCursor: next.nextCursor,
+    );
+  }
 
   static MarketNewsFeed fromJson(Map<String, dynamic> json) {
     final newsValues = json['news'] is List
@@ -95,6 +144,7 @@ class MarketNewsFeed {
       news: newsValues
           .map((value) => MarketNewsItem.fromJson(_map(value)))
           .toList(),
+      nextCursor: _nullableString(json['nextCursor']),
     );
   }
 }
@@ -212,6 +262,11 @@ String _string(Object? value, {required String fallback}) {
   }
   final text = '$value';
   return text.isEmpty ? fallback : text;
+}
+
+String? _nullableString(Object? value) {
+  final text = value == null ? '' : '$value'.trim();
+  return text.isEmpty ? null : text;
 }
 
 int _int(Object? value) {

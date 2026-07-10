@@ -265,7 +265,7 @@ void main() {
     expect(find.text('Financial Glossary'), findsOneWidget);
     expect(find.text('Daejangju (Market Leader)'), findsOneWidget);
     expect(
-      find.textContaining('dictates the overall trend.'),
+      find.textContaining('dictates the overall trend'),
       findsOneWidget,
     );
 
@@ -285,26 +285,28 @@ void main() {
     expect(notificationAsset().assetName, AppAssets.headerNotifications);
   });
 
-  testWidgets(
-      'markets requests ten default trending quotes despite seed quotes',
+  testWidgets('markets requests fixed ten trending quotes without rankings',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final requestedStockCodes = <List<String>>[];
+    var searchRankingsRequested = false;
     final marketQuoteController = MarketQuoteController(
       seedQuotes: seedMarketQuotes,
       apiClient: ExchangeApiClient(
         baseUri: Uri.parse('http://localhost:3000'),
         httpClient: MockClient((request) async {
           if (request.url.path == '/api/v1/stocks/search-rankings') {
+            searchRankingsRequested = true;
             return http.Response('{}', 500);
           }
           if (request.url.path == '/api/v1/market/quotes') {
             final stockCodes =
                 request.url.queryParametersAll['stockCodes'] ?? const [];
             requestedStockCodes.add(stockCodes);
-            final quotes = stockCodes
+            final quotes = stockCodes.reversed
+                .toList(growable: false)
                 .asMap()
                 .entries
                 .map((entry) => _quoteJson(_marketQuoteForCode(
@@ -338,6 +340,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(requestedStockCodes, isNotEmpty);
+    expect(searchRankingsRequested, isFalse);
     expect(requestedStockCodes.last, hasLength(10));
     expect(
       requestedStockCodes.last,
@@ -354,7 +357,15 @@ void main() {
         '012330',
       ]),
     );
+    expect(find.byKey(const ValueKey('trending-stock-005930')), findsOneWidget);
     expect(find.byKey(const ValueKey('trending-stock-000660')), findsOneWidget);
+    final samsungTop = tester.getTopLeft(
+      find.byKey(const ValueKey('trending-stock-005930')),
+    );
+    final hynixTop = tester.getTopLeft(
+      find.byKey(const ValueKey('trending-stock-000660')),
+    );
+    expect(samsungTop.dy, lessThan(hynixTop.dy));
   });
 
   testWidgets('markets surfaces provider outages instead of empty states',
@@ -1300,7 +1311,7 @@ void main() {
     expect(chartRequests.first.queryParameters['interval'], '1m');
     expect(find.text('Market Closed Jul 3, 2026 3:30 PM KST'), findsOneWidget);
     expect(find.textContaining('Jul 4, 2026 3:30 PM KST'), findsNothing);
-    expect(find.text('+USD 0.40 +1.14%'), findsWidgets);
+    expect(find.text('+USD 0.43 +1.23%'), findsWidgets);
 
     await tester
         .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
@@ -1314,6 +1325,7 @@ void main() {
     expect(find.text('Foreign Ownership'), findsOneWidget);
     expect(find.text('KOSPI'), findsOneWidget);
     expect(find.text('27.0%~27.6%'), findsOneWidget);
+    expect(find.text('49.0%~51.0%'), findsOneWidget);
     expect(find.text('test / TIME_SERIES_ADJUSTED 0.91'), findsOneWidget);
     expect(find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
         findsNothing);
@@ -1465,6 +1477,118 @@ void main() {
     expect(find.text('Foreign Ownership'), findsNothing);
     expect(find.text('Estimated exhaustion'), findsNothing);
     expect(find.text('none / NOT_APPLICABLE 0'), findsNothing);
+  });
+
+  testWidgets('shows foreign ownership forecast for new confidence labels',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _marketDetailController(
+      foreignOwnershipPredictionConfidenceLevel: 'HIGH',
+      foreignOwnershipPredictionConfidenceScore: '0.88',
+      foreignOwnershipPredictionModelVersion: 'ai-test',
+    );
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketDetailController: marketDetailController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      'Samsung',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-005930')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Foreign Ownership Forecast'), findsOneWidget);
+    expect(find.text('50.00%'), findsOneWidget);
+    expect(find.text('Estimated ownership'), findsOneWidget);
+    expect(find.text('27.0%~27.6%'), findsOneWidget);
+
+    await tester
+        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Foreign Ownership'), findsOneWidget);
+    expect(find.text('Estimated exhaustion'), findsOneWidget);
+    expect(find.text('ai-test / HIGH 0.88'), findsOneWidget);
+  });
+
+  testWidgets('blocks trading for zero foreign ownership limit stocks',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _marketDetailController(
+      foreignOwnershipRate: '0',
+      foreignLimitExhaustionRate: '0',
+      predictedForeignLimitExhaustionRateMin: '0',
+      predictedForeignLimitExhaustionRateMax: '100',
+      foreignOwnershipPredictionConfidenceLevel:
+          'FOREIGN_LIMIT_ZERO_NOT_ACQUIRABLE',
+      orderable: false,
+    );
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketDetailController: marketDetailController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      'Samsung',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-005930')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Foreign ownership unavailable'), findsOneWidget);
+    expect(find.text('Foreign Ownership Forecast'), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(
+              of: find.byKey(const ValueKey('stock-detail-sell-button')),
+              matching: find.byType(FilledButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(
+              of: find.byKey(const ValueKey('stock-detail-buy-button')),
+              matching: find.byType(FilledButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
   });
 
   testWidgets(
@@ -1960,6 +2084,11 @@ MarketDetailController _marketDetailController({
   String foreignOwnershipPredictionConfidenceLevel = 'TIME_SERIES_ADJUSTED',
   String foreignOwnershipPredictionConfidenceScore = '0.91',
   String foreignOwnershipPredictionModelVersion = 'test',
+  String foreignOwnershipRate = '13.55',
+  String foreignLimitExhaustionRate = '27.1',
+  String predictedForeignLimitExhaustionRateMin = '49.0',
+  String predictedForeignLimitExhaustionRateMax = '51.0',
+  bool orderable = true,
 }) {
   return MarketDetailController(
     apiClient: ExchangeApiClient(
@@ -1988,12 +2117,14 @@ MarketDetailController _marketDetailController({
             'changeRate': '+1.23%',
             'volume': isSamsung ? 18300000 : 1200000,
             'marketDataTime': stockMarketDataTime,
-            'foreignOwnershipRate': '27.1',
-            'foreignLimitExhaustionRate': '27.1',
+            'foreignOwnershipRate': foreignOwnershipRate,
+            'foreignLimitExhaustionRate': foreignLimitExhaustionRate,
             'predictedForeignOwnershipRateMin': '27.0',
             'predictedForeignOwnershipRateMax': '27.6',
-            'predictedForeignLimitExhaustionRateMin': '27.0',
-            'predictedForeignLimitExhaustionRateMax': '27.6',
+            'predictedForeignLimitExhaustionRateMin':
+                predictedForeignLimitExhaustionRateMin,
+            'predictedForeignLimitExhaustionRateMax':
+                predictedForeignLimitExhaustionRateMax,
             'foreignOwnershipPredictionConfidenceLevel':
                 foreignOwnershipPredictionConfidenceLevel,
             'foreignOwnershipPredictionConfidenceScore':
@@ -2005,7 +2136,7 @@ MarketDetailController _marketDetailController({
             'singlePriceTrading': false,
             'priceLimitState': priceLimitState,
             'tradingHalted': false,
-            'orderable': true,
+            'orderable': orderable,
             'dataSource': 'Stock-exchange-BE',
             'servedAt': stockMarketDataTime,
           });
@@ -2672,7 +2803,7 @@ Map<String, Object?> _notificationInboxJson() {
             englishTerm: 'Market Leader',
             category: 'MARKET',
             description:
-                'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend.',
+                'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend and often becomes a benchmark for investor sentiment during volatile sessions.',
           ),
         ],
         'translationQualityFlags': ['GLOSSARY_MATCHED'],
@@ -2725,7 +2856,7 @@ Map<String, Object?> _samsungIntelligenceJson() {
             englishTerm: 'Market Leader',
             category: 'MARKET',
             description:
-                'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend.',
+                'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend and often becomes a benchmark for investor sentiment during volatile sessions.',
           ),
         ],
         'translationQualityFlags': ['GLOSSARY_MATCHED'],

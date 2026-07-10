@@ -64,19 +64,6 @@ bool _isHongKongMarket(String market) {
   return normalized.contains('HK') || normalized.contains('HANG');
 }
 
-String _formatNumber(int value) {
-  final digits = '$value';
-  final buffer = StringBuffer();
-  for (var index = 0; index < digits.length; index++) {
-    final remaining = digits.length - index;
-    buffer.write(digits[index]);
-    if (remaining > 1 && remaining % 3 == 1) {
-      buffer.write(',');
-    }
-  }
-  return buffer.toString();
-}
-
 String? _formatMarketStatus(DateTime? marketDataTime, {DateTime? nowUtc}) {
   if (marketDataTime == null) {
     return null;
@@ -115,7 +102,35 @@ double _parsePercent(String value) {
 }
 
 String _formatCompactNumber(int value) {
-  return _formatNumber(value);
+  if (value < 1000000) {
+    return _formatWholeNumber(value);
+  }
+  final millions = value / 1000000;
+  final formatted = millions >= 10
+      ? millions.toStringAsFixed(1)
+      : millions.toStringAsFixed(2);
+  return '${_trimTrailingZeros(formatted)}M';
+}
+
+String _formatWholeNumber(int value) {
+  final sign = value < 0 ? '-' : '';
+  final digits = value.abs().toString();
+  final buffer = StringBuffer(sign);
+  for (var index = 0; index < digits.length; index++) {
+    final remaining = digits.length - index;
+    buffer.write(digits[index]);
+    if (remaining > 1 && remaining % 3 == 1) {
+      buffer.write(',');
+    }
+  }
+  return buffer.toString();
+}
+
+String _trimTrailingZeros(String value) {
+  if (!value.contains('.')) {
+    return value;
+  }
+  return value.replaceFirst(RegExp(r'\.?0+$'), '');
 }
 
 bool _isKoreanRegularSessionWeekday(DateTime kst) {

@@ -113,8 +113,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     if (_hasDemandQuoteLiveSubscription) {
       final stockCode = widget.stockCode;
       final marketQuoteController = widget.marketQuoteController;
-      Future<void>.microtask(() {
-        unawaited(marketQuoteController.removeDemandLiveStock(stockCode));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!marketQuoteController.isDisposed) {
+          unawaited(marketQuoteController.removeDemandLiveStock(stockCode));
+        }
       });
     }
     _detailScrollController
@@ -354,9 +356,20 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             );
           },
         ),
-        bottomNavigationBar: _StockBottomActionBar(
-          onSell: () => _handleTradeAction('Sell'),
-          onBuy: () => _handleTradeAction('Buy', _buildSnapshot()),
+        bottomNavigationBar: AnimatedBuilder(
+          animation: Listenable.merge([
+            widget.marketDetailController,
+            widget.marketQuoteController,
+            widget.tradeController,
+          ]),
+          builder: (context, _) {
+            final snapshot = _buildSnapshot();
+            return _StockBottomActionBar(
+              onSell: () => _handleTradeAction('Sell'),
+              onBuy: () => _handleTradeAction('Buy', snapshot),
+              isTradeEnabled: snapshot.isTradeEnabled,
+            );
+          },
         ),
       ),
     );
@@ -389,6 +402,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         marketDataTime:
             liveQuote?.marketDataTime ?? _currentDetail?.marketDataTime,
       ),
+      useQuoteChangeRate: _chartPeriod == _StockChartPeriod.oneDay,
       nowUtc: now.toUtc(),
       tradeState: widget.tradeController.value,
     );
@@ -470,6 +484,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   void _handleTradeAction(String side, [_StockDetailSnapshot? snapshot]) {
+    if (!_buildSnapshot().isTradeEnabled) {
+      return;
+    }
     if (_isLowLimitTriggered) {
       _showPriceLimitRestrictionDialog();
       return;

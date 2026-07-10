@@ -243,10 +243,7 @@ class _MarketScreenState extends State<MarketScreen> {
                         onTap: () => _openTrendingStock(trendingStocks[index]),
                       )
                   else if (quoteState.status == MarketQuoteStatus.loading)
-                    const _MutedInfoCard(
-                      title: 'Loading stocks',
-                      body: 'Live Korea market quotes are being loaded.',
-                    )
+                    const _TrendingStocksLoadingCard()
                   else if (quoteState.status != MarketQuoteStatus.failure)
                     const _MutedInfoCard(
                       title: 'No stocks',
@@ -300,20 +297,6 @@ class _MarketScreenState extends State<MarketScreen> {
   }
 
   Future<List<String>> _resolveInitialTrendingStockCodes() async {
-    try {
-      final rankings = await widget.marketQuoteController.loadSearchRankings(
-        limit: 10,
-      );
-      final rankedCodes = _fillTrendingStockCodes(
-        rankings.results.map((item) => item.stockCode),
-      );
-      if (rankedCodes.isNotEmpty) {
-        return rankedCodes;
-      }
-    } on Object {
-      // 랭킹 조회 실패 시 기본 인기 유니버스로 즉시 시세를 띄운다.
-    }
-
     return _fillTrendingStockCodes(const []);
   }
 
@@ -350,11 +333,15 @@ class _MarketScreenState extends State<MarketScreen> {
     }
 
     final marketCodes = _marketTrendingStockCodes.toSet();
-    final sorted = state.quotes
-        .where((quote) => marketCodes.contains(quote.stockCode))
-        .toList(growable: false)
-      ..sort((a, b) => b.volume.compareTo(a.volume));
-    return sorted.take(10).toList(growable: false);
+    final quotesByCode = <String, MarketQuote>{
+      for (final quote in state.quotes)
+        if (marketCodes.contains(quote.stockCode)) quote.stockCode: quote,
+    };
+    return _marketTrendingStockCodes
+        .map((stockCode) => quotesByCode[stockCode])
+        .whereType<MarketQuote>()
+        .take(10)
+        .toList(growable: false);
   }
 
   List<_MarketStatusCardData> _buildMarketStatusCards(MarketIndexState state) {
@@ -623,15 +610,25 @@ class _MarketStatusCard extends StatelessWidget {
                       color: valueColor,
                     ),
               ),
-              Text(
-                data.change,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      fontSize: 14,
-                      height: 1.4,
-                      fontWeight: FontWeight.w400,
-                      letterSpacing: -0.28,
-                      color: valueColor,
-                    ),
+              SizedBox(
+                height: 20,
+                width: double.infinity,
+                child: FittedBox(
+                  alignment: Alignment.centerLeft,
+                  fit: BoxFit.scaleDown,
+                  child: Text(
+                    data.change,
+                    maxLines: 1,
+                    softWrap: false,
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          fontSize: 14,
+                          height: 1.4,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 0,
+                          color: valueColor,
+                        ),
+                  ),
+                ),
               ),
               const Spacer(),
               SizedBox(
@@ -964,6 +961,107 @@ class _TrendingStockTile extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+class _TrendingStocksLoadingCard extends StatelessWidget {
+  const _TrendingStocksLoadingCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(AppRadii.large),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Loading stocks',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 10),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: const LinearProgressIndicator(
+                minHeight: 4,
+                color: AppColors.orange500,
+                backgroundColor: AppColors.gray200,
+              ),
+            ),
+            const SizedBox(height: 14),
+            for (var index = 0; index < 3; index++) ...[
+              const _TrendingStockLoadingRow(),
+              if (index != 2) const SizedBox(height: 12),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _TrendingStockLoadingRow extends StatelessWidget {
+  const _TrendingStockLoadingRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 36,
+      child: Row(
+        children: [
+          const _LoadingBlock(width: 34, height: 34, radius: 17),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _LoadingBlock(width: 96, height: 10),
+                SizedBox(height: 8),
+                _LoadingBlock(width: 148, height: 9),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: const [
+              _LoadingBlock(width: 64, height: 10),
+              SizedBox(height: 8),
+              _LoadingBlock(width: 46, height: 9),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LoadingBlock extends StatelessWidget {
+  const _LoadingBlock({
+    required this.width,
+    required this.height,
+    this.radius = 4,
+  });
+
+  final double width;
+  final double height;
+  final double radius;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.gray200,
+        borderRadius: BorderRadius.circular(radius),
+      ),
+      child: SizedBox(width: width, height: height),
     );
   }
 }

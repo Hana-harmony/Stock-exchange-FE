@@ -577,18 +577,28 @@ class ExchangeApiClient {
 
   Future<ApiEnvelope<Map<String, dynamic>>> getStockIntelligenceFeed(
     String stockCode, {
-    int limit = 40,
+    int limit = 20,
+    String? cursor,
   }) {
     return get<Map<String, dynamic>>(
       '/api/v1/stocks/$stockCode/intelligence',
-      query: {'limit': '$limit'},
+      query: {
+        'limit': '$limit',
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
     );
   }
 
-  Future<ApiEnvelope<Map<String, dynamic>>> getMarketNews({int limit = 10}) {
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketNews({
+    int limit = 20,
+    String? cursor,
+  }) {
     return get<Map<String, dynamic>>(
       '/api/v1/market/news',
-      query: {'limit': '$limit'},
+      query: {
+        'limit': '$limit',
+        if (cursor != null && cursor.isNotEmpty) 'cursor': cursor,
+      },
     );
   }
 

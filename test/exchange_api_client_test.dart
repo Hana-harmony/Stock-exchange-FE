@@ -225,7 +225,7 @@ void main() {
     expect(seenPaths, [
       'GET /api/v1/accounts/ACC-ABC123456789/notifications',
       'GET /api/v1/accounts/ACC-ABC123456789/notifications/devices',
-      'GET /api/v1/stocks/005930/intelligence?limit=40',
+      'GET /api/v1/stocks/005930/intelligence?limit=20',
       'POST /api/v1/accounts/ACC-ABC123456789/notifications/NTF-ABC123456789/read',
     ]);
   });

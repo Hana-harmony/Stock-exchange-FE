@@ -186,6 +186,7 @@ class StockIntelligenceFeed {
     required this.dataSource,
     required this.itemCount,
     required this.items,
+    this.nextCursor,
     this.servedAt,
   });
 
@@ -193,7 +194,23 @@ class StockIntelligenceFeed {
   final String dataSource;
   final int itemCount;
   final List<StockIntelligenceItem> items;
+  final String? nextCursor;
   final DateTime? servedAt;
+
+  StockIntelligenceFeed merge(StockIntelligenceFeed next) {
+    final byId = <String, StockIntelligenceItem>{
+      for (final item in items) item.eventId: item,
+      for (final item in next.items) item.eventId: item,
+    };
+    return StockIntelligenceFeed(
+      stockCode: next.stockCode.isNotEmpty ? next.stockCode : stockCode,
+      dataSource: next.dataSource.isNotEmpty ? next.dataSource : dataSource,
+      itemCount: byId.length,
+      items: byId.values.toList(growable: false),
+      nextCursor: next.nextCursor,
+      servedAt: next.servedAt ?? servedAt,
+    );
+  }
 
   static StockIntelligenceFeed fromJson(Map<String, dynamic> json) {
     final itemValues = json['items'] is List
@@ -206,6 +223,7 @@ class StockIntelligenceFeed {
       items: itemValues
           .map((value) => StockIntelligenceItem.fromJson(_map(value)))
           .toList(),
+      nextCursor: _nullableString(json['nextCursor']),
       servedAt: _dateTime(json['servedAt']),
     );
   }

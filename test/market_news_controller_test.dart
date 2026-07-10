@@ -2,6 +2,30 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:stock_exchange_fe/src/core/market_news_controller.dart';
 
 void main() {
+  test('merges cursor pages without duplicate market news ids', () {
+    final first = MarketNewsFeed.fromJson({
+      'newsCount': 2,
+      'nextCursor': 'cursor-2',
+      'news': [
+        {'newsId': 'mkt-1'},
+        {'newsId': 'mkt-2'},
+      ],
+    });
+    final second = MarketNewsFeed.fromJson({
+      'newsCount': 2,
+      'nextCursor': null,
+      'news': [
+        {'newsId': 'mkt-2'},
+        {'newsId': 'mkt-3'},
+      ],
+    });
+
+    final merged = first.merge(second);
+
+    expect(merged.news.map((item) => item.newsId), ['mkt-1', 'mkt-2', 'mkt-3']);
+    expect(merged.nextCursor, isNull);
+  });
+
   test('does not treat What Why Impact summary as market news body', () {
     final item = MarketNewsItem.fromJson({
       'newsId': 'mkt-1',

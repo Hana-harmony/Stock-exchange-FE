@@ -127,7 +127,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Estimated',
+                      'Estimated ownership',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: 14,
                             height: 1.4,
@@ -161,14 +161,14 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _AlertMetric(
-                            label: 'Previous Day',
-                            value: snapshot.previousDayForeignRatio,
+                            label: 'Current ownership',
+                            value: snapshot.currentForeignOwnershipRatio,
                             alignEnd: false,
                           ),
                         ),
                         Expanded(
                           child: _AlertMetric(
-                            label: 'Limit',
+                            label: 'Foreign ownership cap',
                             value: snapshot.limitForeignRatio,
                             alignEnd: true,
                           ),
@@ -188,6 +188,47 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                   ],
                 ),
               ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ForeignOwnershipTradingUnavailableCard extends StatelessWidget {
+  const _ForeignOwnershipTradingUnavailableCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1F3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFFFB8C5)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Foreign ownership unavailable',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: AppColors.red500,
+                    fontSize: 16,
+                    height: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Foreign ownership is not permitted for this stock. Buying and selling are unavailable.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.gray800,
+                    fontSize: 14,
+                    height: 1.4,
+                  ),
             ),
           ],
         ),
@@ -305,10 +346,12 @@ class _StockBottomActionBar extends StatelessWidget {
   const _StockBottomActionBar({
     required this.onSell,
     required this.onBuy,
+    required this.isTradeEnabled,
   });
 
   final VoidCallback onSell;
   final VoidCallback onBuy;
+  final bool isTradeEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -339,7 +382,7 @@ class _StockBottomActionBar extends StatelessWidget {
                         key: const ValueKey('stock-detail-sell-button'),
                         label: 'Sell',
                         backgroundColor: AppColors.red500,
-                        onTap: onSell,
+                        onTap: isTradeEnabled ? onSell : null,
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -348,7 +391,7 @@ class _StockBottomActionBar extends StatelessWidget {
                         key: const ValueKey('stock-detail-buy-button'),
                         label: 'Buy',
                         backgroundColor: AppColors.green500,
-                        onTap: onBuy,
+                        onTap: isTradeEnabled ? onBuy : null,
                       ),
                     ),
                   ],
@@ -384,7 +427,7 @@ class _TradeActionButton extends StatelessWidget {
 
   final String label;
   final Color backgroundColor;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -395,6 +438,8 @@ class _TradeActionButton extends StatelessWidget {
         style: FilledButton.styleFrom(
           backgroundColor: backgroundColor,
           foregroundColor: AppColors.white,
+          disabledBackgroundColor: AppColors.gray300,
+          disabledForegroundColor: AppColors.gray600,
           padding: EdgeInsets.zero,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10),

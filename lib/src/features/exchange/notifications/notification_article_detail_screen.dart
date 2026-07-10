@@ -669,7 +669,7 @@ class _NotificationArticleDetailData {
         .map((paragraph) => paragraph.replaceAll('\n', ' ').trim())
         .where((paragraph) => paragraph.isNotEmpty)
         .toList();
-    return normalized.isEmpty ? [bodyText.trim()] : normalized;
+    return normalized;
   }
 
   factory _NotificationArticleDetailData.fromNotification(
@@ -679,7 +679,9 @@ class _NotificationArticleDetailData {
     final resolvedBodyText = intelligenceItem != null
         ? intelligenceItem.displayBody.isNotEmpty
             ? intelligenceItem.displayBody
-            : _articleBodyUnavailableText
+            : item.summary.isNotEmpty
+                ? '${item.title}\n${item.summary}'
+                : item.title
         : item.summary.isNotEmpty
             ? '${item.title}\n${item.summary}'
             : item.title;
@@ -767,7 +769,7 @@ class _NotificationArticleDetailData {
       sentiment: _StockNewsSentiment.positive,
       priority: _StockNewsPriority.medium,
       analysisRows: rows,
-      bodyText: bodyText.isNotEmpty ? bodyText : _articleBodyUnavailableText,
+      bodyText: bodyText,
       glossaryEntries: _glossaryEntriesFromTerms(
         item.glossaryTerms,
         bodyText,
@@ -786,9 +788,6 @@ class _NotificationArticleDetailData {
     );
   }
 }
-
-const String _articleBodyUnavailableText =
-    'Full article text is unavailable from the source.';
 
 class _NotificationArticleGlossaryEntry {
   const _NotificationArticleGlossaryEntry({
@@ -899,7 +898,7 @@ class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
   final double maxWidth;
 
   static const double _bubbleWidth = 264;
-  static const double _bubbleHeight = 128;
+  static const double _bubbleHeight = 176;
   static const double _pointerWidth = 34;
   static const double _pointerHeight = 20;
   static const double _pointerOverlap = 12;
@@ -936,44 +935,47 @@ class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
                 color: AppColors.slate600,
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    glossary.eyebrow,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 12,
-                          height: 1.4,
-                          fontWeight: FontWeight.w500,
-                          letterSpacing: -0.24,
-                          color: AppColors.orange500,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    glossary.title,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 14,
-                          height: 1.4,
-                          fontWeight: FontWeight.w600,
-                          letterSpacing: -0.28,
-                          color: AppColors.white,
-                        ),
-                  ),
-                  if (glossary.description.isNotEmpty) ...[
-                    const SizedBox(height: 4),
+              child: SingleChildScrollView(
+                physics: const BouncingScrollPhysics(),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
                     Text(
-                      glossary.description,
+                      glossary.eyebrow,
                       style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                             fontSize: 12,
                             height: 1.4,
                             fontWeight: FontWeight.w500,
-                            letterSpacing: -0.24,
-                            color: AppColors.gray400,
+                            letterSpacing: 0,
+                            color: AppColors.orange500,
                           ),
                     ),
+                    const SizedBox(height: 4),
+                    Text(
+                      glossary.title,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontSize: 14,
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: 0,
+                            color: AppColors.white,
+                          ),
+                    ),
+                    if (glossary.description.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        glossary.description,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontSize: 12,
+                              height: 1.4,
+                              fontWeight: FontWeight.w500,
+                              letterSpacing: 0,
+                              color: AppColors.gray400,
+                            ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             Positioned(
