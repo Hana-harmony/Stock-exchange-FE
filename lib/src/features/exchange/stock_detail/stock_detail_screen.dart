@@ -1036,7 +1036,7 @@ class _GlobalPeerCompanyMark extends StatelessWidget {
   Widget build(BuildContext context) {
     return _GlobalPeerLogoMark(
       label: label,
-      logoAssetPath: _usStockLogoAssetPath(label),
+      logoAssetPath: _globalPeerComparisonLogoAssetPath(label),
       size: 48,
       backgroundColor: AppColors.gray100,
       foregroundColor: AppColors.orange500,
@@ -1134,9 +1134,7 @@ class _GlobalPeerStrengthSection extends StatelessWidget {
         const SizedBox(height: 8),
         LayoutBuilder(
           builder: (context, constraints) {
-            final itemWidth = isExpanded
-                ? constraints.maxWidth
-                : (constraints.maxWidth - 8) / 2;
+            final itemWidth = (constraints.maxWidth - 8) / 2;
             return Wrap(
               spacing: 8,
               runSpacing: 8,
@@ -1145,6 +1143,9 @@ class _GlobalPeerStrengthSection extends StatelessWidget {
                   SizedBox(
                     width: itemWidth,
                     child: _GlobalPeerStrengthCard(
+                      key: ValueKey(
+                        'global-peer-strength-card-${item.iconKey}',
+                      ),
                       item: item,
                       isExpanded: isExpanded,
                     ),
@@ -1160,6 +1161,7 @@ class _GlobalPeerStrengthSection extends StatelessWidget {
 
 class _GlobalPeerStrengthCard extends StatelessWidget {
   const _GlobalPeerStrengthCard({
+    super.key,
     required this.item,
     required this.isExpanded,
   });
@@ -1179,22 +1181,16 @@ class _GlobalPeerStrengthCard extends StatelessWidget {
         padding: const EdgeInsets.all(12),
         child: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment:
-              isExpanded ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Image.asset(
-              item.iconAsset,
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-            ),
+            _GlobalPeerStrengthIcon(iconKey: item.iconKey),
             const SizedBox(height: 4),
             Text(
               item.title,
               maxLines: isExpanded ? null : 1,
               overflow:
                   isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-              textAlign: isExpanded ? TextAlign.left : TextAlign.center,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontSize: 12,
                     height: 1.4,
@@ -1207,7 +1203,7 @@ class _GlobalPeerStrengthCard extends StatelessWidget {
               maxLines: isExpanded ? null : 2,
               overflow:
                   isExpanded ? TextOverflow.visible : TextOverflow.ellipsis,
-              textAlign: isExpanded ? TextAlign.left : TextAlign.center,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontSize: 10,
                     height: 1.4,
@@ -1240,47 +1236,26 @@ class _GlobalPeerStrengthItem {
   const _GlobalPeerStrengthItem({
     required this.title,
     required this.description,
-    required this.iconAsset,
+    required this.iconKey,
   });
 
   final String title;
   final String description;
-  final String iconAsset;
+  final String iconKey;
 }
 
 List<_GlobalPeerComparisonItem> _globalPeerComparisonItems(
   GlobalPeerMatch match,
 ) {
-  final peers = match.peers.take(3).toList(growable: false);
   return [
-    for (var index = 0; index < peers.length; index++)
+    for (final comparison in match.comparisons)
       _GlobalPeerComparisonItem(
-        title: _globalPeerComparisonTitle(peers[index], index),
-        peerLabel: _globalPeerShortPeerLabel(peers[index]),
-        summary: _globalPeerComparisonSummary(peers[index]),
-        peer: peers[index],
+        title: _globalPeerDimensionLabel(comparison.dimension),
+        peerLabel: _globalPeerShortPeerLabel(comparison.peer),
+        summary: comparison.description,
+        peer: comparison.peer,
       ),
   ];
-}
-
-String _globalPeerComparisonTitle(GlobalPeerMatchPeer peer, int index) {
-  if (index == 0) {
-    return 'Overall Business';
-  }
-  final tags = peer.businessTags
-      .map(_formatGlobalPeerTag)
-      .where((tag) => tag.isNotEmpty)
-      .toList(growable: false);
-  if (tags.isNotEmpty) {
-    return tags.first;
-  }
-  if (peer.industry.trim().isNotEmpty) {
-    return _formatGlobalPeerTag(peer.industry);
-  }
-  if (peer.sector.trim().isNotEmpty) {
-    return _formatGlobalPeerTag(peer.sector);
-  }
-  return index == 1 ? 'Business Segment' : 'Growth Segment';
 }
 
 String _globalPeerShortPeerLabel(GlobalPeerMatchPeer peer) {
@@ -1307,246 +1282,135 @@ String _globalPeerShortPeerLabel(GlobalPeerMatchPeer peer) {
       );
 }
 
-String _globalPeerComparisonSummary(GlobalPeerMatchPeer peer) {
-  for (final value in [
-    peer.rationale,
-    ...peer.matchedFactors,
-    peer.businessModel,
-  ]) {
-    final normalized = value.trim();
-    if (normalized.isNotEmpty) {
-      return normalized;
-    }
-  }
-  final descriptionParts = [
-    if (peer.sector.isNotEmpty) peer.sector,
-    if (peer.industry.isNotEmpty) peer.industry,
-    if (peer.exchange.isNotEmpty) peer.exchange,
-  ];
-  return descriptionParts.isEmpty
-      ? 'Peer similarity is derived from the latest global comparison model.'
-      : '${descriptionParts.join(' · ')} peer selected by the global comparison model.';
-}
-
 List<_GlobalPeerStrengthItem> _globalPeerStrengthItems(GlobalPeerMatch match) {
-  final primaryPeer = match.primaryPeer;
-  if (primaryPeer == null) {
-    return const <_GlobalPeerStrengthItem>[];
-  }
-
-  final subjectName = _globalPeerSubjectName(match);
-  final seen = <String>{};
-  final items = <_GlobalPeerStrengthItem>[];
-
-  void addItem({
-    required String title,
-    required String description,
-    required String rawValue,
-  }) {
-    if (items.length == 4) {
-      return;
-    }
-    final normalizedTitle = title.trim();
-    final normalizedDescription =
-        description.trim().replaceAll(RegExp(r'\s+'), ' ');
-    if (normalizedTitle.isEmpty || normalizedDescription.isEmpty) {
-      return;
-    }
-    final key = '$normalizedTitle|$normalizedDescription'.toLowerCase();
-    if (!seen.add(key)) {
-      return;
-    }
-
-    items.add(
-      _GlobalPeerStrengthItem(
-        title: normalizedTitle,
-        description: normalizedDescription,
-        iconAsset: _globalPeerStrengthIcon(rawValue, items.length),
-      ),
-    );
-  }
-
-  for (final rawValue in primaryPeer.businessTags) {
-    final title = _globalPeerStrengthTitle(rawValue);
-    final theme = title.toLowerCase();
-    addItem(
-      title: title,
-      description:
-          '$subjectName is tagged for $theme exposure in the global peer model.',
-      rawValue: rawValue,
-    );
-  }
-
-  for (final rawValue in primaryPeer.matchedFactors) {
-    final item = _globalPeerSubjectStrengthFromFactor(
-      rawValue: rawValue,
-      subjectName: subjectName,
-    );
-    if (item == null) {
-      continue;
-    }
-    addItem(
-      title: item.title,
-      description: item.description,
-      rawValue: rawValue,
-    );
-  }
-
-  final summary = match.summary.trim();
-  if (!_globalPeerLooksComparative(summary)) {
-    addItem(
-      title: 'Business Summary',
-      description: summary,
-      rawValue: summary,
-    );
-  }
-
-  if (items.isEmpty) {
-    return [
-      _GlobalPeerStrengthItem(
-        title: 'Strong Match',
-        description: _globalPeerSummary(match),
-        iconAsset: AppAssets.stockQuestionEcosystemIcon,
-      ),
-    ];
-  }
-  return items;
+  return match.keyStrengths
+      .map(
+        (strength) => _GlobalPeerStrengthItem(
+          title: strength.title,
+          description: strength.description,
+          iconKey: strength.iconKey,
+        ),
+      )
+      .toList(growable: false);
 }
 
-String _globalPeerSubjectName(GlobalPeerMatch match) {
-  final stockName = match.stockName.trim();
-  if (stockName.isEmpty) {
-    final stockCode = match.stockCode.trim();
-    return stockCode.isEmpty ? 'This stock' : stockCode;
+String _globalPeerDimensionLabel(String dimension) {
+  switch (dimension.trim().toLowerCase()) {
+    case 'overall_business':
+      return 'Overall Business';
+    case 'semiconductor_ds':
+      return 'Semiconductor (DS)';
+    case 'consumer_electronics':
+      return 'Consumer Electronics';
+    case 'software_platform':
+      return 'Software Platform';
+    case 'financial_services':
+      return 'Financial Services';
+    case 'drug_delivery':
+      return 'Drug Delivery';
+    case 'operational_scale':
+      return 'Operational Scale';
+    default:
+      return _formatGlobalPeerTag(dimension);
   }
-  final englishName = stockName.split(RegExp(r'\s*\(')).first.trim();
-  return englishName.isEmpty ? stockName : englishName;
 }
 
-String _globalPeerStrengthTitle(String value) {
-  final formatted = _formatGlobalPeerTag(value);
-  if (formatted.isEmpty) {
-    return '';
+String? _globalPeerComparisonLogoAssetPath(String ticker) {
+  switch (ticker.trim().toUpperCase()) {
+    case 'AAPL':
+      return AppAssets.stockQuestionComparisonApple;
+    case 'INTC':
+      return AppAssets.stockQuestionComparisonIntel;
+    case 'TSM':
+    case 'TSMC':
+      return AppAssets.stockQuestionComparisonTsmc;
+    default:
+      return _usStockLogoAssetPath(ticker);
   }
-  if (formatted.toLowerCase() == 'memory') {
-    return 'in Memory';
-  }
-  return formatted;
 }
 
-_GlobalPeerStrengthItem? _globalPeerSubjectStrengthFromFactor({
-  required String rawValue,
-  required String subjectName,
-}) {
-  final normalized = rawValue.trim().replaceAll(RegExp(r'\s+'), ' ');
-  if (normalized.isEmpty) {
-    return null;
-  }
+class _GlobalPeerStrengthIcon extends StatelessWidget {
+  const _GlobalPeerStrengthIcon({required this.iconKey});
 
-  final sourceMatch = RegExp(
-    r'source=([^,]+)(?:,\s*peer=|$)',
-    caseSensitive: false,
-  ).firstMatch(normalized);
-  if (sourceMatch != null) {
-    final sourceValue = sourceMatch.group(1)?.trim() ?? '';
-    if (sourceValue.isNotEmpty) {
-      return _GlobalPeerStrengthItem(
-        title: 'Business Model',
-        description: '$subjectName business model: $sourceValue.',
-        iconAsset: _globalPeerStrengthIcon(sourceValue, 0),
+  final String iconKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final assetPath = _globalPeerStrengthIconAsset(iconKey);
+    if (assetPath != null) {
+      return Image.asset(
+        assetPath,
+        width: 24,
+        height: 24,
+        fit: BoxFit.contain,
       );
     }
-  }
-
-  final mappedMatch = RegExp(
-    r'^(Sector|Industry|Scale):\s*both are mapped to\s+(.+?)\.?$',
-    caseSensitive: false,
-  ).firstMatch(normalized);
-  if (mappedMatch != null) {
-    final label = (mappedMatch.group(1) ?? '').toLowerCase();
-    final value = (mappedMatch.group(2) ?? '').trim();
-    final title = label == 'scale'
-        ? _formatGlobalPeerTag(value)
-        : _globalPeerStrengthTitle(value);
-    final description = label == 'scale'
-        ? '$subjectName is classified as ${_formatGlobalPeerTag(value)} in the global peer model.'
-        : '$subjectName is classified under $value ${label == 'sector' ? 'sector' : 'industry'} in the global peer model.';
-    return _GlobalPeerStrengthItem(
-      title: title,
-      description: description,
-      iconAsset: _globalPeerStrengthIcon(value, 0),
+    return Icon(
+      _globalPeerStrengthIconData(iconKey),
+      key: ValueKey('global-peer-strength-icon-$iconKey'),
+      color: AppColors.orange500,
+      size: 24,
     );
   }
-
-  if (_globalPeerLooksComparative(normalized)) {
-    return null;
-  }
-
-  return _GlobalPeerStrengthItem(
-    title: _globalPeerSubjectFactorTitle(normalized),
-    description: normalized,
-    iconAsset: _globalPeerStrengthIcon(normalized, 0),
-  );
 }
 
-String _globalPeerSubjectFactorTitle(String value) {
-  final normalized = value.toLowerCase();
-  if (normalized.startsWith('revenue model')) {
-    return 'Revenue Mix';
+String? _globalPeerStrengthIconAsset(String iconKey) {
+  switch (iconKey.trim().toLowerCase()) {
+    case 'memory':
+      return AppAssets.stockQuestionMemoryIcon;
+    case 'foundry':
+      return AppAssets.stockQuestionFoundryIcon;
+    case 'ecosystem':
+      return AppAssets.stockQuestionEcosystemIcon;
+    case 'ai':
+      return AppAssets.stockQuestionAiIcon;
+    default:
+      return null;
   }
-  if (normalized.startsWith('business model')) {
-    return 'Business Model';
-  }
-  if (normalized.startsWith('sector')) {
-    return 'Sector';
-  }
-  if (normalized.startsWith('industry')) {
-    return 'Industry';
-  }
-  return 'Business Strength';
 }
 
-bool _globalPeerLooksComparative(String value) {
-  final normalized = value.toLowerCase();
-  return normalized.contains('both ') ||
-      normalized.contains('peer=') ||
-      normalized.contains(' peer ') ||
-      normalized.contains('matched with') ||
-      normalized.contains('closest us-listed') ||
-      normalized.contains('comparison') ||
-      normalized.contains('similarity');
-}
-
-String _globalPeerStrengthIcon(String value, int index) {
-  final keyword = value.toLowerCase();
-  if (keyword.contains('memory') ||
-      keyword.contains('semiconductor') ||
-      keyword.contains('chip') ||
-      keyword.contains('nand') ||
-      keyword.contains('dram')) {
-    return AppAssets.stockQuestionMemoryIcon;
+IconData _globalPeerStrengthIconData(String iconKey) {
+  switch (iconKey.trim().toLowerCase()) {
+    case 'semiconductor':
+      return Icons.memory;
+    case 'consumer_electronics':
+      return Icons.devices;
+    case 'software_platform':
+      return Icons.apps;
+    case 'financial_services':
+      return Icons.account_balance;
+    case 'payments':
+      return Icons.payments;
+    case 'biotechnology':
+      return Icons.biotech;
+    case 'drug_delivery':
+      return Icons.medication;
+    case 'battery':
+      return Icons.battery_charging_full;
+    case 'automotive':
+      return Icons.directions_car;
+    case 'telecommunications':
+      return Icons.cell_tower;
+    case 'energy':
+      return Icons.bolt;
+    case 'materials':
+      return Icons.layers;
+    case 'industrial':
+      return Icons.precision_manufacturing;
+    case 'commerce':
+      return Icons.storefront;
+    case 'media':
+      return Icons.movie;
+    case 'operational_scale':
+      return Icons.factory;
+    case 'memory':
+    case 'foundry':
+    case 'ai':
+    case 'ecosystem':
+    case 'global_business':
+    default:
+      return Icons.public;
   }
-  if (keyword.contains('foundry') ||
-      keyword.contains('fab') ||
-      keyword.contains('manufactur')) {
-    return AppAssets.stockQuestionFoundryIcon;
-  }
-  if (keyword.contains('ai') ||
-      keyword.contains('data') ||
-      keyword.contains('growth')) {
-    return AppAssets.stockQuestionAiIcon;
-  }
-  if (keyword.contains('ecosystem') ||
-      keyword.contains('platform') ||
-      keyword.contains('consumer')) {
-    return AppAssets.stockQuestionEcosystemIcon;
-  }
-  return [
-    AppAssets.stockQuestionMemoryIcon,
-    AppAssets.stockQuestionFoundryIcon,
-    AppAssets.stockQuestionEcosystemIcon,
-    AppAssets.stockQuestionAiIcon,
-  ][index % 4];
 }
 
 bool _isKnownTicker(String ticker, List<String> values) {
@@ -1579,6 +1443,7 @@ String _globalPeerSummary(GlobalPeerMatch match) {
 
 List<String> _globalPeerTags(GlobalPeerMatch match) {
   final values = <String>[
+    ...match.keyStrengths.map(_globalPeerTagForStrength),
     ...?match.primaryPeer?.businessTags,
     if (match.primaryPeer?.sector.isNotEmpty ?? false)
       match.primaryPeer!.sector,
@@ -1592,6 +1457,22 @@ List<String> _globalPeerTags(GlobalPeerMatch match) {
       .where((tag) => seen.add(tag.toLowerCase()))
       .take(3)
       .toList(growable: false);
+}
+
+String _globalPeerTagForStrength(GlobalPeerKeyStrength strength) {
+  switch (strength.iconKey.trim().toLowerCase()) {
+    case 'memory':
+    case 'foundry':
+    case 'semiconductor':
+      return 'Semiconductors';
+    case 'ecosystem':
+    case 'consumer_electronics':
+      return 'Consumer Electronics';
+    case 'ai':
+      return 'AI';
+    default:
+      return strength.title;
+  }
 }
 
 String _formatGlobalPeerTag(String value) {

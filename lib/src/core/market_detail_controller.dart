@@ -463,6 +463,8 @@ class GlobalPeerMatch {
     required this.headline,
     required this.summary,
     required this.peers,
+    required this.comparisons,
+    required this.keyStrengths,
     required this.confidenceScore,
     required this.confidenceLevel,
     required this.modelVersion,
@@ -476,6 +478,8 @@ class GlobalPeerMatch {
   final String headline;
   final String summary;
   final List<GlobalPeerMatchPeer> peers;
+  final List<GlobalPeerComparison> comparisons;
+  final List<GlobalPeerKeyStrength> keyStrengths;
   final String confidenceScore;
   final String confidenceLevel;
   final String modelVersion;
@@ -501,6 +505,8 @@ class GlobalPeerMatch {
         (peer) => primaryPeer == null || peer.ticker != primaryPeer.ticker,
       ),
     ];
+    final comparisonValues = json['comparisons'];
+    final keyStrengthValues = json['keyStrengths'];
 
     return GlobalPeerMatch(
       stockCode: _string(json['stockCode'], fallback: ''),
@@ -509,11 +515,73 @@ class GlobalPeerMatch {
       headline: _string(json['headline'], fallback: ''),
       summary: _string(json['summary'], fallback: ''),
       peers: peers,
+      comparisons: comparisonValues is List
+          ? comparisonValues
+              .map((value) => GlobalPeerComparison.fromJson(_map(value)))
+              .where((comparison) => comparison.isComplete)
+              .take(3)
+              .toList(growable: false)
+          : const <GlobalPeerComparison>[],
+      keyStrengths: keyStrengthValues is List
+          ? keyStrengthValues
+              .map((value) => GlobalPeerKeyStrength.fromJson(_map(value)))
+              .where((strength) => strength.isComplete)
+              .take(4)
+              .toList(growable: false)
+          : const <GlobalPeerKeyStrength>[],
       confidenceScore: _string(json['confidenceScore'], fallback: '0'),
       confidenceLevel: _string(json['confidenceLevel'], fallback: 'UNKNOWN'),
       modelVersion: _string(json['modelVersion'], fallback: 'unknown'),
       dataSource: _string(json['dataSource'], fallback: 'Hana-OmniLens-API'),
       servedAt: _dateTime(json['servedAt']),
+    );
+  }
+}
+
+class GlobalPeerComparison {
+  const GlobalPeerComparison({
+    required this.dimension,
+    required this.description,
+    required this.peer,
+  });
+
+  final String dimension;
+  final String description;
+  final GlobalPeerMatchPeer peer;
+
+  bool get isComplete =>
+      dimension.trim().isNotEmpty &&
+      description.trim().isNotEmpty &&
+      peer.companyName.trim().isNotEmpty;
+
+  static GlobalPeerComparison fromJson(Map<String, dynamic> json) {
+    return GlobalPeerComparison(
+      dimension: _string(json['dimension'], fallback: ''),
+      description: _string(json['description'], fallback: ''),
+      peer: GlobalPeerMatchPeer.fromJson(_map(json['peer'])),
+    );
+  }
+}
+
+class GlobalPeerKeyStrength {
+  const GlobalPeerKeyStrength({
+    required this.title,
+    required this.description,
+    required this.iconKey,
+  });
+
+  final String title;
+  final String description;
+  final String iconKey;
+
+  bool get isComplete =>
+      title.trim().isNotEmpty && description.trim().isNotEmpty;
+
+  static GlobalPeerKeyStrength fromJson(Map<String, dynamic> json) {
+    return GlobalPeerKeyStrength(
+      title: _string(json['title'], fallback: ''),
+      description: _string(json['description'], fallback: ''),
+      iconKey: _string(json['iconKey'], fallback: 'global_business'),
     );
   }
 }
