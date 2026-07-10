@@ -135,15 +135,15 @@ void main() {
     );
     await controller.uploadDocument(
       accountId: 'ACC-ABC123456789',
-      documentType: 'REDUCED_TAX_APPLICATION',
-      fileName: 'reduced-tax.pdf',
-      bytes: Uint8List.fromList(utf8.encode('reduced')),
-    );
-    await controller.uploadDocument(
-      accountId: 'ACC-ABC123456789',
       documentType: 'APOSTILLE',
       fileName: 'apostille.pdf',
       bytes: Uint8List.fromList(utf8.encode('apostille')),
+    );
+    await controller.uploadDocument(
+      accountId: 'ACC-ABC123456789',
+      documentType: 'REDUCED_TAX_APPLICATION',
+      fileName: 'reduced-tax.pdf',
+      bytes: Uint8List.fromList(utf8.encode('reduced')),
     );
     await controller.submitRefundCase(
       accountId: 'ACC-ABC123456789',
@@ -167,9 +167,9 @@ void main() {
       'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
       'GET /api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-RES/verification',
       'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
-      'GET /api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-RED/verification',
-      'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
       'GET /api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-APO/verification',
+      'POST /api/v1/accounts/ACC-ABC123456789/tax/documents',
+      'GET /api/v1/accounts/ACC-ABC123456789/tax/documents/DOC-RED/verification',
       'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-cases',
       'POST /api/v1/accounts/ACC-ABC123456789/tax/refund-status/sync',
     ]);
