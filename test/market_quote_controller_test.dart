@@ -57,6 +57,21 @@ void main() {
     expect(krwPerUsdQuote.localCurrencyDisplay, 'USD 71.43');
   });
 
+  test('closing zero-volume tick cannot erase accumulated regular volume', () {
+    final snapshot = MarketQuote.fromJson({
+      ..._tickJson(),
+      'volume': 18300000,
+      'marketDataTime': '2026-07-10T06:30:00Z',
+    });
+    final closingTick = MarketQuote.fromJson({
+      ..._tickJson(),
+      'volume': 0,
+      'marketDataTime': '2026-07-10T06:31:00Z',
+    });
+
+    expect(snapshot.mergeRegularTick(closingTick).volume, 18300000);
+  });
+
   test('hides seed quotes when initial snapshot request fails', () async {
     final controller = MarketQuoteController(
       apiClient: _client((request) async {

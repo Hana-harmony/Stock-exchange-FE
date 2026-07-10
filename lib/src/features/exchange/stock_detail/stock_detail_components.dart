@@ -127,7 +127,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Estimated ownership',
+                      snapshot.estimatedOwnershipLabel,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: 14,
                             height: 1.4,

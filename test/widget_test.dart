@@ -100,40 +100,13 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
-    expect(find.byKey(const ValueKey('accounts-page-title')), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Accounts'), findsOneWidget);
     expect(find.text('Total Assets'), findsOneWidget);
     expect(find.text('USD 50,000.00'), findsOneWidget);
     expect(find.text('USD 0.00 (0.00%)'), findsOneWidget);
     expect(find.text('Portfolio'), findsOneWidget);
     expect(find.text('${_testSession.accountId} [ISA(Brokerage)]'),
         findsOneWidget);
-
-    final moreIcon = tester.widget<Image>(
-      find
-          .descendant(
-            of: find.byKey(const ValueKey('accounts-header-more')),
-            matching: find.byType(Image),
-          )
-          .first,
-    );
-    expect((moreIcon.image as AssetImage).assetName, AppAssets.headerMoreIcon);
-    expect(moreIcon.width, 36);
-    expect(moreIcon.height, 36);
-
-    final settingsIcon = tester.widget<Image>(
-      find
-          .descendant(
-            of: find.byKey(const ValueKey('accounts-header-settings')),
-            matching: find.byType(Image),
-          )
-          .first,
-    );
-    expect(
-      (settingsIcon.image as AssetImage).assetName,
-      AppAssets.settingsIcon,
-    );
-    expect(settingsIcon.width, 36);
-    expect(settingsIcon.height, 36);
 
     await tester.tap(find.byKey(const ValueKey('bottom-nav-WatchLists')));
     await tester.pumpAndSettle();
@@ -178,6 +151,14 @@ void main() {
       ),
       findsOneWidget,
     );
+    final marketNewsTitle = find.byKey(
+      const ValueKey('notification-article-title'),
+    );
+    await tester
+        .tapAt(tester.getTopLeft(marketNewsTitle) + const Offset(24, 14));
+    await tester.pumpAndSettle();
+    expect(find.text('Financial Glossary'), findsOneWidget);
+    expect(find.text('Korea (Korea Market)'), findsOneWidget);
     expect(find.text('View Original'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('notification-article-back')));
@@ -244,6 +225,23 @@ void main() {
     expect(_findAssetImage(AppAssets.hanaMontanaAnalysisCharacter),
         findsOneWidget);
     expect(find.text('Glossary'), findsNothing);
+    final glossaryTitle = tester.widget<RichText>(
+      find.descendant(
+        of: find.byKey(const ValueKey('notification-article-title')),
+        matching: find.byType(RichText),
+      ),
+    );
+    expect(glossaryTitle.text.toPlainText(), startsWith('Daejangju'));
+    await tester.tapAt(
+      tester.getTopLeft(
+            find.byKey(const ValueKey('notification-article-title')),
+          ) +
+          const Offset(42, 14),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Financial Glossary'), findsOneWidget);
+    expect(find.text('Daejangju (Market Leader)'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 11));
     final glossaryParagraph = tester.widget<RichText>(
       find.descendant(
         of: find.byKey(const ValueKey('notification-article-body-paragraph-0')),
@@ -933,7 +931,7 @@ void main() {
       findsNothing,
     );
     expect(find.byKey(const ValueKey('accounts-screen')), findsOneWidget);
-    expect(find.byKey(const ValueKey('accounts-page-title')), findsOneWidget);
+    expect(find.widgetWithText(AppBar, 'Accounts'), findsOneWidget);
     expect(find.text('Total Assets'), findsOneWidget);
   });
 
@@ -1096,10 +1094,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
     await tester.pumpAndSettle();
 
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-page-title'))),
-      const Rect.fromLTWH(0, 62, 402, 44),
-    );
+    expect(find.widgetWithText(AppBar, 'Accounts'), findsOneWidget);
     _expectRect(
       tester.getRect(find.byKey(const ValueKey('accounts-primary-tabs'))),
       const Rect.fromLTWH(0, 106, 402, 41),
@@ -1162,6 +1157,63 @@ void main() {
           .widget<Text>(find.text('Foreign Currency (Cash Balance)'))
           .overflow,
       isNull,
+    );
+  });
+
+  testWidgets('shows one signed-out cash balance prompt and accounts sign in',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    final sessionController = _signedOutSessionController();
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(sessionController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        sessionController: sessionController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Cash Balance'), findsOneWidget);
+    expect(find.text('Sign in to view cash balance'), findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-Accounts')));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(AppBar, 'Accounts'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('accounts-signed-out-state')),
+      findsOneWidget,
+    );
+    final signInButton = find.byKey(
+      const ValueKey('accounts-sign-in-button'),
+    );
+    expect(signInButton, findsOneWidget);
+    expect(tester.getSize(signInButton).height, 48);
+    expect(
+      find.descendant(of: signInButton, matching: find.text('Sign in')),
+      findsOneWidget,
     );
   });
 
@@ -1269,7 +1321,7 @@ void main() {
     );
   });
 
-  testWidgets('renders stock detail chart and API fundamentals',
+  testWidgets('renders stock detail chart without fundamentals tab',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -1313,24 +1365,10 @@ void main() {
     expect(find.textContaining('Jul 4, 2026 3:30 PM KST'), findsNothing);
     expect(find.text('+USD 0.43 +1.23%'), findsWidgets);
 
-    await tester
-        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
-    await tester.pumpAndSettle();
-
     expect(
-      find.byKey(const PageStorageKey<String>('stock-fundamentals-tab')),
-      findsOneWidget,
+      find.byKey(const ValueKey('stock-detail-tab-fundamentals')),
+      findsNothing,
     );
-    expect(find.text('Market Status'), findsOneWidget);
-    expect(find.text('Foreign Ownership'), findsOneWidget);
-    expect(find.text('KOSPI'), findsOneWidget);
-    expect(find.text('27.0%~27.6%'), findsOneWidget);
-    expect(find.text('49.0%~51.0%'), findsOneWidget);
-    expect(find.text('test / TIME_SERIES_ADJUSTED 0.91'), findsOneWidget);
-    expect(find.byKey(const ValueKey('stock-fundamentals-trigger-vi')),
-        findsNothing);
-    expect(find.byKey(const ValueKey('stock-fundamentals-trigger-low-limit')),
-        findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('stock-detail-tab-chart')));
     await tester.pumpAndSettle();
@@ -1469,14 +1507,7 @@ void main() {
     expect(find.text('Foreign Ownership Forecast'), findsNothing);
     expect(find.text('Foreign Ownership Limit Alert'), findsNothing);
 
-    await tester
-        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Market Status'), findsOneWidget);
-    expect(find.text('Foreign Ownership'), findsNothing);
-    expect(find.text('Estimated exhaustion'), findsNothing);
-    expect(find.text('none / NOT_APPLICABLE 0'), findsNothing);
+    expect(find.text('Estimated ownership'), findsNothing);
   });
 
   testWidgets('shows foreign ownership forecast for new confidence labels',
@@ -1497,6 +1528,7 @@ void main() {
       _stockExchangeTestApp(
         marketQuoteController: marketQuoteController,
         marketDetailController: marketDetailController,
+        nowProvider: () => DateTime.parse('2026-06-18T01:00:00Z'),
       ),
     );
     await tester.pumpAndSettle();
@@ -1516,16 +1548,46 @@ void main() {
 
     expect(find.text('Foreign Ownership Forecast'), findsOneWidget);
     expect(find.text('50.00%'), findsOneWidget);
-    expect(find.text('Estimated ownership'), findsOneWidget);
+    expect(find.text("Today's estimated ownership"), findsOneWidget);
     expect(find.text('27.0%~27.6%'), findsOneWidget);
+  });
 
-    await tester
-        .tap(find.byKey(const ValueKey('stock-detail-tab-fundamentals')));
+  testWidgets('labels closing ownership forecast for the next trading day',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _marketDetailController(
+      foreignOwnershipPredictionConfidenceLevel: 'HIGH',
+      foreignOwnershipBaseDate: '2026-07-10',
+    );
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketDetailController: marketDetailController,
+        nowProvider: () => DateTime.parse('2026-07-10T13:00:00Z'),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      'Samsung',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-005930')));
     await tester.pumpAndSettle();
 
-    expect(find.text('Foreign Ownership'), findsOneWidget);
-    expect(find.text('Estimated exhaustion'), findsOneWidget);
-    expect(find.text('ai-test / HIGH 0.88'), findsOneWidget);
+    expect(
+      find.text('Next trading day estimated ownership'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('blocks trading for zero foreign ownership limit stocks',
@@ -1913,6 +1975,7 @@ class _RecordingUrlLauncher extends UrlLauncherPlatform {
 
 StockExchangeApp _stockExchangeTestApp({
   required MarketQuoteController marketQuoteController,
+  ExchangeSessionController? sessionController,
   MarketCalendarController? marketCalendarController,
   MarketIndexController? marketIndexController,
   MarketQuoteController? watchlistQuoteController,
@@ -1923,7 +1986,7 @@ StockExchangeApp _stockExchangeTestApp({
   DateTime Function()? nowProvider,
 }) {
   return StockExchangeApp(
-    sessionController: _sessionController(),
+    sessionController: sessionController ?? _sessionController(),
     accountController: _accountController(),
     tradeController: _tradeController(),
     marketCalendarController:
@@ -1957,6 +2020,16 @@ ExchangeSessionController _sessionController() {
       httpClient: MockClient((request) async => http.Response('{}', 404)),
     ),
     sessionStore: store,
+  );
+}
+
+ExchangeSessionController _signedOutSessionController() {
+  return ExchangeSessionController(
+    apiClient: ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      httpClient: MockClient((request) async => http.Response('{}', 404)),
+    ),
+    sessionStore: MemoryExchangeSessionStore(),
   );
 }
 
@@ -2084,6 +2157,7 @@ MarketDetailController _marketDetailController({
   String foreignOwnershipPredictionConfidenceLevel = 'TIME_SERIES_ADJUSTED',
   String foreignOwnershipPredictionConfidenceScore = '0.91',
   String foreignOwnershipPredictionModelVersion = 'test',
+  String foreignOwnershipBaseDate = '2026-06-17',
   String foreignOwnershipRate = '13.55',
   String foreignLimitExhaustionRate = '27.1',
   String predictedForeignLimitExhaustionRateMin = '49.0',
@@ -2131,7 +2205,7 @@ MarketDetailController _marketDetailController({
                 foreignOwnershipPredictionConfidenceScore,
             'foreignOwnershipPredictionModelVersion':
                 foreignOwnershipPredictionModelVersion,
-            'foreignOwnershipBaseDate': '2026-06-17',
+            'foreignOwnershipBaseDate': foreignOwnershipBaseDate,
             'viActive': viActive,
             'singlePriceTrading': false,
             'priceLimitState': priceLimitState,
@@ -2791,7 +2865,7 @@ Map<String, Object?> _notificationInboxJson() {
         'subjectType': 'STOCK',
         'subjectId': '005930',
         'sourceType': 'DISCLOSURE',
-        'title': 'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+        'title': 'Daejangju: Dividend Payout Confirmed for FY2025',
         'summary': 'Dividend payout translated by OmniLens.',
         'originalUrl': 'https://dart.fss.or.kr/report',
         'primaryStockCode': '005930',
@@ -2830,7 +2904,7 @@ Map<String, Object?> _samsungIntelligenceJson() {
       {
         'eventId': 'ALERT-SAMSUNG-1',
         'sourceType': 'DISCLOSURE',
-        'title': 'SAMSUNG ELEC: Dividend Payout Confirmed for FY2025',
+        'title': 'Daejangju: Dividend Payout Confirmed for FY2025',
         'summary': 'Dividend payout translated by OmniLens.',
         'summaryLines': {
           'what': 'Samsung Electronics confirmed its dividend payout.',
@@ -3054,6 +3128,13 @@ Map<String, Object?> _marketNewsDetailJson() {
         'Daejangju stocks led the recovery while foreign investors '
         'returned to large-cap exporters.',
     'glossaryTerms': [
+      {
+        'sourceTerm': 'Korea',
+        'normalizedTerm': '국내',
+        'englishTerm': 'Korea Market',
+        'category': 'market',
+        'description': 'Refers to the Korean securities market.',
+      },
       {
         'sourceTerm': 'Daejangju',
         'normalizedTerm': '대장주',
