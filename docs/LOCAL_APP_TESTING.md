@@ -56,7 +56,7 @@ docker compose -f compose.local.yml up -d --build
 curl -fsS http://localhost:3000/actuator/health
 ```
 
-기본 포트는 Hannah `8000`, OmniLens API `8080`, Stock-exchange-BE `3000`이다. 두 Spring 백엔드를 동시에 띄울 때 OmniLens PostgreSQL host port는 `5432`, Stock-exchange-BE PostgreSQL host port는 `5433`을 사용한다. 앱은 `Stock-exchange-BE` API만 호출한다. iOS Simulator는 호스트의 `localhost:3000`을 사용할 수 있고, Android Emulator는 일반적으로 `10.0.2.2:3000`을 사용한다.
+기본 포트는 Hannah `8000`, OmniLens API `8080`, Stock-exchange-BE `3000`이다. 두 Spring 백엔드를 동시에 띄울 때 OmniLens PostgreSQL host port는 `5432`, Stock-exchange-BE PostgreSQL host port는 `25434`를 사용한다. 앱은 `Stock-exchange-BE` API만 호출한다. iOS Simulator는 호스트의 `localhost:3000`을 사용할 수 있고, Android Emulator는 일반적으로 `10.0.2.2:3000`을 사용한다.
 
 API base URL은 Flutter compile-time 환경값으로 지정한다.
 
