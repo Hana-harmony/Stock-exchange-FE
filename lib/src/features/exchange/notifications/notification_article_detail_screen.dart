@@ -78,6 +78,9 @@ class _NotificationArticleDetailScreenState
                                       ),
                                       child: _NotificationArticleSummarySection(
                                         detail: detail,
+                                        articleContentStackKey:
+                                            _articleContentStackKey,
+                                        onGlossaryTap: _showGlossaryTooltip,
                                       ),
                                     ),
                                     const SizedBox(height: 20),
@@ -384,9 +387,15 @@ class _NotificationArticleHeroImage extends StatelessWidget {
 class _NotificationArticleSummarySection extends StatelessWidget {
   const _NotificationArticleSummarySection({
     required this.detail,
+    required this.articleContentStackKey,
+    required this.onGlossaryTap,
   });
 
   final _NotificationArticleDetailData detail;
+  final GlobalKey articleContentStackKey;
+  final void Function(
+          _NotificationArticleGlossaryEntry glossary, Rect anchorRect)
+      onGlossaryTap;
 
   @override
   Widget build(BuildContext context) {
@@ -407,14 +416,24 @@ class _NotificationArticleSummarySection extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 8),
-        Text(
-          detail.title,
+        _NotificationArticleInteractiveParagraph(
+          key: const ValueKey('notification-article-title'),
+          paragraph: detail.title,
+          glossaryEntries: detail.glossaryEntries,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontSize: 22,
+                    height: 31 / 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray1000,
+                  ) ??
+              const TextStyle(
                 fontSize: 22,
                 height: 31 / 22,
                 fontWeight: FontWeight.w600,
                 color: AppColors.gray1000,
               ),
+          articleContentStackKey: articleContentStackKey,
+          onGlossaryTap: onGlossaryTap,
         ),
         const SizedBox(height: 4),
         Text(
@@ -685,9 +704,10 @@ class _NotificationArticleDetailData {
         : item.summary.isNotEmpty
             ? '${item.title}\n${item.summary}'
             : item.title;
+    final resolvedTitle = intelligenceItem?.title ?? item.title;
     final resolvedGlossaryEntries = _glossaryEntriesFromTerms(
       intelligenceItem?.glossaryTerms ?? item.glossaryTerms,
-      resolvedBodyText,
+      '$resolvedTitle\n$resolvedBodyText',
     );
 
     if (intelligenceItem != null) {
@@ -772,7 +792,7 @@ class _NotificationArticleDetailData {
       bodyText: bodyText,
       glossaryEntries: _glossaryEntriesFromTerms(
         item.glossaryTerms,
-        bodyText,
+        '${item.displayTitle}\n$bodyText',
       ),
       originalUrl:
           item.originalUrl.isNotEmpty ? item.originalUrl : item.canonicalUrl,

@@ -256,7 +256,7 @@ class MarketQuote {
       market: market.trim().isEmpty ? tick.market : market,
       currentPriceKrw: tick.currentPriceKrw,
       changeRate: tick.changeRate,
-      volume: tick.volume,
+      volume: _mergeRegularVolume(tick),
       marketSession: tick.marketSession,
       afterHoursPriceKrw: tick.afterHoursPriceKrw,
       afterHoursLocalCurrencyPrice: tick.afterHoursLocalCurrencyPrice,
@@ -273,6 +273,18 @@ class MarketQuote {
       publishedAt: tick.publishedAt,
       badge: tick.badge,
     );
+  }
+
+  int _mergeRegularVolume(MarketQuote tick) {
+    if (tick.volume <= 0) {
+      return volume;
+    }
+    final currentDate = _koreanMarketDate(marketDataTime);
+    final tickDate = _koreanMarketDate(tick.marketDataTime);
+    if (currentDate != null && tickDate != null && currentDate != tickDate) {
+      return tick.volume;
+    }
+    return volume > tick.volume ? volume : tick.volume;
   }
 
   static MarketQuote fromJson(Map<String, dynamic> json) {
@@ -331,6 +343,16 @@ class MarketQuote {
       badge: badge,
     );
   }
+}
+
+String? _koreanMarketDate(DateTime? value) {
+  if (value == null) {
+    return null;
+  }
+  final korea = value.toUtc().add(const Duration(hours: 9));
+  return '${korea.year.toString().padLeft(4, '0')}-'
+      '${korea.month.toString().padLeft(2, '0')}-'
+      '${korea.day.toString().padLeft(2, '0')}';
 }
 
 class MarketQuoteController extends ValueNotifier<MarketQuoteState> {

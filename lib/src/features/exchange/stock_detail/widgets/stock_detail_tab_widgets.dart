@@ -69,21 +69,11 @@ class _StockDetailTabs extends StatelessWidget {
                           ),
                           const SizedBox(width: 18),
                           AppUnderlineTab(
-                            key: const ValueKey(
-                              'stock-detail-tab-fundamentals',
-                            ),
-                            label: 'Fundamentals',
-                            width: 116,
-                            isSelected: controller.index == 2,
-                            onTap: () => controller.animateTo(2),
-                          ),
-                          const SizedBox(width: 18),
-                          AppUnderlineTab(
                             key: const ValueKey('stock-detail-tab-k-news'),
                             label: 'K-News',
                             width: 65,
-                            isSelected: controller.index == 3,
-                            onTap: () => controller.animateTo(3),
+                            isSelected: controller.index == 2,
+                            onTap: () => controller.animateTo(2),
                           ),
                           const SizedBox(width: 18),
                           AppUnderlineTab(
@@ -92,8 +82,8 @@ class _StockDetailTabs extends StatelessWidget {
                             ),
                             label: 'Disclosures',
                             width: 93,
-                            isSelected: controller.index == 4,
-                            onTap: () => controller.animateTo(4),
+                            isSelected: controller.index == 3,
+                            onTap: () => controller.animateTo(3),
                           ),
                         ],
                       ),
@@ -154,13 +144,6 @@ class _StockOrderTab extends StatelessWidget {
           _ForeignOwnershipAlertCard(snapshot: snapshot),
           const SizedBox(height: 24),
         ],
-        _InvestmentInfoSection(snapshot: snapshot),
-        const SizedBox(height: 24),
-        Container(
-          height: 1,
-          color: AppColors.gray200,
-        ),
-        const SizedBox(height: 24),
         _InvestmentInfoSection(snapshot: snapshot),
       ],
     );
@@ -527,112 +510,6 @@ class _StockChartSummary extends StatelessWidget {
       ),
     );
   }
-}
-
-class _StockFundamentalsTab extends StatelessWidget {
-  const _StockFundamentalsTab({
-    required this.snapshot,
-    required this.detail,
-  });
-
-  final _StockDetailSnapshot snapshot;
-  final StockDetail? detail;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      key: const PageStorageKey<String>('stock-fundamentals-tab'),
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
-      children: [
-        _FundamentalsSection(
-          title: 'Market Status',
-          rows: [
-            _FundamentalsRowData('Market', detail?.market ?? '-'),
-            _FundamentalsRowData('Sector', detail?.sector ?? '-'),
-            _FundamentalsRowData('Status', snapshot.marketStatusLabel),
-            _FundamentalsRowData('Risk', detail?.riskBadge ?? '-'),
-          ],
-        ),
-        if (snapshot.showsForeignOwnershipEstimate) ...[
-          const SizedBox(height: 16),
-          _FundamentalsSection(
-            title: 'Foreign Ownership',
-            rows: [
-              _FundamentalsRowData(
-                'Current ownership',
-                '${detail?.foreignOwnershipRate ?? '-'}%',
-              ),
-              _FundamentalsRowData(
-                'Limit exhaustion',
-                '${detail?.foreignLimitExhaustionRate ?? '-'}%',
-              ),
-              _FundamentalsRowData(
-                'Estimated ownership',
-                snapshot.estimatedRange,
-              ),
-              _FundamentalsRowData(
-                'Estimated exhaustion',
-                snapshot.estimatedLimitExhaustionRange,
-              ),
-              _FundamentalsRowData(
-                'Model',
-                detail?.predictionModelDisplay ?? '-',
-              ),
-            ],
-          ),
-        ],
-      ],
-    );
-  }
-}
-
-class _FundamentalsSection extends StatelessWidget {
-  const _FundamentalsSection({
-    required this.title,
-    required this.rows,
-  });
-
-  final String title;
-  final List<_FundamentalsRowData> rows;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColors.gray200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.gray1000,
-                  ),
-            ),
-            const SizedBox(height: 14),
-            for (final row in rows) ...[
-              _StockInfoRow(label: row.label, value: row.value),
-              if (row != rows.last) const SizedBox(height: 12),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _FundamentalsRowData {
-  const _FundamentalsRowData(this.label, this.value);
-
-  final String label;
-  final String value;
 }
 
 class _StockDetailChartPainter extends CustomPainter {

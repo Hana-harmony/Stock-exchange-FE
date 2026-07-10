@@ -22,6 +22,7 @@ class _StockDetailSnapshot {
     required this.showsForeignOwnershipEstimate,
     required this.isForeignOwnershipTradingUnavailable,
     required this.isTradeEnabled,
+    required this.estimatedOwnershipLabel,
     required this.estimatedRange,
     required this.estimatedRangeMax,
     required this.estimatedLimitExhaustionRange,
@@ -64,6 +65,7 @@ class _StockDetailSnapshot {
   final bool showsForeignOwnershipEstimate;
   final bool isForeignOwnershipTradingUnavailable;
   final bool isTradeEnabled;
+  final String estimatedOwnershipLabel;
   final String estimatedRange;
   final String estimatedRangeMax;
   final String estimatedLimitExhaustionRange;
@@ -167,7 +169,11 @@ class _StockDetailSnapshot {
         : fallback.limitForeignRatio;
     final isForeignLimitAlert =
         showsForeignOwnershipEstimate && maxLimitExhaustionRate >= 90;
-    final estimatedRangeMax = '$estimateMaxRaw%';
+    final estimateMax = _parseAmount(estimateMaxRaw);
+    final estimatedRangeMax =
+        showsForeignOwnershipEstimate && estimateMax != null
+            ? '${estimateMax.toStringAsFixed(2)}%'
+            : '$estimateMaxRaw%';
     final portfolio = tradeState.portfolio;
     MockHolding? holding;
     if (portfolio != null) {
@@ -198,11 +204,12 @@ class _StockDetailSnapshot {
       isPositive: !changeRate.trim().startsWith('-'),
       highPrice: chartMetrics?.highLocalDisplay ?? fallback.highPrice,
       lowPrice: chartMetrics?.lowLocalDisplay ?? fallback.lowPrice,
-      volume: quote == null
-          ? chartMetrics == null
-              ? fallback.volume
-              : _formatCompactNumber(chartMetrics.totalVolume)
-          : _formatCompactNumber(quote.volume),
+      volume: _resolvedVolumeDisplay(
+        quoteVolume: quote?.volume,
+        detailVolume: detail?.volume,
+        chartVolume: chartMetrics?.totalVolume,
+        fallback: fallback.volume,
+      ),
       previousClose: previousClose,
       countryBadgeAsset: _isHongKongMarket(market)
           ? AppAssets.countryBadgeHk
@@ -213,11 +220,16 @@ class _StockDetailSnapshot {
           isForeignOwnershipTradingUnavailable,
       isTradeEnabled:
           !isForeignOwnershipTradingUnavailable && (detail?.orderable ?? true),
+      estimatedOwnershipLabel: _estimatedOwnershipLabel(
+        detail,
+        nowUtc: nowUtc,
+      ),
       estimatedRange: showsForeignOwnershipEstimate
           ? _formatRange(
               detail!.predictedForeignOwnershipRateMin,
               detail.predictedForeignOwnershipRateMax,
               fallback.estimatedRange,
+              fractionDigits: 2,
             )
           : fallback.estimatedRange,
       estimatedRangeMax: estimatedRangeMax,
@@ -238,7 +250,7 @@ class _StockDetailSnapshot {
           : 'Foreign Ownership Forecast',
       foreignLimitCardDescription: isForeignLimitAlert
           ? 'Based on a time-series regression analysis\nwith a 95% confidence interval'
-          : 'Based on the latest foreign ownership data\nand today forecast model',
+          : 'Based on the latest foreign ownership data\nand the forecast model',
       foreignLimitCardMessage: _foreignLimitCardMessage(
         isAlert: isForeignLimitAlert,
         estimatedRangeMax: estimatedRangeMax,
@@ -275,6 +287,20 @@ class _StockDetailSnapshot {
           : _formatHoldingCostDisplay(holding),
     );
   }
+}
+
+String _resolvedVolumeDisplay({
+  required int? quoteVolume,
+  required int? detailVolume,
+  required int? chartVolume,
+  required String fallback,
+}) {
+  for (final candidate in [quoteVolume, detailVolume, chartVolume]) {
+    if (candidate != null && candidate > 0) {
+      return _formatCompactNumber(candidate);
+    }
+  }
+  return fallback;
 }
 
 class _StockChartMetrics {
@@ -373,6 +399,7 @@ bool _showsForeignOwnershipEstimate(StockDetail? detail) {
     '',
     'UNKNOWN',
     'NO_SNAPSHOT',
+    'NO_FRESH_SNAPSHOT',
     'NOT_APPLICABLE',
     'FOREIGN_LIMIT_NOT_APPLICABLE',
   };
@@ -390,6 +417,24 @@ bool _showsForeignOwnershipEstimate(StockDetail? detail) {
       maxOwnership != null &&
       minExhaustion != null &&
       maxExhaustion != null;
+}
+
+String _estimatedOwnershipLabel(StockDetail? detail, {DateTime? nowUtc}) {
+  final baseDate = DateTime.tryParse(detail?.foreignOwnershipBaseDate ?? '');
+  if (baseDate == null) {
+    return 'Estimated ownership';
+  }
+  var targetDate = DateTime.utc(baseDate.year, baseDate.month, baseDate.day)
+      .add(const Duration(days: 1));
+  while (!_isKoreanRegularSessionWeekday(targetDate)) {
+    targetDate = targetDate.add(const Duration(days: 1));
+  }
+  final nowKst =
+      (nowUtc ?? DateTime.now()).toUtc().add(const Duration(hours: 9));
+  final today = DateTime.utc(nowKst.year, nowKst.month, nowKst.day);
+  return targetDate == today
+      ? "Today's estimated ownership"
+      : 'Next trading day estimated ownership';
 }
 
 bool _isForeignOwnershipTradingUnavailable(StockDetail? detail) {

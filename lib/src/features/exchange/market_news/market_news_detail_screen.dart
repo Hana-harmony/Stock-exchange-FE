@@ -105,6 +105,9 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
                                           child:
                                               _NotificationArticleSummarySection(
                                             detail: detail,
+                                            articleContentStackKey:
+                                                _articleContentStackKey,
+                                            onGlossaryTap: _showGlossaryTooltip,
                                           ),
                                         ),
                                         const SizedBox(height: 20),

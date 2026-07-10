@@ -90,9 +90,23 @@ String _formatSignedCurrencyDifference(
   return '$sign${formatCurrencyDisplay(currency, difference.abs().toStringAsFixed(2))}';
 }
 
-String _formatRange(String? min, String? max, String fallback) {
+String _formatRange(
+  String? min,
+  String? max,
+  String fallback, {
+  int? fractionDigits,
+}) {
   if (min == null || max == null || min.isEmpty || max.isEmpty) {
     return fallback;
+  }
+  if (fractionDigits != null) {
+    final minValue = double.tryParse(min.replaceAll(',', '').trim());
+    final maxValue = double.tryParse(max.replaceAll(',', '').trim());
+    if (minValue == null || maxValue == null) {
+      return fallback;
+    }
+    return '${minValue.toStringAsFixed(fractionDigits)}%~'
+        '${maxValue.toStringAsFixed(fractionDigits)}%';
   }
   return '$min%~$max%';
 }

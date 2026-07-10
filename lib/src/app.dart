@@ -532,10 +532,6 @@ class _ExchangeShellState extends State<ExchangeShell> {
   }
 
   PreferredSizeWidget? _buildHeader() {
-    if (_selectedIndex == 2) {
-      return null;
-    }
-
     return AppHeader(
       title: _selectedNavigationTitle,
       showBrandMark: true,
