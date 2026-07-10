@@ -1590,6 +1590,8 @@ void main() {
       find.text('Next trading day estimated ownership'),
       findsOneWidget,
     );
+    expect(find.textContaining('and the forecast model'), findsOneWidget);
+    expect(find.textContaining('today forecast model'), findsNothing);
   });
 
   testWidgets('blocks trading for zero foreign ownership limit stocks',

@@ -250,7 +250,7 @@ class _StockDetailSnapshot {
           : 'Foreign Ownership Forecast',
       foreignLimitCardDescription: isForeignLimitAlert
           ? 'Based on a time-series regression analysis\nwith a 95% confidence interval'
-          : 'Based on the latest foreign ownership data\nand today forecast model',
+          : 'Based on the latest foreign ownership data\nand the forecast model',
       foreignLimitCardMessage: _foreignLimitCardMessage(
         isAlert: isForeignLimitAlert,
         estimatedRangeMax: estimatedRangeMax,
