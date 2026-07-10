@@ -334,7 +334,7 @@ class _StockOverviewSection extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         SizedBox(
-                          height: 53,
+                          height: 46,
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -342,18 +342,9 @@ class _StockOverviewSection extends StatelessWidget {
                                 child: FittedBox(
                                   fit: BoxFit.scaleDown,
                                   alignment: Alignment.centerLeft,
-                                  child: Text(
-                                    snapshot.currentPrice,
-                                    maxLines: 1,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .headlineLarge
-                                        ?.copyWith(
-                                          fontSize: 44,
-                                          height: 1,
-                                          fontWeight: FontWeight.w500,
-                                          color: priceColor,
-                                        ),
+                                  child: _StockDetailCurrentPriceText(
+                                    price: snapshot.currentPrice,
+                                    color: priceColor,
                                   ),
                                 ),
                               ),
@@ -373,18 +364,7 @@ class _StockOverviewSection extends StatelessWidget {
                           ),
                         ),
                         Text(
-                          snapshot.currentPriceKrwDisplay,
-                          maxLines: 1,
-                          overflow: TextOverflow.visible,
-                          style:
-                              Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                    fontSize: 12,
-                                    height: 16 / 12,
-                                    color: AppColors.gray500,
-                                  ),
-                        ),
-                        Text(
-                          '${snapshot.changeAmount} ${snapshot.changeRate}',
+                          '${_changeAmountWithoutCurrency(snapshot.changeAmount)} ${snapshot.changeRate}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style:
@@ -393,6 +373,17 @@ class _StockOverviewSection extends StatelessWidget {
                                     height: 20 / 18,
                                     fontWeight: FontWeight.w400,
                                     color: priceColor,
+                                  ),
+                        ),
+                        Text(
+                          snapshot.currentPriceKrwDisplay,
+                          maxLines: 1,
+                          overflow: TextOverflow.visible,
+                          style:
+                              Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                    fontSize: 12,
+                                    height: 14 / 12,
+                                    color: AppColors.gray500,
                                   ),
                         ),
                       ],
@@ -426,6 +417,83 @@ class _StockOverviewSection extends StatelessWidget {
       ),
     );
   }
+}
+
+String _changeAmountWithoutCurrency(String value) {
+  final normalized = value.trim();
+  final match = RegExp(r'^([+-]?)([A-Z]{3})\s+(.+)$').firstMatch(normalized);
+  if (match == null) {
+    return normalized;
+  }
+  return '${match.group(1) ?? ''}${match.group(3) ?? ''}';
+}
+
+class _StockDetailCurrentPriceText extends StatelessWidget {
+  const _StockDetailCurrentPriceText({
+    required this.price,
+    required this.color,
+  });
+
+  final String price;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final parts = _splitCurrencyPrice(price);
+    final textTheme = Theme.of(context).textTheme;
+
+    return Text.rich(
+      TextSpan(
+        children: [
+          if (parts.currency.isNotEmpty)
+            TextSpan(
+              text: '${parts.currency} ',
+              style: textTheme.titleMedium?.copyWith(
+                fontSize: 16,
+                height: 1,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0,
+                color: color,
+              ),
+            ),
+          TextSpan(
+            text: parts.amount,
+            style: textTheme.headlineLarge?.copyWith(
+              fontSize: 44,
+              height: 1,
+              fontWeight: FontWeight.w500,
+              letterSpacing: 0,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+      maxLines: 1,
+      overflow: TextOverflow.visible,
+    );
+  }
+}
+
+class _CurrencyPriceParts {
+  const _CurrencyPriceParts({
+    required this.currency,
+    required this.amount,
+  });
+
+  final String currency;
+  final String amount;
+}
+
+_CurrencyPriceParts _splitCurrencyPrice(String price) {
+  final normalized = price.trim();
+  final separatorIndex = normalized.indexOf(' ');
+  if (separatorIndex <= 0 || separatorIndex == normalized.length - 1) {
+    return _CurrencyPriceParts(currency: '', amount: normalized);
+  }
+  return _CurrencyPriceParts(
+    currency: normalized.substring(0, separatorIndex),
+    amount: normalized.substring(separatorIndex + 1).trimLeft(),
+  );
 }
 
 class _StockStatRow extends StatelessWidget {

@@ -20,9 +20,12 @@ class _StockDetailSnapshot {
     required this.countryBadgeAsset,
     required this.showKoreaFlag,
     required this.showsForeignOwnershipEstimate,
+    required this.isForeignOwnershipTradingUnavailable,
+    required this.isTradeEnabled,
     required this.estimatedRange,
     required this.estimatedRangeMax,
-    required this.previousDayForeignRatio,
+    required this.estimatedLimitExhaustionRange,
+    required this.currentForeignOwnershipRatio,
     required this.limitForeignRatio,
     required this.alertProgress,
     required this.foreignLimitCardTitle,
@@ -59,9 +62,12 @@ class _StockDetailSnapshot {
   final String countryBadgeAsset;
   final bool showKoreaFlag;
   final bool showsForeignOwnershipEstimate;
+  final bool isForeignOwnershipTradingUnavailable;
+  final bool isTradeEnabled;
   final String estimatedRange;
   final String estimatedRangeMax;
-  final String previousDayForeignRatio;
+  final String estimatedLimitExhaustionRange;
+  final String currentForeignOwnershipRatio;
   final String limitForeignRatio;
   final double alertProgress;
   final String foreignLimitCardTitle;
@@ -87,6 +93,7 @@ class _StockDetailSnapshot {
     required MarketDetailState detailState,
     MarketQuote? liveQuote,
     List<MarketChartPoint>? chartPoints,
+    bool useQuoteChangeRate = false,
     DateTime? nowUtc,
     required TradeState tradeState,
   }) {
@@ -123,30 +130,43 @@ class _StockDetailSnapshot {
         chartMetrics?.baselineLocalDisplay ?? fallback.previousClose;
     final previousCloseRaw =
         chartMetrics?.baselineLocalRaw ?? fallback.previousClose;
-    final changeAmount =
-        (detail != null || quote != null) && chartMetrics != null
+    final sourceChangeRateRaw = quote?.changeRate ?? detail?.changeRate;
+    final sourceChangeRate = !useQuoteChangeRate || sourceChangeRateRaw == null
+        ? null
+        : _formatPercentDisplay(sourceChangeRateRaw);
+    final changeAmount = sourceChangeRate != null
+        ? _formatSignedCurrencyDifferenceFromRate(
+            displayCurrency,
+            currentLocalRaw,
+            sourceChangeRate,
+          )
+        : (detail != null || quote != null) && chartMetrics != null
             ? _formatSignedCurrencyDifference(
                 displayCurrency,
                 currentLocalRaw,
                 previousCloseRaw,
               )
             : fallback.changeAmount;
-    final changeRate = (detail != null || quote != null) && chartMetrics != null
-        ? chartMetrics.returnRate(currentLocalRaw)
-        : quote != null
-            ? _formatPercentDisplay(quote.changeRate)
-            : _formatPercentDisplay(detail?.changeRate ?? fallback.changeRate);
+    final changeRate = sourceChangeRate ??
+        ((detail != null || quote != null) && chartMetrics != null
+            ? chartMetrics.returnRate(currentLocalRaw)
+            : _formatPercentDisplay(fallback.changeRate));
+    final isForeignOwnershipTradingUnavailable =
+        _isForeignOwnershipTradingUnavailable(detail);
     final showsForeignOwnershipEstimate =
-        _showsForeignOwnershipEstimate(detail);
+        !isForeignOwnershipTradingUnavailable &&
+            _showsForeignOwnershipEstimate(detail);
     final estimateMaxRaw = showsForeignOwnershipEstimate
-        ? detail!.predictedForeignLimitExhaustionRateMax
+        ? detail!.predictedForeignOwnershipRateMax
         : fallback.estimatedMax;
-    final maxLimitRate = _parsePercent('$estimateMaxRaw%');
-    final limitForeignRatio =
-        showsForeignOwnershipEstimate ? '100.00%' : fallback.limitForeignRatio;
-    final limitValue = _parsePercent(limitForeignRatio);
+    final maxLimitExhaustionRate = showsForeignOwnershipEstimate
+        ? _parsePercent('${detail!.predictedForeignLimitExhaustionRateMax}%')
+        : 0;
+    final limitForeignRatio = showsForeignOwnershipEstimate
+        ? _foreignOwnershipLimitRatio(detail!)
+        : fallback.limitForeignRatio;
     final isForeignLimitAlert =
-        showsForeignOwnershipEstimate && maxLimitRate >= 90;
+        showsForeignOwnershipEstimate && maxLimitExhaustionRate >= 90;
     final estimatedRangeMax = '$estimateMaxRaw%';
     final portfolio = tradeState.portfolio;
     MockHolding? holding;
@@ -189,20 +209,30 @@ class _StockDetailSnapshot {
           : AppAssets.countryBadgeKr,
       showKoreaFlag: !_isHongKongMarket(market),
       showsForeignOwnershipEstimate: showsForeignOwnershipEstimate,
+      isForeignOwnershipTradingUnavailable:
+          isForeignOwnershipTradingUnavailable,
+      isTradeEnabled:
+          !isForeignOwnershipTradingUnavailable && (detail?.orderable ?? true),
       estimatedRange: showsForeignOwnershipEstimate
+          ? _formatRange(
+              detail!.predictedForeignOwnershipRateMin,
+              detail.predictedForeignOwnershipRateMax,
+              fallback.estimatedRange,
+            )
+          : fallback.estimatedRange,
+      estimatedRangeMax: estimatedRangeMax,
+      estimatedLimitExhaustionRange: showsForeignOwnershipEstimate
           ? _formatRange(
               detail!.predictedForeignLimitExhaustionRateMin,
               detail.predictedForeignLimitExhaustionRateMax,
               fallback.estimatedRange,
             )
           : fallback.estimatedRange,
-      estimatedRangeMax: estimatedRangeMax,
-      previousDayForeignRatio: showsForeignOwnershipEstimate
-          ? '${detail!.foreignLimitExhaustionRate}%'
+      currentForeignOwnershipRatio: showsForeignOwnershipEstimate
+          ? '${detail!.foreignOwnershipRate}%'
           : '${fallback.previousDayRatio}%',
       limitForeignRatio: limitForeignRatio,
-      alertProgress:
-          limitValue == 0 ? 0 : (maxLimitRate / limitValue).clamp(0, 1),
+      alertProgress: (maxLimitExhaustionRate / 100).clamp(0, 1),
       foreignLimitCardTitle: isForeignLimitAlert
           ? 'Foreign Ownership Limit Alert'
           : 'Foreign Ownership Forecast',
@@ -210,7 +240,6 @@ class _StockDetailSnapshot {
           ? 'Based on a time-series regression analysis\nwith a 95% confidence interval'
           : 'Based on the latest foreign ownership data\nand today forecast model',
       foreignLimitCardMessage: _foreignLimitCardMessage(
-        isApplicable: showsForeignOwnershipEstimate,
         isAlert: isForeignLimitAlert,
         estimatedRangeMax: estimatedRangeMax,
         limitForeignRatio: limitForeignRatio,
@@ -340,36 +369,65 @@ bool _showsForeignOwnershipEstimate(StockDetail? detail) {
   }
   final confidenceLevel =
       detail.foreignOwnershipPredictionConfidenceLevel.trim().toUpperCase();
-  const applicableLevels = {
-    'SNAPSHOT_ONLY',
-    'TIME_SERIES_ADJUSTED',
-    'LIMITED_TIME_SERIES',
-    'AI_TIME_SERIES_ADJUSTED',
-    'AI_LIMITED_TIME_SERIES',
-    'FOREIGN_LIMIT_ZERO_NOT_ACQUIRABLE',
+  const hiddenLevels = {
+    '',
+    'UNKNOWN',
+    'NO_SNAPSHOT',
+    'NOT_APPLICABLE',
+    'FOREIGN_LIMIT_NOT_APPLICABLE',
   };
+  if (hiddenLevels.contains(confidenceLevel)) {
+    return false;
+  }
 
-  // 외국인 취득한도 제한 종목 전용 confidence만 예측 UI를 노출한다.
-  return applicableLevels.contains(confidenceLevel);
+  final minOwnership = _parseAmount(detail.predictedForeignOwnershipRateMin);
+  final maxOwnership = _parseAmount(detail.predictedForeignOwnershipRateMax);
+  final minExhaustion =
+      _parseAmount(detail.predictedForeignLimitExhaustionRateMin);
+  final maxExhaustion =
+      _parseAmount(detail.predictedForeignLimitExhaustionRateMax);
+  return minOwnership != null &&
+      maxOwnership != null &&
+      minExhaustion != null &&
+      maxExhaustion != null;
+}
+
+bool _isForeignOwnershipTradingUnavailable(StockDetail? detail) {
+  return detail?.foreignOwnershipPredictionConfidenceLevel
+          .trim()
+          .toUpperCase() ==
+      'FOREIGN_LIMIT_ZERO_NOT_ACQUIRABLE';
+}
+
+String _foreignOwnershipLimitRatio(StockDetail detail) {
+  final ownershipRate = _parseAmount(detail.foreignOwnershipRate);
+  final exhaustionRate = _parseAmount(detail.foreignLimitExhaustionRate);
+  if (ownershipRate == null || exhaustionRate == null) {
+    return '--';
+  }
+  if (ownershipRate == 0 && exhaustionRate == 0) {
+    return '0.00%';
+  }
+  if (exhaustionRate <= 0) {
+    return '--';
+  }
+  final limitRate = ownershipRate * 100 / exhaustionRate;
+  return '${limitRate.toStringAsFixed(2)}%';
 }
 
 String _foreignLimitCardMessage({
-  required bool isApplicable,
   required bool isAlert,
   required String estimatedRangeMax,
   required String limitForeignRatio,
 }) {
-  if (!isApplicable) {
-    return 'This stock is not currently subject to a foreign ownership ceiling. '
-        'The estimate is shown for reference, not as a trading restriction signal.';
-  }
   if (!isAlert) {
-    return 'The estimated maximum foreign limit exhaustion '
-        '($estimatedRangeMax) remains below the restriction threshold '
-        '($limitForeignRatio). Trading restriction risk is not elevated at this level.';
+    return 'The estimated maximum foreign ownership '
+        '($estimatedRangeMax) remains below the foreign ownership cap '
+        '($limitForeignRatio).';
   }
-  return 'The estimated maximum foreign ownership ratio '
-      '($estimatedRangeMax) is close to the limit ($limitForeignRatio). '
+  return 'The estimated maximum foreign ownership '
+      '($estimatedRangeMax) is close to the foreign ownership cap '
+      '($limitForeignRatio). '
       'Trading may be restricted once the limit is reached.';
 }
 
@@ -382,8 +440,28 @@ String _formatPercentDisplay(String raw) {
   if (numeric == null) {
     return trimmed.endsWith('%') ? trimmed : '$trimmed%';
   }
-  final sign = numeric > 0 && !trimmed.startsWith('+') ? '+' : '';
+  final sign = numeric > 0 ? '+' : '';
   return '$sign${numeric.toStringAsFixed(2)}%';
+}
+
+String _formatSignedCurrencyDifferenceFromRate(
+  String currency,
+  String currentRaw,
+  String rateRaw,
+) {
+  final current = _parseAmount(currentRaw);
+  final rate = double.tryParse(rateRaw.replaceAll('%', '').trim());
+  if (current == null || rate == null || rate <= -100) {
+    return '--';
+  }
+  final previous = current / (1 + (rate / 100));
+  final difference = current - previous;
+  final sign = difference > 0
+      ? '+'
+      : difference < 0
+          ? '-'
+          : '';
+  return '$sign${formatCurrencyDisplay(currency, difference.abs().toStringAsFixed(2))}';
 }
 
 String _formatHoldingCostDisplay(MockHolding holding) {

@@ -13,14 +13,32 @@ class MarketNewsScreen extends StatefulWidget {
 }
 
 class _MarketNewsScreenState extends State<MarketNewsScreen> {
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_loadMoreNearEnd);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         unawaited(widget.marketNewsController.loadLatest(limit: 20));
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_loadMoreNearEnd)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _loadMoreNearEnd() {
+    if (_scrollController.position.extentAfter > 480) {
+      return;
+    }
+    unawaited(widget.marketNewsController.loadMore());
   }
 
   @override
@@ -73,6 +91,7 @@ class _MarketNewsScreenState extends State<MarketNewsScreen> {
           color: AppColors.orange500,
           onRefresh: () => widget.marketNewsController.loadLatest(limit: 20),
           child: ListView.separated(
+            controller: _scrollController,
             key: const ValueKey('discover-market-news-list'),
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
             itemCount: news.length,
