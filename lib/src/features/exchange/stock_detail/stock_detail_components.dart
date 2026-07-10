@@ -161,7 +161,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
                       children: [
                         Expanded(
                           child: _AlertMetric(
-                            label: 'Current ownership',
+                            label: 'Latest ownership',
                             value: snapshot.currentForeignOwnershipRatio,
                             alignEnd: false,
                           ),

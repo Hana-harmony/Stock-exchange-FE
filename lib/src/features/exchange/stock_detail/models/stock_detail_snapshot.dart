@@ -169,7 +169,11 @@ class _StockDetailSnapshot {
         : fallback.limitForeignRatio;
     final isForeignLimitAlert =
         showsForeignOwnershipEstimate && maxLimitExhaustionRate >= 90;
-    final estimatedRangeMax = '$estimateMaxRaw%';
+    final estimateMax = _parseAmount(estimateMaxRaw);
+    final estimatedRangeMax =
+        showsForeignOwnershipEstimate && estimateMax != null
+            ? '${estimateMax.toStringAsFixed(2)}%'
+            : '$estimateMaxRaw%';
     final portfolio = tradeState.portfolio;
     MockHolding? holding;
     if (portfolio != null) {
@@ -225,6 +229,7 @@ class _StockDetailSnapshot {
               detail!.predictedForeignOwnershipRateMin,
               detail.predictedForeignOwnershipRateMax,
               fallback.estimatedRange,
+              fractionDigits: 2,
             )
           : fallback.estimatedRange,
       estimatedRangeMax: estimatedRangeMax,

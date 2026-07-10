@@ -1548,8 +1548,10 @@ void main() {
 
     expect(find.text('Foreign Ownership Forecast'), findsOneWidget);
     expect(find.text('50.00%'), findsOneWidget);
+    expect(find.text('Latest ownership'), findsOneWidget);
+    expect(find.text('Current ownership'), findsNothing);
     expect(find.text("Today's estimated ownership"), findsOneWidget);
-    expect(find.text('27.0%~27.6%'), findsOneWidget);
+    expect(find.text('27.00%~27.60%'), findsOneWidget);
   });
 
   testWidgets('labels closing ownership forecast for the next trading day',
