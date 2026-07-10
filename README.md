@@ -15,17 +15,17 @@ Flutter 기반 iOS/Android MTS 프론트엔드다. 사용자는 한국 상장주
 ```bash
 flutter pub get
 flutter test
-flutter run --dart-define=EXCHANGE_API_BASE_URL=http://localhost:13001
+flutter run --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 ```
 
 로컬 앱 검증 절차는 [docs/LOCAL_APP_TESTING.md](docs/LOCAL_APP_TESTING.md)를 따른다. 백엔드는 `Hannah-Montana-AI -> Hana-OmniLens-API -> Stock-exchange-BE` 순서로 먼저 띄운다.
 
 ## 검증
 ```bash
-dart format lib test
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
-flutter build ios --simulator --dart-define=EXCHANGE_API_BASE_URL=http://localhost:13001
+flutter build ios --simulator --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 ```
 
 ## 책임 경계
