@@ -15,6 +15,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
   final ExchangeApiClient _apiClient;
   String? _loadedFeedStockCode;
   Future<void>? _feedLoadFuture;
+  Future<void>? _feedLoadMoreFuture;
 
   void setFilter(NotificationFilter filter) {
     value = value.copyWithFilter(filter);
@@ -152,6 +153,50 @@ class NotificationController extends ValueNotifier<NotificationState> {
         _feedLoadFuture = null;
       }
     }
+  }
+
+  Future<void> loadMoreStockIntelligenceFeed({
+    required String stockCode,
+    int limit = 20,
+  }) {
+    final normalizedStockCode = stockCode.trim();
+    final current = value.feed;
+    final cursor = current?.nextCursor;
+    if (current == null ||
+        current.stockCode != normalizedStockCode ||
+        cursor == null ||
+        cursor.isEmpty) {
+      return Future.value();
+    }
+    final active = _feedLoadMoreFuture;
+    if (active != null) {
+      return active;
+    }
+    final future = () async {
+      try {
+        final response = await _apiClient.getStockIntelligenceFeed(
+          normalizedStockCode,
+          limit: limit,
+          cursor: cursor,
+        );
+        _setLoaded(
+          inbox: value.inbox,
+          feed: current
+              .merge(StockIntelligenceFeed.fromJson(response.data ?? {})),
+          devices: value.devices,
+        );
+      } on ExchangeApiException catch (error) {
+        _setFailure(error.message);
+      } on Object {
+        _setFailure('Unable to load more stock intelligence.');
+      }
+    }();
+    _feedLoadMoreFuture = future;
+    return future.whenComplete(() {
+      if (identical(_feedLoadMoreFuture, future)) {
+        _feedLoadMoreFuture = null;
+      }
+    });
   }
 
   Future<void> markRead({

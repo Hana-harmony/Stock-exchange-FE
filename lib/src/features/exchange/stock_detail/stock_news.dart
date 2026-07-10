@@ -25,18 +25,37 @@ class _StockNewsTab extends StatefulWidget {
 
 class _StockNewsTabState extends State<_StockNewsTab> {
   static const _layoutTransitionDuration = Duration(milliseconds: 240);
-  static const _maxRenderedItemsPerSource = 5;
+  static const _minimumScrollableItemCount = 8;
 
   _StockNewsLayout _layout = _StockNewsLayout.list;
+  final ScrollController _scrollController = ScrollController();
 
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_loadMoreNearEnd);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         unawaited(_loadStockIntelligenceFeed());
       }
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollController
+      ..removeListener(_loadMoreNearEnd)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _loadMoreNearEnd() {
+    if (_scrollController.position.extentAfter > 480) {
+      return;
+    }
+    unawaited(widget.notificationController.loadMoreStockIntelligenceFeed(
+      stockCode: widget.stockCode,
+    ));
   }
 
   @override
@@ -64,8 +83,10 @@ class _StockNewsTabState extends State<_StockNewsTab> {
       builder: (context, _) {
         final state = widget.notificationController.value;
         final items = _resolveNewsItems(state);
+        _loadUntilScrollable(state: state, itemCount: items.length);
 
         return ListView(
+          controller: _scrollController,
           key: const PageStorageKey<String>('stock-k-news-tab'),
           padding: const EdgeInsets.fromLTRB(0, 0, 0, 140),
           children: [
@@ -111,6 +132,27 @@ class _StockNewsTabState extends State<_StockNewsTab> {
         );
       },
     );
+  }
+
+  void _loadUntilScrollable({
+    required NotificationState state,
+    required int itemCount,
+  }) {
+    final feed = state.feed;
+    if (state.status != NotificationStatus.loaded ||
+        feed?.stockCode != widget.stockCode ||
+        feed?.nextCursor == null ||
+        itemCount >= _minimumScrollableItemCount) {
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      unawaited(widget.notificationController.loadMoreStockIntelligenceFeed(
+        stockCode: widget.stockCode,
+      ));
+    });
   }
 
   void _openStockNewsDetail(_StockNewsItemViewModel item) {
@@ -160,10 +202,7 @@ class _StockNewsTabState extends State<_StockNewsTab> {
         .where((item) => item.sourceType.toUpperCase() == sourceType)
         .toList(growable: false);
     if (filtered.isNotEmpty) {
-      return filtered
-          .take(_maxRenderedItemsPerSource)
-          .map(_StockNewsItemViewModel.fromFeedItem)
-          .toList();
+      return filtered.map(_StockNewsItemViewModel.fromFeedItem).toList();
     }
 
     return const [];
