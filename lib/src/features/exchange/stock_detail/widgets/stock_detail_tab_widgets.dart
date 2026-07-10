@@ -147,7 +147,10 @@ class _StockOrderTab extends StatelessWidget {
       key: const PageStorageKey<String>('stock-order-tab'),
       padding: const EdgeInsets.fromLTRB(12, 20, 12, 140),
       children: [
-        if (snapshot.showsForeignOwnershipEstimate) ...[
+        if (snapshot.isForeignOwnershipTradingUnavailable) ...[
+          const _ForeignOwnershipTradingUnavailableCard(),
+          const SizedBox(height: 24),
+        ] else if (snapshot.showsForeignOwnershipEstimate) ...[
           _ForeignOwnershipAlertCard(snapshot: snapshot),
           const SizedBox(height: 24),
         ],
@@ -561,11 +564,15 @@ class _StockFundamentalsTab extends StatelessWidget {
               ),
               _FundamentalsRowData(
                 'Limit exhaustion',
-                snapshot.previousDayForeignRatio,
+                '${detail?.foreignLimitExhaustionRate ?? '-'}%',
+              ),
+              _FundamentalsRowData(
+                'Estimated ownership',
+                snapshot.estimatedRange,
               ),
               _FundamentalsRowData(
                 'Estimated exhaustion',
-                snapshot.estimatedRange,
+                snapshot.estimatedLimitExhaustionRange,
               ),
               _FundamentalsRowData(
                 'Model',

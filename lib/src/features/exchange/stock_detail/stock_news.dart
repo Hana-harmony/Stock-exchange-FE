@@ -25,7 +25,7 @@ class _StockNewsTab extends StatefulWidget {
 
 class _StockNewsTabState extends State<_StockNewsTab> {
   static const _layoutTransitionDuration = Duration(milliseconds: 240);
-  static const _maxRenderedItemsPerSource = 40;
+  static const _maxRenderedItemsPerSource = 5;
 
   _StockNewsLayout _layout = _StockNewsLayout.list;
 

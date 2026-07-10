@@ -40,7 +40,7 @@ class MarketNewsController extends ValueNotifier<MarketNewsState> {
 
   final ExchangeApiClient _apiClient;
 
-  Future<void> loadLatest({int limit = 20}) async {
+  Future<void> loadLatest({int limit = 5}) async {
     value = MarketNewsState.loading(feed: value.feed);
     try {
       final response = await _apiClient.getMarketNews(limit: limit);

@@ -355,6 +355,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   Timer? _liveReconnectTimer;
   Timer? _liveTickFlushTimer;
   MarketQuoteLiveSubscription? _activeLiveRequest;
+  bool _isDisposed = false;
   Set<String> _marketLiveStockCodes = <String>{};
   Set<String> _demandLiveStockCodes = <String>{};
   final Set<String> _requestedRealtimeSourceStockCodes = <String>{};
@@ -365,6 +366,8 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       Duration(milliseconds: 250);
 
   bool get canSubscribeLive => _liveClient != null;
+
+  bool get isDisposed => _isDisposed;
 
   bool get hasGeneralLiveSubscription {
     final request = _activeLiveRequest;
@@ -601,6 +604,9 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   }
 
   Future<void> removeDemandLiveStock(String stockCode) async {
+    if (_isDisposed) {
+      return;
+    }
     final normalized = _normalizeStockCode(stockCode);
     if (normalized == null) {
       return;
@@ -632,6 +638,9 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   Future<void> _replaceLiveSubscription(
     MarketQuoteLiveSubscription liveRequest,
   ) async {
+    if (_isDisposed) {
+      return;
+    }
     final liveClient = _liveClient;
     if (liveClient == null) {
       value = value.copyWith(
@@ -713,12 +722,20 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   }
 
   Future<void> _ensureRealtimeSourcesFor(Iterable<String> stockCodes) async {
+    await _ensureRealtimeSourcesForStockCodes(stockCodes);
+  }
+
+  Future<void> _ensureRealtimeSourcesForStockCodes(
+    Iterable<String> stockCodes, {
+    bool force = false,
+  }) async {
     final pending = <Future<void>>[];
     for (final stockCode in stockCodes) {
       if (!_isKoreanStockCode(stockCode) ||
-          !_requestedRealtimeSourceStockCodes.add(stockCode)) {
+          (!force && !_requestedRealtimeSourceStockCodes.add(stockCode))) {
         continue;
       }
+      _requestedRealtimeSourceStockCodes.add(stockCode);
       pending.add(_subscribeRealtimeSource(stockCode));
     }
     if (pending.isNotEmpty) {
@@ -742,16 +759,10 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     if (_activeLiveRequest != liveRequest) {
       return;
     }
-    if (_liveReconnectAttempt >= _liveReconnectDelays.length) {
-      value = value.copyWith(
-        liveStatus: MarketQuoteLiveStatus.failure,
-        liveMessage: '$reason Reconnect attempts exhausted.',
-        liveStale: value.lastTickAt != null,
-      );
-      return;
-    }
-
-    final delay = _liveReconnectDelays[_liveReconnectAttempt];
+    final delays = _liveReconnectDelays;
+    final delay = delays.isEmpty
+        ? const Duration(seconds: 5)
+        : delays[_liveReconnectAttempt.clamp(0, delays.length - 1)];
     _liveReconnectAttempt += 1;
     value = value.copyWith(
       liveStatus: MarketQuoteLiveStatus.connecting,
@@ -763,6 +774,12 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     _liveReconnectTimer?.cancel();
     _liveReconnectTimer = Timer(delay, () {
       if (_activeLiveRequest == liveRequest) {
+        unawaited(
+          _ensureRealtimeSourcesForStockCodes(
+            liveRequest.stockCodes,
+            force: true,
+          ),
+        );
         _openLiveSubscription(liveClient, liveRequest);
       }
     });
@@ -851,6 +868,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
 
   @override
   void dispose() {
+    _isDisposed = true;
     _liveReconnectTimer?.cancel();
     _liveTickFlushTimer?.cancel();
     _liveSubscription?.cancel();

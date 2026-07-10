@@ -585,7 +585,7 @@ class ExchangeApiClient {
     );
   }
 
-  Future<ApiEnvelope<Map<String, dynamic>>> getMarketNews({int limit = 10}) {
+  Future<ApiEnvelope<Map<String, dynamic>>> getMarketNews({int limit = 5}) {
     return get<Map<String, dynamic>>(
       '/api/v1/market/news',
       query: {'limit': '$limit'},
