@@ -23,7 +23,7 @@
 
 ## 데이터 흐름
 1. FE는 Stock-exchange-BE에서 전체/시장별/watchlist/보유종목 실시간 시세 snapshot을 REST로 먼저 조회하고 KRW 가격과 USD 가격을 함께 표시한다.
-2. FE는 Stock-exchange-BE의 quote WebSocket을 구독해 장중 가격, 호가, 등락률, VI/단일가/상·하한가 상태 tick과 USD 환산 가격 tick을 실시간 반영한다. 외국인 보유수량, 보유율, 한도소진율은 실시간 WebSocket tick이 아니라 Stock-exchange-BE REST의 Hana KIS REST snapshot/cache와 orderability 결과로 표시한다.
+2. FE는 Stock-exchange-BE quote WebSocket의 장중 가격, 호가, 등락률, VI/단일가/상·하한가와 USD 환산 가격을 실시간 반영한다. 외국인 보유수량·보유율·한도소진율은 Stock-exchange-BE REST의 Hana KIS snapshot/cache와 orderability 결과로 표시한다.
 3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
 4. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
 5. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.

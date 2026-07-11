@@ -13,7 +13,7 @@ git config commit.template .gitmessage.txt
 ## 변경 기준
 - 화면/API 계약 변경은 README, 아키텍처 문서, 테스트를 함께 갱신한다.
 - 민감정보와 외부 token은 프론트엔드 코드와 문서 예시에 원문으로 남기지 않는다.
-- Web target은 운영 대상이 아니라 내부 QA 또는 데모 용도로만 사용한다.
+- 운영 빌드는 iOS와 Android를 대상으로 한다. Web target은 내부 QA·데모 용도로 제한한다.
 
 ## 로컬 검증
 ```bash
