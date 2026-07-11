@@ -13,8 +13,7 @@
 
 ## 서비스 경계
 - 이 레포는 Flutter 기반 iOS/Android 현지 거래소 MTS 프론트엔드다.
-- 운영 대상 플랫폼은 iOS와 Android 모바일 앱이다.
-- Web target은 운영 대상이 아니라 내부 QA 또는 데모가 필요한 경우에만 별도 검토한다.
+- 운영 대상 플랫폼은 iOS와 Android다. Web target은 내부 QA·데모 요청이 있을 때만 검토한다.
 - Stock-exchange-BE API만 호출한다.
 - Hana-OmniLens-API와 Hannah-Montana-AI를 브라우저에서 직접 호출하지 않는다.
 - 실제 주문 실행, 정산, 환급 지급/환수는 백엔드 상태를 표시할 뿐 프론트엔드에서 결정하지 않는다.

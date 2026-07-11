@@ -10,7 +10,7 @@ Flutter 기반 iOS/Android MTS 프론트엔드다. 사용자는 한국 상장주
 - Watchlist/Portfolio: 관심종목, 보유종목, 계좌별 quote snapshot과 WebSocket tick 반영
 - 주문 화면: 실제 주문이 아닌 mock ledger 주문, orderability 경고/차단 표시
 - 알림함: 뉴스·공시·세무 리스크 알림, 읽음 처리, push device 등록 상태
-- 세무 화면: 서류 업로드, 환급 신청 상태, 매도 실현손익 기반 입력, 사후 환수 리스크 안내
+- 세무 화면: 거주자 증명서·아포스티유·제한세율 적용신청서 파일 선택과 순차 업로드, OCR 진행·검증, 환급 신청 상태, 사후 환수 위험 고지
 
 ## 실행
 ```bash
