@@ -368,27 +368,27 @@ class _NotificationInboxTabBar extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             physics: const ClampingScrollPhysics(),
             child: SizedBox(
-              width: 266,
+              width: 234,
               height: 31,
               child: Row(
                 children: [
                   _NotificationFilterTab(
                     filter: NotificationFilter.all,
-                    width: 30,
+                    width: 22,
                     isSelected: selectedFilter == NotificationFilter.all,
                     onTap: () => onSelected(NotificationFilter.all),
                   ),
                   const SizedBox(width: 18),
                   _NotificationFilterTab(
                     filter: NotificationFilter.portfolio,
-                    width: 112,
+                    width: 100,
                     isSelected: selectedFilter == NotificationFilter.portfolio,
                     onTap: () => onSelected(NotificationFilter.portfolio),
                   ),
                   const SizedBox(width: 18),
                   _NotificationFilterTab(
                     filter: NotificationFilter.watchlist,
-                    width: 88,
+                    width: 76,
                     isSelected: selectedFilter == NotificationFilter.watchlist,
                     onTap: () => onSelected(NotificationFilter.watchlist),
                   ),
@@ -417,19 +417,24 @@ class _NotificationFilterTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AppUnderlineTab(
-      key: ValueKey<String>('notification-filter-${filter.name}'),
-      label: filter.label,
-      width: width,
-      isSelected: isSelected,
-      onTap: onTap,
-      fontSize: 18,
-      fontWeightSelected: FontWeight.w600,
-      fontWeightUnselected: FontWeight.w500,
-      activeColor: AppColors.gray1000,
-      inactiveColor: AppColors.gray600,
-      underlineWidth: width,
-      underlineHeight: 2,
+    return MediaQuery(
+      data: MediaQuery.of(context).copyWith(
+        textScaler: const TextScaler.linear(1),
+      ),
+      child: AppUnderlineTab(
+        key: ValueKey<String>('notification-filter-${filter.name}'),
+        label: filter.label,
+        width: width,
+        isSelected: isSelected,
+        onTap: onTap,
+        fontSize: 18,
+        fontWeightSelected: FontWeight.w600,
+        fontWeightUnselected: FontWeight.w500,
+        activeColor: AppColors.gray1000,
+        inactiveColor: AppColors.gray600,
+        underlineWidth: width,
+        underlineHeight: 2,
+      ),
     );
   }
 }
@@ -443,72 +448,81 @@ class _NotificationInboxCard extends StatelessWidget {
   final NotificationItem item;
   final VoidCallback onTap;
 
-  static const _unreadBackgroundColor = AppColors.orange100;
+  static const _unreadGradient = LinearGradient(
+    colors: [Color(0xFFFFF4EC), Color(0xFFFFF0F0)],
+  );
 
   @override
   Widget build(BuildContext context) {
     final companyLabel = _notificationCompanyLabel(item);
     return Material(
-      color: item.read ? AppColors.white : _unreadBackgroundColor,
-      child: InkWell(
-        key: ValueKey<String>('notification-card-${item.notificationId}'),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: [
-                        _StockNewsTargetBadge(label: item.targetLabel),
-                        _StockNewsSentimentBadge(
-                          sentiment: _sentimentFromString(item.sentiment),
-                        ),
-                        _StockNewsPriorityBadge(
-                          priority: _priorityFromStrings(item.importance, ''),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item.title,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontSize: 16,
-                            height: 1.375,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.gray800,
+      color: Colors.transparent,
+      child: Ink(
+        decoration: BoxDecoration(
+          color: item.read ? AppColors.white : null,
+          gradient: item.read ? null : _unreadGradient,
+        ),
+        child: InkWell(
+          key: ValueKey<String>('notification-card-${item.notificationId}'),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _StockNewsTargetBadge(label: item.targetLabel),
+                          _StockNewsSentimentBadge(
+                            sentiment: _sentimentFromString(item.sentiment),
                           ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      '$companyLabel · ${_relativeTimeLabel(item.createdAt)}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            fontSize: 12,
-                            height: 1.42,
-                            fontWeight: FontWeight.w400,
-                            color: AppColors.gray600,
+                          _StockNewsPriorityBadge(
+                            priority: _priorityFromStrings(item.importance, ''),
                           ),
-                    ),
-                  ],
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        item.title,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 16,
+                                  height: 1.375,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.gray800,
+                                ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$companyLabel · ${_relativeTimeLabel(item.createdAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontSize: 12,
+                              height: 1.42,
+                              fontWeight: FontWeight.w400,
+                              color: AppColors.gray600,
+                            ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              _StockNewsImage(
-                imageUrl: item.imageUrl,
-                width: 85,
-                height: 85,
-              ),
-            ],
+                const SizedBox(width: 20),
+                _StockNewsImage(
+                  imageUrl: item.imageUrl,
+                  width: 85,
+                  height: 85,
+                ),
+              ],
+            ),
           ),
         ),
       ),
