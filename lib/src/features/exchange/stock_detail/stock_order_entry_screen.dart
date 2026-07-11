@@ -275,28 +275,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
       return;
     }
 
-    final transactionPin = await showGeneralDialog<String>(
-      context: context,
-      barrierDismissible: false,
-      barrierLabel: 'Account PIN',
-      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
-      transitionDuration: const Duration(milliseconds: 260),
-      pageBuilder: (context, animation, secondaryAnimation) {
-        return const _AccountPinBottomSheetDialog();
-      },
-      transitionBuilder: (context, animation, secondaryAnimation, child) {
-        final slideAnimation =
-            Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
-          CurvedAnimation(
-            parent: animation,
-            curve: Curves.easeOutCubic,
-            reverseCurve: Curves.easeInCubic,
-          ),
-        );
-
-        return SlideTransition(position: slideAnimation, child: child);
-      },
-    );
+    final transactionPin = await _presentAccountPinBottomSheet(context);
 
     if (transactionPin == null || !mounted) {
       return;
@@ -1342,6 +1321,37 @@ class _AccountPinBottomSheetDialog extends StatefulWidget {
   @override
   State<_AccountPinBottomSheetDialog> createState() =>
       _AccountPinBottomSheetDialogState();
+}
+
+Future<String?> _presentAccountPinBottomSheet(BuildContext context) {
+  return showGeneralDialog<String>(
+    context: context,
+    useRootNavigator: false,
+    barrierDismissible: false,
+    barrierLabel: 'Account PIN',
+    barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+    transitionDuration: const Duration(milliseconds: 260),
+    pageBuilder: (context, animation, secondaryAnimation) {
+      return const Align(
+        alignment: Alignment.topCenter,
+        child: SizedBox(
+          height: 875,
+          child: _AccountPinBottomSheetDialog(),
+        ),
+      );
+    },
+    transitionBuilder: (context, animation, secondaryAnimation, child) {
+      final slideAnimation =
+          Tween<Offset>(begin: const Offset(0, 1), end: Offset.zero).animate(
+        CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOutCubic,
+          reverseCurve: Curves.easeInCubic,
+        ),
+      );
+      return SlideTransition(position: slideAnimation, child: child);
+    },
+  );
 }
 
 class _AccountPinBottomSheetDialogState

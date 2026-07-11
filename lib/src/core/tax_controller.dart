@@ -352,6 +352,13 @@ class TaxController extends ValueNotifier<TaxState> {
 
   final ExchangeApiClient _apiClient;
 
+  void beginReplacement() {
+    value = TaxState.loaded(
+      value.refundCase,
+      uploadedDocuments: const [],
+    );
+  }
+
   Future<void> loadRefundStatus(String? accountId) async {
     if (accountId == null || accountId.isEmpty) {
       value = TaxState.failure(

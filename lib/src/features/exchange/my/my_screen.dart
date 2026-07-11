@@ -185,36 +185,32 @@ class _MyScreenState extends State<MyScreen> {
         setState(() => _signUpError = 'Passwords do not match.');
         return;
       }
-      setState(() {
-        _signUpStep = 1;
-        _signUpError = null;
-      });
-      return;
-    }
-    if (_signUpStep == 1) {
-      if (!RegExp(r'^\d{6}$').hasMatch(_pinController.text)) {
-        setState(() => _signUpError = 'Create a 6-digit transaction PIN.');
+      setState(() => _signUpError = null);
+      final pin = await _presentAccountPinBottomSheet(context);
+      if (!mounted || pin == null) {
         return;
       }
-      setState(() {
-        _signUpStep = 2;
-        _signUpError = null;
-      });
+      final confirmationPin = await _presentAccountPinBottomSheet(context);
+      if (!mounted || confirmationPin == null) {
+        return;
+      }
+      if (pin != confirmationPin) {
+        setState(() => _signUpError = 'PINs do not match. Try again.');
+        return;
+      }
+      _pinController.text = pin;
+      _confirmPinController.text = confirmationPin;
+      await widget.sessionController.signUpAndLogin(
+        username: _usernameController.text,
+        password: _passwordController.text,
+        confirmPassword: _confirmPasswordController.text,
+        pin: pin,
+        confirmPin: confirmationPin,
+      );
+      if (widget.sessionController.value.isSignedIn) {
+        _clearSensitiveFields();
+      }
       return;
-    }
-    if (_pinController.text != _confirmPinController.text) {
-      setState(() => _signUpError = 'PINs do not match.');
-      return;
-    }
-    await widget.sessionController.signUpAndLogin(
-      username: _usernameController.text,
-      password: _passwordController.text,
-      confirmPassword: _confirmPasswordController.text,
-      pin: _pinController.text,
-      confirmPin: _confirmPinController.text,
-    );
-    if (widget.sessionController.value.isSignedIn) {
-      _clearSensitiveFields();
     }
   }
 
