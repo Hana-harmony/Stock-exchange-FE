@@ -6,6 +6,7 @@ Flutter 기반 iOS/Android MTS 프론트엔드다. 사용자는 한국 상장주
 - Markets: KOSPI/KOSDAQ/KOSPI 200 지수, 인기 종목, 검색, 시장별 시세
 - 실시간 시세: Stock-exchange-BE WebSocket 구독, 재연결, stale 상태 표시
 - 종목 상세: 1D/1W/1M 차트, KRW/USD 가격, 외국인 보유 제한, VI/상·하한가, 호가, K-News, 공시
+- 글로벌 피어: AI가 종목별 사업요약에서 생성한 3개 comparison과 4개 Key Strength를 생략 없이 2×2로 표시
 - Watchlist/Portfolio: 관심종목, 보유종목, 계좌별 quote snapshot과 WebSocket tick 반영
 - 주문 화면: 실제 주문이 아닌 mock ledger 주문, orderability 경고/차단 표시
 - 알림함: 뉴스·공시·세무 리스크 알림, 읽음 처리, push device 등록 상태

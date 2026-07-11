@@ -785,8 +785,8 @@ void main() {
           )
           .first,
     );
-    expect(strengthDescriptionText.maxLines, 2);
-    expect(strengthDescriptionText.overflow, TextOverflow.ellipsis);
+    expect(strengthDescriptionText.maxLines, isNull);
+    expect(strengthDescriptionText.overflow, TextOverflow.visible);
   });
 
   testWidgets('updates quantity, price, and order amount in order entry',
