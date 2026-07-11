@@ -1126,7 +1126,11 @@ List<_NotificationArticleHighlightRange>
       if (entry.highlightedText.isEmpty) {
         continue;
       }
-      final matchStart = paragraph.indexOf(entry.highlightedText, searchStart);
+      final matchStart = GlossaryTextMatcher.findWholeTermStart(
+        paragraph,
+        entry.highlightedText,
+        start: searchStart,
+      );
       if (matchStart == -1) {
         continue;
       }
@@ -1236,7 +1240,8 @@ String? _glossaryHighlightText(
     term.englishTerm,
   ];
   for (final candidate in candidates) {
-    if (candidate.isNotEmpty && bodyText.contains(candidate)) {
+    if (candidate.isNotEmpty &&
+        GlossaryTextMatcher.findWholeTermStart(bodyText, candidate) != -1) {
       return candidate;
     }
   }
