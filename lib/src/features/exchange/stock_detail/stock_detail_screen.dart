@@ -1154,23 +1154,42 @@ class _GlobalPeerStrengthSection extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 8),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: items.length,
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 8,
-            mainAxisSpacing: 8,
-            mainAxisExtent: 104,
-          ),
-          itemBuilder: (context, index) {
-            final item = items[index];
-            return _GlobalPeerStrengthCard(
-              key: ValueKey('global-peer-strength-card-${item.iconKey}'),
-              item: item,
-            );
-          },
+        Column(
+          children: [
+            for (var index = 0; index < items.length; index += 2)
+              Padding(
+                padding: EdgeInsets.only(
+                  bottom: index + 2 < items.length ? 8 : 0,
+                ),
+                child: IntrinsicHeight(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Expanded(
+                        child: _GlobalPeerStrengthCard(
+                          key: ValueKey(
+                            'global-peer-strength-card-${items[index].iconKey}',
+                          ),
+                          item: items[index],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: index + 1 < items.length
+                            ? _GlobalPeerStrengthCard(
+                                key: ValueKey(
+                                  'global-peer-strength-card-'
+                                  '${items[index + 1].iconKey}',
+                                ),
+                                item: items[index + 1],
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ],
     );
@@ -1203,8 +1222,7 @@ class _GlobalPeerStrengthCard extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               item.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontSize: 12,
@@ -1215,8 +1233,7 @@ class _GlobalPeerStrengthCard extends StatelessWidget {
             ),
             Text(
               item.description,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+              overflow: TextOverflow.visible,
               textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontSize: 10,
