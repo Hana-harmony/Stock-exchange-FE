@@ -1273,11 +1273,13 @@ void main() {
       '250',
     );
     await tester.tap(find.byKey(const ValueKey('deposit-continue-button')));
-    await tester.pumpAndSettle();
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
-      find.byKey(const ValueKey('deposit-pin-field')),
+      find.byKey(const ValueKey('stock-order-pin-sheet')),
       findsOneWidget,
     );
+    await tester.binding.handlePopRoute();
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
 
@@ -1416,20 +1418,18 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('my-signup-continue')));
     await tester.pumpAndSettle();
 
-    expect(find.text('2/3'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('my-signup-pin')),
-      '135790',
-    );
-    await tester.tap(find.byKey(const ValueKey('my-signup-continue')));
+    expect(find.byKey(const ValueKey('stock-order-pin-sheet')), findsOneWidget);
+    for (final digit in ['1', '3', '5', '7', '9', '0']) {
+      await tester.tap(find.byKey(ValueKey('stock-order-pin-key-$digit')));
+    }
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-confirm')));
     await tester.pumpAndSettle();
 
-    expect(find.text('3/3'), findsOneWidget);
-    await tester.enterText(
-      find.byKey(const ValueKey('my-signup-pin-confirm')),
-      '135790',
-    );
-    await tester.tap(find.byKey(const ValueKey('my-signup-continue')));
+    expect(find.byKey(const ValueKey('stock-order-pin-sheet')), findsOneWidget);
+    for (final digit in ['1', '3', '5', '7', '9', '0']) {
+      await tester.tap(find.byKey(ValueKey('stock-order-pin-key-$digit')));
+    }
+    await tester.tap(find.byKey(const ValueKey('stock-order-pin-confirm')));
     await tester.pumpAndSettle();
 
     expect(sessionController.value.isSignedIn, isTrue);
