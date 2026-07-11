@@ -1,12 +1,12 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'core/account_controller.dart';
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
-import 'core/ios_push_token_provider.dart';
 import 'core/market_calendar_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_index_controller.dart';
@@ -18,6 +18,7 @@ import 'core/secure_exchange_session_store.dart';
 import 'core/tax_controller.dart';
 import 'core/trade_controller.dart';
 import 'core/watchlist_controller.dart';
+import 'core/web_push_subscription_provider.dart';
 import 'ui/components/app_bottom_navigation.dart';
 import 'ui/components/app_header.dart';
 import 'ui/components/app_scaffold.dart';
@@ -69,6 +70,12 @@ class StockExchangeApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Hana Local Exchange',
       theme: buildAppTheme(),
+      builder: (context, child) {
+        if (!kIsWeb || child == null) {
+          return child ?? const SizedBox.shrink();
+        }
+        return _WebViewportFrame(child: child);
+      },
       home: ExchangeShell(
         sessionController: sessionController,
         accountController: accountController,
@@ -85,6 +92,46 @@ class StockExchangeApp extends StatelessWidget {
         watchlistController: watchlistController,
         sessionStore: sessionStore,
         nowProvider: nowProvider,
+      ),
+    );
+  }
+}
+
+class _WebViewportFrame extends StatelessWidget {
+  const _WebViewportFrame({required this.child});
+
+  static const maxAppWidth = 430.0;
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final mediaQuery = MediaQuery.of(context);
+    final appWidth = mediaQuery.size.width.clamp(0.0, maxAppWidth);
+    return ColoredBox(
+      color: const Color(0xFFF2F4F7),
+      child: Center(
+        child: SizedBox(
+          width: appWidth,
+          height: mediaQuery.size.height,
+          child: MediaQuery(
+            data: mediaQuery.copyWith(
+              size: Size(appWidth, mediaQuery.size.height),
+            ),
+            child: DecoratedBox(
+              decoration: const BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Color(0x1A000000),
+                    blurRadius: 24,
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          ),
+        ),
       ),
     );
   }
@@ -148,7 +195,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
   late final NotificationController _notificationController;
-  final IosPushTokenProvider _pushTokenProvider = const IosPushTokenProvider();
+  final WebPushSubscriptionProvider _pushSubscriptionProvider =
+      const WebPushSubscriptionProvider();
   late final TaxController _taxController;
   late final WatchlistController _watchlistController;
   List<String> _recentSearches = List<String>.from(_initialRecentSearches);
@@ -377,29 +425,51 @@ class _ExchangeShellState extends State<ExchangeShell> {
     unawaited(_tradeController.loadPortfolio(session.accountId));
     unawaited(_watchlistController.load(session.accountId));
     unawaited(_notificationController.loadAlerts(accountId: session.accountId));
-    unawaited(_registerPushDevice(session.accountId));
+    unawaited(_registerExistingWebPushDevice(session.accountId));
   }
 
-  Future<void> _registerPushDevice(String accountId) async {
-    final token = await _pushTokenProvider.requestToken();
-    if (token == null || _sessionController.session?.accountId != accountId) {
-      return;
+  Future<void> _registerExistingWebPushDevice(String accountId) async {
+    final subscription = await _pushSubscriptionProvider.currentSubscription();
+    if (subscription != null) {
+      await _registerWebPushDevice(accountId, subscription);
     }
-    final identity = '$accountId:$token';
+  }
+
+  Future<bool> _enableWebPush() async {
+    final accountId = _sessionController.session?.accountId;
+    if (accountId == null) {
+      return false;
+    }
+    final subscription = await _pushSubscriptionProvider.requestSubscription();
+    if (subscription == null) {
+      return false;
+    }
+    return _registerWebPushDevice(accountId, subscription);
+  }
+
+  Future<bool> _registerWebPushDevice(
+    String accountId,
+    String subscription,
+  ) async {
+    if (_sessionController.session?.accountId != accountId) {
+      return false;
+    }
+    final identity = '$accountId:$subscription';
     if (_registeredPushIdentity == identity) {
-      return;
+      return true;
     }
-    await _notificationController.registerPushDevice(
+    final registered = await _notificationController.registerPushDevice(
       accountId: accountId,
-      platform: 'IOS',
-      provider: 'APNS_PUSH',
-      deviceToken: token,
+      platform: 'WEB',
+      provider: 'WEB_PUSH',
+      deviceToken: subscription,
       appVersion: '0.1.0',
       locale: WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag(),
     );
-    if (_notificationController.value.status != NotificationStatus.failure) {
+    if (registered) {
       _registeredPushIdentity = identity;
     }
+    return registered;
   }
 
   void _handleWatchlistStateChanged() {
@@ -486,6 +556,8 @@ class _ExchangeShellState extends State<ExchangeShell> {
               notificationController: _notificationController,
               accountId: _sessionController.session?.accountId,
               selectedNavigationIndex: _selectedIndex,
+              webPushSupported: _pushSubscriptionProvider.isSupported,
+              onEnableWebPush: _enableWebPush,
               onClose: () => Navigator.of(context).pop(),
               onNavigationSelected: (index) {
                 Navigator.of(context).pop();

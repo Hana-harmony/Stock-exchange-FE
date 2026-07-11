@@ -61,6 +61,12 @@ void main() {
     expect(
         controller.value.filteredNotifications.single.targetLabel, 'Watchlist');
     expect(
+      controller.value.filteredNotifications.single.imageUrl,
+      'https://news.example.com/notification.jpg',
+    );
+    expect(controller.value.filteredNotifications.single.sentiment, 'POSITIVE');
+    expect(controller.value.filteredNotifications.single.importance, 'HIGH');
+    expect(
       controller
           .value.filteredNotifications.single.glossaryTerms.single.displayLabel,
       '공시 -> disclosure',
@@ -261,6 +267,9 @@ Map<String, Object?> _notificationInboxJson() {
         'summary': 'AI summary with sentiment and importance.',
         'originalUrl': 'https://dart.fss.or.kr/report',
         'primaryStockCode': '005930',
+        'imageUrls': ['https://news.example.com/notification.jpg'],
+        'sentiment': 'POSITIVE',
+        'importance': 'HIGH',
         'matchedStockCodes': ['005930'],
         'matchReasons': ['WATCHLIST'],
         'glossaryTerms': [_glossaryTerm('공시', 'disclosure', 'DISCLOSURE')],
