@@ -236,8 +236,7 @@ class _StockNewsContent extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: _MutedInfoCard(
           title: 'Loading intelligence',
-          body:
-              'The latest OmniLens stock intelligence feed is being prepared.',
+          body: 'The latest OmniLens stock intelligence feed is unavailable.',
         ),
       );
     }

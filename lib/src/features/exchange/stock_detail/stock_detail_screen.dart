@@ -361,7 +361,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           builder: (context, _) {
             final snapshot = _buildSnapshot();
             return _StockBottomActionBar(
-              onSell: () => _handleTradeAction('Sell'),
+              onSell: () => _handleTradeAction('Sell', snapshot),
               onBuy: () => _handleTradeAction('Buy', snapshot),
               isTradeEnabled: snapshot.isTradeEnabled,
             );
@@ -471,14 +471,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
-  void _showTradePlaceholder(String side) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$side orders are being prepared.'),
-      ),
-    );
-  }
-
   void _handleTradeAction(String side, [_StockDetailSnapshot? snapshot]) {
     if (!_buildSnapshot().isTradeEnabled) {
       return;
@@ -491,7 +483,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       _showViRestrictionDialog();
       return;
     }
-    if (side == 'Buy' && snapshot != null) {
+    if (snapshot != null) {
       Navigator.of(context).push(
         MaterialPageRoute<void>(
           builder: (context) => _StockOrderEntryScreen(
@@ -501,6 +493,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
             tradeController: widget.tradeController,
             notificationController: widget.notificationController,
             stockCode: widget.stockCode,
+            side: side.toUpperCase(),
             snapshot: snapshot,
             initialIsFavorite: _isFavorite,
             onFavoriteToggle: _toggleFavorite,
@@ -510,7 +503,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       );
       return;
     }
-    _showTradePlaceholder(side);
   }
 
   void _showViInfoPanel() {
@@ -1466,7 +1458,7 @@ String _globalPeerSummary(GlobalPeerMatch match) {
   if (peer != null && peer.rationale.trim().isNotEmpty) {
     return peer.rationale.trim();
   }
-  return 'Global peer analysis is being prepared from the latest stock data.';
+  return 'Global peer analysis is unavailable for the latest stock data.';
 }
 
 List<String> _globalPeerTags(GlobalPeerMatch match) {

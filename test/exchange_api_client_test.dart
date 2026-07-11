@@ -303,7 +303,10 @@ void main() {
           '/api/v1/accounts/ACC-ABC123456789/deposits',
         );
         expect(_header(request, 'authorization'), 'Bearer access-token');
-        expect(jsonDecode(request.body), {'amountUsd': 500});
+        expect(jsonDecode(request.body), {
+          'amountUsd': 500,
+          'password': 'localPass123!',
+        });
 
         return _jsonResponse({
           'success': true,
@@ -324,6 +327,7 @@ void main() {
     final response = await client.depositUsd(
       accountId: 'ACC-ABC123456789',
       amount: 500,
+      password: 'localPass123!',
     );
 
     expect(response.data?['cashBalanceUsd'], '500.00');
@@ -350,6 +354,7 @@ void main() {
       client.depositUsd(
         accountId: 'ACC-ABC123456789',
         amount: 500,
+        password: 'localPass123!',
       ),
       throwsA(
         isA<ExchangeApiException>()

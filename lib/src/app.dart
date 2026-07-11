@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'core/account_controller.dart';
 import 'core/exchange_api_client.dart';
 import 'core/exchange_session_controller.dart';
+import 'core/ios_push_token_provider.dart';
 import 'core/market_calendar_controller.dart';
 import 'core/market_detail_controller.dart';
 import 'core/market_index_controller.dart';
@@ -147,10 +148,12 @@ class _ExchangeShellState extends State<ExchangeShell> {
   late final MarketQuoteController _watchlistQuoteController;
   late final MarketQuoteController _portfolioQuoteController;
   late final NotificationController _notificationController;
+  final IosPushTokenProvider _pushTokenProvider = const IosPushTokenProvider();
   late final TaxController _taxController;
   late final WatchlistController _watchlistController;
   List<String> _recentSearches = List<String>.from(_initialRecentSearches);
   final Set<String> _favoriteStockCodes = <String>{};
+  String? _registeredPushIdentity;
 
   @override
   void initState() {
@@ -203,6 +206,12 @@ class _ExchangeShellState extends State<ExchangeShell> {
       baseUri: _environment.apiBaseUri,
       httpClient: _ownedHttpClient!,
       sessionProvider: () => _sessionController.session,
+      onUnauthorized: () {
+        if (_sessionController.session != null &&
+            _sessionController.value.status != ExchangeSessionStatus.loading) {
+          unawaited(_sessionController.refresh());
+        }
+      },
     );
   }
 
@@ -357,12 +366,40 @@ class _ExchangeShellState extends State<ExchangeShell> {
       _accountController.clear();
       _tradeController.clear();
       _watchlistController.clear();
+      _notificationController.clear();
+      _registeredPushIdentity = null;
       return;
+    }
+    if (_notificationController.value.inbox?.accountId != session.accountId) {
+      _notificationController.clear();
     }
     unawaited(_accountController.loadAccount(session.accountId));
     unawaited(_tradeController.loadPortfolio(session.accountId));
     unawaited(_watchlistController.load(session.accountId));
     unawaited(_notificationController.loadAlerts(accountId: session.accountId));
+    unawaited(_registerPushDevice(session.accountId));
+  }
+
+  Future<void> _registerPushDevice(String accountId) async {
+    final token = await _pushTokenProvider.requestToken();
+    if (token == null || _sessionController.session?.accountId != accountId) {
+      return;
+    }
+    final identity = '$accountId:$token';
+    if (_registeredPushIdentity == identity) {
+      return;
+    }
+    await _notificationController.registerPushDevice(
+      accountId: accountId,
+      platform: 'IOS',
+      provider: 'APNS_PUSH',
+      deviceToken: token,
+      appVersion: '0.1.0',
+      locale: WidgetsBinding.instance.platformDispatcher.locale.toLanguageTag(),
+    );
+    if (_notificationController.value.status != NotificationStatus.failure) {
+      _registeredPushIdentity = identity;
+    }
   }
 
   void _handleWatchlistStateChanged() {
@@ -437,7 +474,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
     unawaited(_setFavoriteStock(stockCode, nextIsFavorite));
   }
 
-  Future<void> _showNotificationPlaceholder() {
+  Future<void> _openNotifications() {
     return Navigator.of(context).push(
       PageRouteBuilder<void>(
         transitionDuration: const Duration(milliseconds: 280),
@@ -485,14 +522,6 @@ class _ExchangeShellState extends State<ExchangeShell> {
     );
   }
 
-  void _showAiPlaceholder() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('AI assistant entry is not included in this page scope.'),
-      ),
-    );
-  }
-
   void _openAccountsTabFromNestedFlow() {
     Navigator.of(context).popUntil((route) => route.isFirst);
     setState(() {
@@ -536,9 +565,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
       title: _selectedNavigationTitle,
       showBrandMark: true,
       showDefaultActions: true,
-      onAiTap: _showAiPlaceholder,
+      onAiTap: null,
       onSearchTap: _openSearch,
-      onNotificationTap: _showNotificationPlaceholder,
+      onNotificationTap: _openNotifications,
       hasUnreadNotifications:
           _notificationController.value.hasUnreadNotifications,
     );
@@ -603,7 +632,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
     return AppScaffold(
       appBar: _buildHeader(),
       bodySafeAreaBottom: false,
-      extendBody: _selectedIndex == 2,
+      extendBody: false,
       body: _buildIndexedBody(),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: _selectedIndex,

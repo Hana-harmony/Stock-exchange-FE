@@ -354,6 +354,7 @@ class _SearchLandingScreenState extends State<SearchLandingScreen> {
                       )
                     else if (_searchErrorMessage != null)
                       _ErrorStateCard(
+                        title: 'Search error',
                         message: _searchErrorMessage!,
                         onRetry: () => _runSearch(_query),
                       )
@@ -680,6 +681,7 @@ class _SearchResultScreenState extends State<SearchResultScreen> {
                     )
                   else if (_errorMessage != null)
                     _ErrorStateCard(
+                      title: 'Search error',
                       message: _errorMessage!,
                       onRetry: () => _submitQuery(_query),
                     )

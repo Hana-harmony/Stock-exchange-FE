@@ -35,18 +35,9 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     final currentInbox = widget.notificationController.value.inbox;
     final accountId = widget.accountId;
     final hasAccount = accountId != null && accountId.isNotEmpty;
-    final hasInbox =
-        currentInbox != null && currentInbox.notifications.isNotEmpty;
-    final isDemoInbox =
-        currentInbox != null && currentInbox.accountId == 'LOCAL-DEMO-ACCOUNT';
-
-    if (hasAccount && (!hasInbox || isDemoInbox)) {
+    if (hasAccount && currentInbox?.accountId != accountId) {
       await widget.notificationController.loadAlerts(accountId: accountId);
       return;
-    }
-
-    if (!hasInbox) {
-      widget.notificationController.ensureDemoInbox();
     }
   }
 
@@ -54,14 +45,18 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     if (!item.read) {
       final accountId = widget.accountId;
       final hasAccount = accountId != null && accountId.isNotEmpty;
-      if (item.isLocalOnly || !hasAccount) {
-        widget.notificationController.markReadLocally(item.notificationId);
-      } else {
+      if (hasAccount) {
         await widget.notificationController.markRead(
           accountId: accountId,
           notificationId: item.notificationId,
         );
       }
+    }
+
+    if (item.primaryStockCode.isNotEmpty) {
+      await widget.notificationController.loadStockIntelligenceFeed(
+        stockCode: item.primaryStockCode,
+      );
     }
 
     if (!mounted) {
@@ -113,6 +108,15 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
               animation: widget.notificationController,
               builder: (context, _) {
                 final state = widget.notificationController.value;
+                if (widget.accountId == null || widget.accountId!.isEmpty) {
+                  return const Padding(
+                    padding: AppInsets.compactScreen,
+                    child: _MutedInfoCard(
+                      title: 'Sign in to view notifications',
+                      body: 'Notifications are available after authentication.',
+                    ),
+                  );
+                }
                 final notifications = state.filteredNotifications;
 
                 if (state.status == NotificationStatus.loading &&
@@ -238,27 +242,6 @@ class _NotificationInboxHeader extends StatelessWidget {
                     fontWeight: FontWeight.w600,
                     color: AppColors.gray1000,
                   ),
-            ),
-          ),
-          _NotificationHeaderIconButton(
-            semanticLabel: 'Notification Search',
-            onTap: () {},
-            child: Image.asset(
-              AppAssets.headerSearch,
-              width: 24,
-              height: 24,
-              fit: BoxFit.contain,
-            ),
-          ),
-          const SizedBox(width: 4),
-          _NotificationHeaderIconButton(
-            semanticLabel: 'Notification Settings',
-            onTap: () {},
-            child: Image.asset(
-              AppAssets.settingsIcon,
-              width: 36,
-              height: 36,
-              fit: BoxFit.contain,
             ),
           ),
         ],
@@ -413,12 +396,6 @@ class _NotificationInboxCard extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         _StockNewsTargetBadge(label: item.targetLabel),
-                        const _StockNewsSentimentBadge(
-                          sentiment: _StockNewsSentiment.positive,
-                        ),
-                        const _StockNewsPriorityBadge(
-                          priority: _StockNewsPriority.high,
-                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -447,12 +424,6 @@ class _NotificationInboxCard extends StatelessWidget {
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 20),
-              const _StockNewsImage(
-                imageUrl: null,
-                width: 85,
-                height: 85,
               ),
             ],
           ),

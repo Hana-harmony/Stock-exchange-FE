@@ -100,13 +100,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
               padding: AppInsets.compactScreen,
               children: [
                 _ErrorStateCard(
+                  title: 'Account unavailable',
                   message: accountState.errorMessage ??
                       tradeState.errorMessage ??
                       'Unable to load your account.',
-                  onRetry: () {
-                    _requestedAccountId = null;
-                    _ensureAccountDataLoaded();
-                  },
                 ),
               ],
             ),
@@ -140,63 +137,45 @@ class _AccountsScreenState extends State<AccountsScreen> {
           color: AppColors.white,
           child: SafeArea(
             bottom: false,
-            child: Stack(
+            child: Column(
               children: [
-                Column(
-                  children: [
-                    _AccountsHeaderSection(
-                      snapshot: snapshot,
-                      selectedPrimaryTab: _selectedPrimaryTab,
-                      onPrimaryTabSelected: (index) {
-                        if (index > 1) {
-                          unawaited(
-                            _showComingSoonDialog(
-                              context,
-                              featureName:
-                                  _AccountsPrimaryTabs.labelForIndex(index),
-                            ),
-                          );
-                          return;
-                        }
-                        setState(() {
-                          _selectedPrimaryTab = index;
-                        });
-                      },
-                    ),
-                    SizedBox(
-                      height: 34,
-                      child: _AccountsAssetFilterTabs(
-                        selectedIndex: _selectedAssetFilter,
-                        onSelected: (index) {
-                          setState(() {
-                            _selectedAssetFilter = index;
-                          });
-                        },
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Expanded(
-                      child: _AccountsHoldingsSection(
-                        snapshot: snapshot,
-                        showAllocationChart: _selectedPrimaryTab == 1,
-                        selectedMarketScope: _selectedMarketScope,
-                        onMarketScopeSelected: (index) {
-                          setState(() {
-                            _selectedMarketScope = index;
-                          });
-                        },
-                      ),
-                    ),
-                  ],
+                _AccountsHeaderSection(
+                  snapshot: snapshot,
+                  selectedPrimaryTab: _selectedPrimaryTab,
+                  onDeposit: () => _showDepositFlow(session.accountId),
+                  onPrimaryTabSelected: (index) {
+                    setState(() {
+                      _selectedPrimaryTab = index;
+                    });
+                  },
                 ),
-                Positioned(
-                  left: 16,
-                  right: 16,
-                  bottom: 96,
-                  child: _TaxRefundEntryCard(
-                    taxState: widget.taxController.value,
-                    onTap: () => _openTaxRefundRequest(session.accountId),
+                SizedBox(
+                  height: 34,
+                  child: _AccountsAssetFilterTabs(
+                    selectedIndex: _selectedAssetFilter,
+                    onSelected: (index) {
+                      setState(() {
+                        _selectedAssetFilter = index;
+                      });
+                    },
                   ),
+                ),
+                const SizedBox(height: 16),
+                Expanded(
+                  child: _AccountsHoldingsSection(
+                    snapshot: snapshot,
+                    showAllocationChart: _selectedPrimaryTab == 1,
+                    selectedMarketScope: _selectedMarketScope,
+                    onMarketScopeSelected: (index) {
+                      setState(() {
+                        _selectedMarketScope = index;
+                      });
+                    },
+                  ),
+                ),
+                _TaxRefundEntryCard(
+                  taxState: widget.taxController.value,
+                  onTap: () => _openTaxRefundRequest(session.accountId),
                 ),
               ],
             ),
@@ -212,6 +191,214 @@ class _AccountsScreenState extends State<AccountsScreen> {
         builder: (context) => TaxRefundRequestScreen(
           accountId: accountId,
           taxController: widget.taxController,
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showDepositFlow(String accountId) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: AppColors.white,
+      builder: (context) => _DepositUsdSheet(
+        accountId: accountId,
+        accountController: widget.accountController,
+      ),
+    );
+  }
+}
+
+class _DepositUsdSheet extends StatefulWidget {
+  const _DepositUsdSheet({
+    required this.accountId,
+    required this.accountController,
+  });
+
+  final String accountId;
+  final AccountController accountController;
+
+  @override
+  State<_DepositUsdSheet> createState() => _DepositUsdSheetState();
+}
+
+class _DepositUsdSheetState extends State<_DepositUsdSheet> {
+  final _amountController = TextEditingController();
+  final _passwordController = TextEditingController();
+  final _amountFocusNode = FocusNode();
+  final _passwordFocusNode = FocusNode();
+  var _showPasswordStep = false;
+  var _submitting = false;
+  String? _errorMessage;
+
+  @override
+  void dispose() {
+    _amountController.dispose();
+    _passwordController.dispose();
+    _amountFocusNode.dispose();
+    _passwordFocusNode.dispose();
+    super.dispose();
+  }
+
+  double? get _amount =>
+      double.tryParse(_amountController.text.replaceAll(',', '').trim());
+
+  void _continueToPassword() {
+    final amount = _amount;
+    if (amount == null || amount <= 0) {
+      setState(() => _errorMessage = 'Enter an amount greater than USD 0.');
+      return;
+    }
+    setState(() {
+      _errorMessage = null;
+      _showPasswordStep = true;
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _passwordFocusNode.requestFocus();
+      }
+    });
+  }
+
+  Future<void> _submit() async {
+    final amount = _amount;
+    final password = _passwordController.text;
+    if (amount == null || amount <= 0 || password.length < 8) {
+      setState(() => _errorMessage = 'Enter your account password.');
+      return;
+    }
+    setState(() {
+      _submitting = true;
+      _errorMessage = null;
+    });
+    await widget.accountController.depositUsd(
+      accountId: widget.accountId,
+      amount: amount,
+      password: password,
+    );
+    _passwordController.clear();
+    if (!mounted) {
+      return;
+    }
+    final state = widget.accountController.value;
+    if (state.status == AccountStatus.loaded) {
+      Navigator.of(context).pop();
+      return;
+    }
+    setState(() {
+      _submitting = false;
+      _errorMessage = state.errorMessage ?? 'Unable to add USD.';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.gray300,
+                  borderRadius: BorderRadius.circular(99),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Text(
+              _showPasswordStep ? 'Confirm with password' : 'Add USD balance',
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.gray1000,
+                  ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              _showPasswordStep
+                  ? 'This confirms the simulated balance change on the exchange ledger.'
+                  : 'Enter the USD amount to add to your simulated trading balance.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: AppColors.gray600,
+                  ),
+            ),
+            const SizedBox(height: 20),
+            if (!_showPasswordStep)
+              TextField(
+                key: const ValueKey('deposit-amount-field'),
+                controller: _amountController,
+                focusNode: _amountFocusNode,
+                autofocus: true,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                textInputAction: TextInputAction.next,
+                onSubmitted: (_) => _continueToPassword(),
+                decoration: const InputDecoration(
+                  labelText: 'Amount',
+                  prefixText: 'USD ',
+                  border: OutlineInputBorder(),
+                ),
+              )
+            else
+              TextField(
+                key: const ValueKey('deposit-password-field'),
+                controller: _passwordController,
+                focusNode: _passwordFocusNode,
+                obscureText: true,
+                enableSuggestions: false,
+                autocorrect: false,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _submit(),
+                decoration: const InputDecoration(
+                  labelText: 'Account password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            if (_errorMessage != null) ...[
+              const SizedBox(height: 10),
+              Text(
+                _errorMessage!,
+                key: const ValueKey('deposit-error-message'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: AppColors.red500,
+                    ),
+              ),
+            ],
+            const SizedBox(height: 20),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: FilledButton(
+                key: const ValueKey('deposit-continue-button'),
+                onPressed: _submitting
+                    ? null
+                    : _showPasswordStep
+                        ? _submit
+                        : _continueToPassword,
+                style: _exchangePrimaryButtonStyle(
+                  backgroundColor: AppColors.orange500,
+                  radius: 8,
+                ),
+                child: _submitting
+                    ? const SizedBox.square(
+                        dimension: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.white,
+                        ),
+                      )
+                    : Text(_showPasswordStep ? 'Confirm Add USD' : 'Continue'),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -233,7 +420,7 @@ class _TaxRefundEntryCard extends StatelessWidget {
         taxState.refundCase?.status == 'SYNCED_WITH_HANA' ||
         taxState.refundCase?.status == 'ADVANCE_PAID';
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: Material(
         key: const ValueKey('tax-refund-entry-card'),
         color: AppColors.gray50,
@@ -310,11 +497,13 @@ class _AccountsHeaderSection extends StatelessWidget {
   const _AccountsHeaderSection({
     required this.snapshot,
     required this.selectedPrimaryTab,
+    required this.onDeposit,
     required this.onPrimaryTabSelected,
   });
 
   final _AccountsScreenSnapshot snapshot;
   final int selectedPrimaryTab;
+  final VoidCallback onDeposit;
   final ValueChanged<int> onPrimaryTabSelected;
 
   @override
@@ -326,7 +515,7 @@ class _AccountsHeaderSection extends StatelessWidget {
           onSelected: onPrimaryTabSelected,
         ),
         _AccountsAccountSelector(accountLabel: snapshot.accountLabel),
-        _AccountsSummaryCard(snapshot: snapshot),
+        _AccountsSummaryCard(snapshot: snapshot, onDeposit: onDeposit),
       ],
     );
   }
@@ -377,19 +566,9 @@ class _AccountsPrimaryTabs extends StatelessWidget {
   static const _tabs = <String>[
     'Assets',
     'Portfolio',
-    'Domestic Stocks',
-    'International Stocks',
-    'Investment Returns',
   ];
 
-  static const _widths = <double>[56, 72, 138, 164, 160];
-
-  static String labelForIndex(int index) {
-    if (index < 0 || index >= _tabs.length) {
-      return 'This service';
-    }
-    return _tabs[index];
-  }
+  static const _widths = <double>[56, 72];
 
   final int selectedIndex;
   final ValueChanged<int> onSelected;
@@ -480,9 +659,11 @@ class _AccountsAccountSelector extends StatelessWidget {
 class _AccountsSummaryCard extends StatelessWidget {
   const _AccountsSummaryCard({
     required this.snapshot,
+    required this.onDeposit,
   });
 
   final _AccountsScreenSnapshot snapshot;
+  final VoidCallback onDeposit;
 
   @override
   Widget build(BuildContext context) {
@@ -517,15 +698,37 @@ class _AccountsSummaryCard extends StatelessWidget {
                       color: AppColors.gray600,
                     ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                snapshot.totalAssetsDisplay,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontSize: 22,
-                      height: 31 / 22,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.white,
+              const SizedBox(height: 2),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      snapshot.totalAssetsDisplay,
+                      style:
+                          Theme.of(context).textTheme.headlineSmall?.copyWith(
+                                fontSize: 22,
+                                height: 31 / 22,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.white,
+                              ),
                     ),
+                  ),
+                  SizedBox(
+                    height: 32,
+                    child: FilledButton.icon(
+                      key: const ValueKey('accounts-deposit-button'),
+                      onPressed: onDeposit,
+                      style: FilledButton.styleFrom(
+                        backgroundColor: AppColors.orange500,
+                        foregroundColor: AppColors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        visualDensity: VisualDensity.compact,
+                      ),
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Add USD'),
+                    ),
+                  ),
+                ],
               ),
               Row(
                 mainAxisSize: MainAxisSize.min,

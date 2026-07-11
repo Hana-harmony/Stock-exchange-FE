@@ -1,6 +1,5 @@
 abstract final class AppAssets {
   static const logo = 'assets/images/logo.png';
-  static const placeholder = 'assets/images/placeholder.png';
 
   static const logoSymbol = 'assets/icons/logo_symbol.png';
   static const headerAiIcon = 'assets/icons/header_icon_ai.png';
