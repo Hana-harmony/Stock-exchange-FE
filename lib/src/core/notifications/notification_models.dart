@@ -57,6 +57,9 @@ class NotificationItem {
     required this.summary,
     required this.originalUrl,
     required this.primaryStockCode,
+    required this.imageUrls,
+    required this.sentiment,
+    required this.importance,
     required this.matchedStockCodes,
     required this.matchReasons,
     required this.glossaryTerms,
@@ -80,6 +83,9 @@ class NotificationItem {
   final String summary;
   final String originalUrl;
   final String primaryStockCode;
+  final List<String> imageUrls;
+  final String sentiment;
+  final String importance;
   final List<String> matchedStockCodes;
   final List<String> matchReasons;
   final List<AlertGlossaryTerm> glossaryTerms;
@@ -92,6 +98,8 @@ class NotificationItem {
   final bool read;
   final DateTime? createdAt;
   final DateTime? readAt;
+
+  String? get imageUrl => imageUrls.isEmpty ? null : imageUrls.first;
 
   String get targetLabel {
     if (matchReasons.contains('HOLDER') || matchReasons.contains('PORTFOLIO')) {
@@ -132,6 +140,9 @@ class NotificationItem {
       summary: _string(json['summary'], fallback: ''),
       originalUrl: _string(json['originalUrl'], fallback: ''),
       primaryStockCode: _string(json['primaryStockCode'], fallback: ''),
+      imageUrls: _stringList(json['imageUrls']),
+      sentiment: _string(json['sentiment'], fallback: 'NEUTRAL'),
+      importance: _string(json['importance'], fallback: 'LOW'),
       matchedStockCodes: _stringList(json['matchedStockCodes']),
       matchReasons: _stringList(json['matchReasons']),
       glossaryTerms: _glossaryTerms(json['glossaryTerms']),
@@ -162,6 +173,9 @@ class NotificationItem {
       summary: summary,
       originalUrl: originalUrl,
       primaryStockCode: primaryStockCode,
+      imageUrls: imageUrls,
+      sentiment: sentiment,
+      importance: importance,
       matchedStockCodes: matchedStockCodes,
       matchReasons: matchReasons,
       glossaryTerms: glossaryTerms,

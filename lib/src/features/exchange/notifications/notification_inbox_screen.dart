@@ -6,6 +6,8 @@ class NotificationInboxScreen extends StatefulWidget {
     required this.notificationController,
     required this.accountId,
     required this.selectedNavigationIndex,
+    required this.webPushSupported,
+    required this.onEnableWebPush,
     required this.onClose,
     required this.onNavigationSelected,
   });
@@ -13,6 +15,8 @@ class NotificationInboxScreen extends StatefulWidget {
   final NotificationController notificationController;
   final String? accountId;
   final int selectedNavigationIndex;
+  final bool webPushSupported;
+  final Future<bool> Function() onEnableWebPush;
   final VoidCallback onClose;
   final ValueChanged<int> onNavigationSelected;
 
@@ -22,6 +26,8 @@ class NotificationInboxScreen extends StatefulWidget {
 }
 
 class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
+  var _enablingWebPush = false;
+
   @override
   void initState() {
     super.initState();
@@ -83,6 +89,27 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
     );
   }
 
+  Future<void> _enableWebPush() async {
+    if (_enablingWebPush) {
+      return;
+    }
+    setState(() => _enablingWebPush = true);
+    final enabled = await widget.onEnableWebPush();
+    if (!mounted) {
+      return;
+    }
+    setState(() => _enablingWebPush = false);
+    if (!enabled) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Browser notifications require permission and a configured Web Push key.',
+          ),
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final topInset = MediaQuery.paddingOf(context).top;
@@ -92,7 +119,22 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
       child: Column(
         children: [
           SizedBox(height: topInset),
-          _NotificationInboxHeader(onClose: widget.onClose),
+          AnimatedBuilder(
+            animation: widget.notificationController,
+            builder: (context, _) {
+              final hasActiveWebPush = widget
+                      .notificationController.value.devices?.devices
+                      .any((device) =>
+                          device.active && device.provider == 'WEB_PUSH') ??
+                  false;
+              return _NotificationInboxHeader(
+                onClose: widget.onClose,
+                showWebPushAction: widget.webPushSupported && !hasActiveWebPush,
+                enablingWebPush: _enablingWebPush,
+                onEnableWebPush: _enableWebPush,
+              );
+            },
+          ),
           AnimatedBuilder(
             animation: widget.notificationController,
             builder: (context, _) {
@@ -211,9 +253,15 @@ StockIntelligenceItem? _findNotificationIntelligenceItem(
 class _NotificationInboxHeader extends StatelessWidget {
   const _NotificationInboxHeader({
     required this.onClose,
+    required this.showWebPushAction,
+    required this.enablingWebPush,
+    required this.onEnableWebPush,
   });
 
   final VoidCallback onClose;
+  final bool showWebPushAction;
+  final bool enablingWebPush;
+  final VoidCallback onEnableWebPush;
 
   @override
   Widget build(BuildContext context) {
@@ -244,6 +292,25 @@ class _NotificationInboxHeader extends StatelessWidget {
                   ),
             ),
           ),
+          if (showWebPushAction)
+            _NotificationHeaderIconButton(
+              semanticLabel: 'Enable browser notifications',
+              onTap: onEnableWebPush,
+              child: enablingWebPush
+                  ? const SizedBox.square(
+                      dimension: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        color: AppColors.orange500,
+                      ),
+                    )
+                  : Image.asset(
+                      AppAssets.settingsIcon,
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.contain,
+                    ),
+            ),
         ],
       ),
     );
@@ -294,35 +361,39 @@ class _NotificationInboxTabBar extends StatelessWidget {
       height: 41,
       width: double.infinity,
       child: Padding(
-        padding: const EdgeInsets.only(left: 12, top: 10),
+        padding: const EdgeInsets.only(left: 12, right: 12, top: 10),
         child: Align(
           alignment: Alignment.topLeft,
-          child: SizedBox(
-            width: 234,
-            height: 31,
-            child: Row(
-              children: [
-                _NotificationFilterTab(
-                  filter: NotificationFilter.all,
-                  width: 22,
-                  isSelected: selectedFilter == NotificationFilter.all,
-                  onTap: () => onSelected(NotificationFilter.all),
-                ),
-                const SizedBox(width: 18),
-                _NotificationFilterTab(
-                  filter: NotificationFilter.portfolio,
-                  width: 100,
-                  isSelected: selectedFilter == NotificationFilter.portfolio,
-                  onTap: () => onSelected(NotificationFilter.portfolio),
-                ),
-                const SizedBox(width: 18),
-                _NotificationFilterTab(
-                  filter: NotificationFilter.watchlist,
-                  width: 76,
-                  isSelected: selectedFilter == NotificationFilter.watchlist,
-                  onTap: () => onSelected(NotificationFilter.watchlist),
-                ),
-              ],
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            physics: const ClampingScrollPhysics(),
+            child: SizedBox(
+              width: 266,
+              height: 31,
+              child: Row(
+                children: [
+                  _NotificationFilterTab(
+                    filter: NotificationFilter.all,
+                    width: 30,
+                    isSelected: selectedFilter == NotificationFilter.all,
+                    onTap: () => onSelected(NotificationFilter.all),
+                  ),
+                  const SizedBox(width: 18),
+                  _NotificationFilterTab(
+                    filter: NotificationFilter.portfolio,
+                    width: 112,
+                    isSelected: selectedFilter == NotificationFilter.portfolio,
+                    onTap: () => onSelected(NotificationFilter.portfolio),
+                  ),
+                  const SizedBox(width: 18),
+                  _NotificationFilterTab(
+                    filter: NotificationFilter.watchlist,
+                    width: 88,
+                    isSelected: selectedFilter == NotificationFilter.watchlist,
+                    onTap: () => onSelected(NotificationFilter.watchlist),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -396,6 +467,12 @@ class _NotificationInboxCard extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         _StockNewsTargetBadge(label: item.targetLabel),
+                        _StockNewsSentimentBadge(
+                          sentiment: _sentimentFromString(item.sentiment),
+                        ),
+                        _StockNewsPriorityBadge(
+                          priority: _priorityFromStrings(item.importance, ''),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 4),
@@ -424,6 +501,12 @@ class _NotificationInboxCard extends StatelessWidget {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(width: 12),
+              _StockNewsImage(
+                imageUrl: item.imageUrl,
+                width: 85,
+                height: 85,
               ),
             ],
           ),

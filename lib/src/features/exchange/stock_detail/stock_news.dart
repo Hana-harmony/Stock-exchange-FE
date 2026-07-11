@@ -172,6 +172,9 @@ class _StockNewsTabState extends State<_StockNewsTab> {
             primaryStockCode: sourceItem.primaryStockCode.isNotEmpty
                 ? sourceItem.primaryStockCode
                 : widget.stockCode,
+            imageUrls: sourceItem.imageUrls,
+            sentiment: sourceItem.sentiment,
+            importance: sourceItem.importance,
             matchedStockCodes: sourceItem.relatedStocks.isEmpty
                 ? [widget.stockCode]
                 : sourceItem.relatedStocks,

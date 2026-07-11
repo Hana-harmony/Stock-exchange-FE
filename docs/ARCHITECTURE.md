@@ -1,14 +1,14 @@
 # 아키텍처
 
 ## 목적
-- Flutter 기반 iOS/Android 영어 MTS 앱으로 현지 투자자가 모든 한국 상장주식 정보를 이해하고, USD 기준 모의 주문을 실행하고, 보유/관심 종목의 뉴스·공시를 빠르게 확인하도록 화면을 제공한다.
+- Flutter Web 영어 MTS로 현지 투자자가 모든 한국 상장주식 정보를 이해하고, USD 기준 모의 주문을 실행하고, 보유/관심 종목의 뉴스·공시를 빠르게 확인하도록 화면을 제공한다.
 - 세무 서류 제출과 환급/선지급 상태를 단계별로 안내한다.
 
 ## 플랫폼 경계
-- 운영 앱은 Flutter 기반 iOS/Android 앱이다.
+- 운영 앱은 Flutter Web이며 최대 430px 앱 viewport를 사용한다.
 - Stock-exchange-FE는 Stock-exchange-BE API와 WebSocket만 호출한다.
 - Hana-OmniLens-API, Hannah-Montana-AI, KIS/KRX/FX provider는 모바일 앱에서 직접 호출하지 않는다.
-- Flutter Web은 운영 대상이 아니며, 필요 시 내부 QA/데모 용도로만 별도 검토한다.
+- push는 service worker와 표준 Push API를 사용한다. 웹 전용 배포에서는 APNs를 사용하지 않는다.
 - 기본 사용자 언어는 English, 기본 표시·충전·모의 주문 화폐는 USD다.
 
 ## 화면 구성
@@ -31,7 +31,7 @@
 7. 회원가입은 아이디/비밀번호만 받고, 가입 후 mock USD 계좌와 충전 화면을 제공한다.
 8. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 실제 주문이 아닌 자체 mock 거래임을 표시한다.
 9. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
-10. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. 종목 상세 News 탭은 목록에서 제목, 이미지, What/Why/Impact 요약을 보여주고 상세에서 원문/번역 전문과 원문 링크를 제공한다. 앱은 계좌별 push device token 등록/비활성화 REST 계약과 notification delivery provider/status/attempt/read 상태도 표시한다.
+10. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. 알림 카드는 target, 감성, 중요도, 썸네일을 서버 데이터로 표시한다. Notifications 화면의 사용자 동작으로 Web Push 권한을 요청하고 전체 subscription을 계좌에 등록한다.
 11. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
 
 ## 현재 구현 상태
@@ -61,4 +61,4 @@
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic tick을 quote list에 병합한다.
 - Tax 화면은 bearer auth session의 accountId로 tax document multipart upload, refund case 생성, Hana status sync, refund status 조회를 실행하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.
-- iOS/Android 플랫폼 target 디렉터리와 앱 ID, display name, Android network/push 권한, iOS Runner/Podfile 기본 설정이 존재한다.
+- `web/push-sw.js`가 백그라운드 알림 표시와 클릭 시 앱 focus/open을 처리하며, Flutter release web build가 운영 산출물이다.

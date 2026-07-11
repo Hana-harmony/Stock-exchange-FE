@@ -193,7 +193,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
     }
   }
 
-  Future<void> registerPushDevice({
+  Future<bool> registerPushDevice({
     required String? accountId,
     required String platform,
     required String provider,
@@ -206,7 +206,7 @@ class NotificationController extends ValueNotifier<NotificationState> {
       errorMessage: 'Sign in to register this device.',
     );
     if (resolvedAccountId == null) {
-      return;
+      return false;
     }
 
     try {
@@ -219,10 +219,13 @@ class NotificationController extends ValueNotifier<NotificationState> {
         locale: locale,
       );
       _upsertDevice(NotificationDevice.fromJson(response.data ?? {}));
+      return true;
     } on ExchangeApiException catch (error) {
       _setFailure(error.message);
+      return false;
     } on Object {
       _setFailure('Unable to register this device.');
+      return false;
     }
   }
 

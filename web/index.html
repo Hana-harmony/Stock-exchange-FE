@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <base href="$FLUTTER_BASE_HREF">
+  <meta charset="UTF-8">
+  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
+  <meta name="description" content="Hana Local Exchange">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <link rel="manifest" href="manifest.json">
+  <title>Hana Local Exchange</title>
+</head>
+<body>
+  <script>
+    function urlBase64ToUint8Array(value) {
+      const padding = '='.repeat((4 - value.length % 4) % 4);
+      const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/');
+      const raw = window.atob(base64);
+      return Uint8Array.from([...raw].map((character) => character.charCodeAt(0)));
+    }
+
+    async function pushRegistration() {
+      return navigator.serviceWorker.register('push-sw.js', {scope: './'});
+    }
+
+    window.hanaWebPush = {
+      isSupported() {
+        return window.isSecureContext &&
+          'serviceWorker' in navigator &&
+          'PushManager' in window &&
+          'Notification' in window;
+      },
+      async getExistingSubscription() {
+        if (!this.isSupported() || Notification.permission !== 'granted') {
+          return null;
+        }
+        const registration = await pushRegistration();
+        const subscription = await registration.pushManager.getSubscription();
+        return subscription ? JSON.stringify(subscription.toJSON()) : null;
+      },
+      async requestSubscription(vapidPublicKey) {
+        if (!this.isSupported() || !vapidPublicKey) {
+          return null;
+        }
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') {
+          return null;
+        }
+        const registration = await pushRegistration();
+        const existing = await registration.pushManager.getSubscription();
+        const subscription = existing || await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+        return JSON.stringify(subscription.toJSON());
+      },
+    };
+  </script>
+  <script src="flutter_bootstrap.js" async></script>
+</body>
+</html>
