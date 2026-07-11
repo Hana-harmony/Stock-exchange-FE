@@ -1,261 +1,38 @@
-# Flutter + Figma MCP 개발 지침
+# Flutter·Figma 작업 기준
 
-## 최종 목표
+## 작업 전
 
-Flutter 앱을 **Figma를 기준으로 처음부터 구현**한다.
+1. Figma node URL과 대상 화면 크기를 확인한다.
+2. `.agents/docs/current-feature-inventory.md`에서 유지할 기능 ID와 controller·API 배선을 확인한다.
+3. Figma의 component, variable, auto layout, typography, spacing, icon과 상태 variant를 읽는다.
+4. 기존 `exchange_styles.dart`, `exchange_shared_widgets.dart`와 화면별 공통 widget을 먼저 찾는다.
 
-Figma가 유일한 UI 명세(Single Source of Truth)이며, 디자인에 대한 추측이나 임의 해석 없이 최대한 동일하게 구현한다.
+## 구현 기준
 
-기존 Flutter 코드는 참고만 가능하며, 구현 기준은 아니다.
+- Figma component hierarchy와 auto layout 의도를 Flutter widget·Row·Column·Flex·constraint로 옮긴다.
+- 고정 좌표는 장식 요소에만 사용한다. 화면 구조는 SafeArea, scroll, keyboard inset과 text scale을 지원한다.
+- 색상·간격·radius·typography는 기존 token을 재사용하고 반복되는 새 값은 token으로 승격한다.
+- SVG·PNG·font는 저장소 asset을 우선 사용한다. 임시 emoji, placeholder icon과 임의 원격 이미지를 추가하지 않는다.
+- 기존 REST/WebSocket 기능, loading·empty·error·stale·reconnect 상태와 접근성 semantics를 유지한다.
+- 주가·위험·세무 상태는 색상 외에 텍스트·아이콘·부호를 함께 제공한다.
+- API key, token, 실제 계정·파일명·거래값을 Figma fixture나 코드 예시에 넣지 않는다.
 
----
+## 컴포넌트 경계
 
-## 구현 원칙
+- 셸과 controller 주입: `lib/src/app.dart`
+- 디자인 token: `lib/src/features/exchange/shared/exchange_styles.dart`
+- 공통 widget: `lib/src/features/exchange/shared/exchange_shared_widgets.dart`
+- 화면 전용 widget: 해당 `lib/src/features/exchange/<feature>/` 디렉터리
 
-### 1. Figma 우선 원칙
+리디자인으로 기능 위치가 바뀌면 기능 ID는 유지하고 `.agents/docs/current-feature-inventory.md`의 화면 위치를 갱신한다.
 
-구현 전에 반드시 Figma MCP를 통해 아래 내용을 먼저 확인한다.
+## 검증과 보고
 
-- Frame 구조
-- Auto Layout
-- Component
-- Variant
-- Variables
-- Style
-- Token
-- Prototype
-- Interaction
-- Constraint
-- Naming
-
-Figma에 존재하는 정보가 항상 우선한다.
-
-모르는 부분이 있으면 추측하지 말고 보고한다.
-
----
-
-### 2. Pixel Perfect 구현
-
-다음 항목을 최대한 동일하게 구현한다.
-
-- 색상
-- Typography
-- Font Weight
-- Font Size
-- Line Height
-- Letter Spacing
-- Radius
-- Border
-- Shadow
-- Opacity
-- Padding
-- Margin
-- Gap
-- Icon Size
-- Safe Area
-- Status Bar
-- Navigation Bar
-- Bottom Sheet
-- Dialog
-- Animation
-
-"비슷하게" 구현하지 않는다.
-
----
-
-### 3. Auto Layout 반영
-
-Figma Auto Layout을 Flutter Widget 구조에 그대로 대응시킨다.
-
-가능한 한 구조까지 동일하게 구현한다.
-
-예시
-
-- Vertical → Column
-- Horizontal → Row
-- Wrap → Wrap
-- Gap → SizedBox
-- Fill → Expanded
-- Hug → MainAxisSize.min
-- Padding → Padding
-- Scroll → ListView / CustomScrollView
-
-Absolute Position은 디자인상 반드시 필요한 경우에만 사용한다.
-
----
-
-### 4. 디자인 토큰 우선
-
-직접 값을 작성하지 않는다.
-
-반드시 Figma Variable 또는 Style을 우선 사용한다.
-
-금지
-
-- Hex 직접 입력
-- Radius 직접 입력
-- FontSize 직접 입력
-- Shadow 직접 입력
-
-토큰이 없다면 공통 Theme로 분리한다.
-
----
-
-### 5. 컴포넌트 재사용
-
-새 Widget을 만들기 전에 Figma Component를 먼저 확인한다.
-
-동일 Component가 있다면 그대로 구현한다.
-
-Variant가 있다면 Flutter에서도 하나의 Widget으로 관리한다.
-
-예시
-
-- PrimaryButton
-- SecondaryButton
-- TextField
-- Card
-- BottomNavigation
-- SearchBar
-- Chip
-- Badge
-- Dialog
-
-동일 UI를 여러 번 구현하지 않는다.
-
----
-
-### 6. Flutter 구현 원칙
-
-화면마다 스타일을 직접 작성하지 않는다.
-
-공통 Theme와 Widget을 우선 사용한다.
-
-가능한 구조
-
-```
-theme/
-    app_colors.dart
-    app_text_styles.dart
-    app_spacing.dart
-    app_radius.dart
-    app_theme.dart
-
-widgets/
-    buttons/
-    cards/
-    inputs/
-    dialogs/
-    navigation/
+```bash
+dart format --output=none --set-exit-if-changed lib test
+flutter analyze
+flutter test
+flutter build ios --simulator --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 ```
 
----
-
-### 7. 반응형
-
-우선 기준
-
-- iPhone 16 Pro
-
-이후
-
-- 작은 화면에서도 Overflow 발생 금지
-- SafeArea 적용
-- Keyboard 대응
-- Bottom Navigation 겹침 방지
-
----
-
-### 8. 기능 구현
-
-UI 구현 중 API 명세가 있다면 그대로 사용한다.
-
-명세가 없다면 임의 구현하지 않는다.
-
-필요하면 TODO와 함께 보고한다.
-
----
-
-### 9. 네이밍
-
-Figma Layer 이름이 아니라 **역할 중심**으로 작성한다.
-
-좋은 예
-
-- ActivityCard
-- SearchBar
-- UserProfileHeader
-- ReviewCard
-- FilterChip
-- ReportCard
-
-나쁜 예
-
-- Container1
-- Frame13
-- Widget2
-- TempButton
-
----
-
-### 10. 금지사항
-
-금지
-
-- Figma와 다른 디자인 적용
-- 임의 여백 변경
-- 임의 색상 사용
-- 임의 Typography 사용
-- 임의 Radius 사용
-- 동일 Widget 중복 구현
-- Component 무시
-- Variant 무시
-- Absolute Position 남용
-- 하드코딩 스타일 작성
-
----
-
-## 구현 완료 후 보고
-
-반드시 아래 내용을 보고한다.
-
-### 변경한 화면
-
-- 화면명
-- 대응 Figma Frame
-
-### 생성한 Widget
-
-- Widget명
-- 사용 화면
-
-### 재사용한 Figma Component
-
-- Component명
-- Variant
-
-### 새로 만든 Theme
-
-- Color
-- Typography
-- Radius
-- Shadow
-- Spacing
-
-### 구현하지 못한 부분
-
-- 이유
-- 필요한 정보
-- 제안사항
-
----
-
-## 최종 체크리스트
-
-- Figma와 시각적으로 거의 동일한가
-- Component를 재사용했는가
-- Variant를 모두 구현했는가
-- Theme를 사용했는가
-- 하드코딩 스타일이 없는가
-- Overflow가 없는가
-- Pixel Perfect 수준으로 구현되었는가
+PR에는 대상 Figma node, 변경 화면, 재사용·추가한 component/token, 유지한 기능 ID, 자동·Simulator 검증과 남은 시각 차이를 기록한다. 픽셀 비교보다 기능·접근성·반응형 회귀를 우선 차단한다.

@@ -1,61 +1,19 @@
-# 구현 로드맵
+# 품질 로드맵
 
-전체 구현 순서와 단계별 완료 기준은 `docs/IMPLEMENTATION_SEQUENCE.md`를 따른다.
+## 현재 운영 기준
 
-## M1 프론트엔드 하네스
-- Flutter 앱 scaffold: Done
-- iOS target 설정: Done
-- Android target 설정: Done
-- 라우팅과 전역 레이아웃: Done
-- API client와 인증 세션 controller 연동: Done
-- token secure storage 기반 session 보관: Done
-- English 기본 UI와 USD 표시/충전 기준: Done
-- 디자인 토큰과 공통 컴포넌트: Done
-- Flutter lint와 widget test 하네스: Done; device integration smoke는 LOCAL_APP_TESTING 절차에서 검증
+- iOS/Android 셸, 인증·secure storage, 시장·검색·종목 상세·watchlist·계좌 화면을 구현했다.
+- REST snapshot과 WebSocket 시세, stale·재연결, 차트·호가·글로벌 피어·주문 제한을 표시한다.
+- 뉴스·공시 목록·상세, What/Why/Impact, 번역 상태, glossary와 알림함을 제공한다.
+- 거주자 증명서·아포스티유·제한세율 적용신청서를 native file picker로 순차 업로드하고 OCR 진행·검증·환급 상태를 표시한다.
+- controller·API client·parsing 단위 테스트와 핵심 widget test를 CI에서 실행한다.
 
-## M2 시장/주문 화면
-- 종목 검색: Done
-- 전체/시장별 종목 REST snapshot 시세 목록: Done
-- watchlist/보유종목 REST snapshot 시세 목록: Done
-- Market WebSocket 시세 목록과 tick 반영: Done
-- watchlist/보유종목 WebSocket 시세 목록: Done
-- 실시간 시세 WebSocket 구독과 복구 UI: Done for quote subscription, reconnect status, live stale display, and REST refresh action; replay/backpressure hardening remains backend scope
-- WebSocket 재연결, stale 표시, REST snapshot refresh: Done
-- KRW 가격과 USD 환산 가격 동시 표시: Done
-- 적용 환율 기준시각/출처와 stale 상태 UI: Done
-- 과거 시세 차트: Done
-- 종목 상세 현재가/호가: Done
-- 외국인 보유율 게이지: Done
-- 당일 예측 boundary: Done
-- VI/상·하한가 배지: Done
-- 아이디/비밀번호 회원가입·로그인 form과 mock USD 계좌 화면: Done
-- 실제 결제 없는 달러 충전 화면: Done
-- 자체 mock ledger 모의 주문 패드와 제한 안내 팝업: Done
-- 매도 실현손익 표시: Done
+## 다음 품질 기준
 
-## M3 뉴스·공시 인텔리전스
-- K-News 탭: Done
-- 이벤트 태그, 감성, 중요도, 리스크 chip 표시: Done
-- 원문 링크 표시: Done
-- full-content news v2: What/Why/Impact 요약, 이미지 썸네일, 원문/번역 전문 preview Done
-- AI 번역 glossary와 quality flag chip 표시: Done
-- 통합 알림함과 필터: Done
-- Push device 등록·조회·비활성화 UI: Done
-- 실시간 push/reconnect 상태 UI: Done for delivery provider/status/attempt/read timeline
+- iPhone·Android 주요 화면 크기, Dynamic Type·text scale, screen reader와 색상 대비 접근성을 검증한다.
+- 실기기에서 secure storage, file picker, 네트워크 전환, background·resume과 WebSocket 재연결을 검증한다.
+- 인증→검색→상세→mock 주문, 알림 원문, 세무 3문서 업로드→환급 신청의 integration test를 구축한다.
+- 민감 파일명·계정·거래 정보가 crash report, analytics와 화면 캡처용 fixture에 노출되지 않게 점검한다.
+- App Store·Play Store 서명, privacy manifest, 데이터 보존·삭제 안내와 release rollback 절차를 확정한다.
 
-## M4 세무 환급 화면
-- 서류 업로드와 파일 validation: Done for Stock-exchange-BE multipart metadata upload from Tax UI; native file picker hardening remains
-- 단계별 상태 타임라인: Done
-- 환급 대상 안내와 정산 상세: Done
-- 정부 검증 상태와 참조 번호 표시: Done
-- 국세/지방세 환급 금액 비중 시각화: Done
-- 매도 실현손익 기반 환급 입력 데이터 확인: Done
-- 환급 신청: Done
-- 선지급 완료 영수증과 사후 환수 리스크 고지: Done
-
-## M5 품질/운영
-- 접근성 점검
-- 모바일 viewport QA
-- API 오류/빈 상태 처리
-- E2E 테스트
-- 민감정보 마스킹 점검
+기능 완료 기준은 로딩·빈 상태·오류·stale 상태, 접근성, 자동 테스트와 실기기 결과를 포함한다.
