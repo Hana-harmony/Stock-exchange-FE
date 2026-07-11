@@ -171,23 +171,27 @@ class ExchangeApiException implements Exception {
 }
 
 typedef AuthSessionProvider = AuthSession? Function();
+typedef UnauthorizedHandler = void Function();
 
 class ExchangeApiClient {
   ExchangeApiClient({
     required Uri baseUri,
     required http.Client httpClient,
     AuthSessionProvider? sessionProvider,
+    UnauthorizedHandler? onUnauthorized,
     Duration requestTimeout = const Duration(seconds: 30),
     Duration uploadTimeout = const Duration(seconds: 60),
   })  : _baseUri = baseUri,
         _httpClient = httpClient,
         _sessionProvider = sessionProvider ?? (() => null),
+        _onUnauthorized = onUnauthorized,
         _requestTimeout = requestTimeout,
         _uploadTimeout = uploadTimeout;
 
   final Uri _baseUri;
   final http.Client _httpClient;
   final AuthSessionProvider _sessionProvider;
+  final UnauthorizedHandler? _onUnauthorized;
   final Duration _requestTimeout;
   final Duration _uploadTimeout;
 
@@ -248,10 +252,11 @@ class ExchangeApiClient {
   Future<ApiEnvelope<Map<String, dynamic>>> depositUsd({
     required String accountId,
     required num amount,
+    required String password,
   }) {
     return post<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/deposits',
-      body: {'amountUsd': amount},
+      body: {'amountUsd': amount, 'password': password},
     );
   }
 
@@ -851,8 +856,13 @@ class ExchangeApiClient {
     final envelope = ApiEnvelope.fromJson<T>(decoded, decodeData);
 
     if (response.statusCode >= 400 || !envelope.success) {
+      final status =
+          envelope.status == 0 ? response.statusCode : envelope.status;
+      if (status == 401) {
+        _onUnauthorized?.call();
+      }
       throw ExchangeApiException(
-        status: envelope.status == 0 ? response.statusCode : envelope.status,
+        status: status,
         code: envelope.code,
         message: _errorMessage(envelope),
         errors: envelope.errors,

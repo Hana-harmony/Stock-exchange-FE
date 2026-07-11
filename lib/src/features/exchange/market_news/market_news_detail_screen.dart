@@ -35,13 +35,13 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
 
   Future<MarketNewsItem> _loadDetail() async {
     if (widget.item.newsId.isEmpty) {
-      return widget.item;
+      throw const ExchangeApiException(
+        status: 422,
+        code: 'NEWS_DETAIL_ID_MISSING',
+        message: 'The news detail identifier is missing.',
+      );
     }
-    try {
-      return await widget.marketNewsController.loadDetail(widget.item.newsId);
-    } on Object {
-      return widget.item;
-    }
+    return widget.marketNewsController.loadDetail(widget.item.newsId);
   }
 
   @override
@@ -62,9 +62,24 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
               Expanded(
                 child: FutureBuilder<MarketNewsItem>(
                   future: _detailFuture,
-                  initialData: widget.item,
                   builder: (context, snapshot) {
-                    final item = snapshot.data ?? widget.item;
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.orange500,
+                        ),
+                      );
+                    }
+                    if (snapshot.hasError || snapshot.data == null) {
+                      return const Padding(
+                        padding: AppInsets.compactScreen,
+                        child: _MutedInfoCard(
+                          title: 'Unable to load article',
+                          body: 'The translated article could not be loaded.',
+                        ),
+                      );
+                    }
+                    final item = snapshot.data!;
                     final detail =
                         _NotificationArticleDetailData.fromMarketNews(item);
                     return Stack(
@@ -90,13 +105,6 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
                                         _NotificationArticleHeroImage(
                                           imageUrl: detail.imageUrl,
                                         ),
-                                        if (snapshot.connectionState ==
-                                            ConnectionState.waiting)
-                                          const LinearProgressIndicator(
-                                            minHeight: 2,
-                                            color: AppColors.orange500,
-                                            backgroundColor: AppColors.surface,
-                                          ),
                                         const SizedBox(height: 20),
                                         Padding(
                                           padding: const EdgeInsets.symmetric(

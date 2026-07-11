@@ -43,7 +43,6 @@ part 'shared/stock_logo_assets.dart';
 part 'shared/exchange_time_format.dart';
 part 'shared/exchange_shared_widgets.dart';
 part 'shared/exchange_styles.dart';
-part 'shared/placeholder_screen.dart';
 part 'stock_detail/models/stock_detail_snapshot.dart';
 part 'stock_detail/stock_order_entry_screen.dart';
 part 'stock_detail/models/stock_news_models.dart';

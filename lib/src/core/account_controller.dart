@@ -110,6 +110,7 @@ class AccountController extends ValueNotifier<AccountState> {
   Future<void> depositUsd({
     required String? accountId,
     required num amount,
+    required String password,
   }) async {
     if (accountId == null || accountId.isEmpty) {
       value = AccountState.failure(
@@ -125,12 +126,20 @@ class AccountController extends ValueNotifier<AccountState> {
       );
       return;
     }
+    if (password.length < 8 || password.length > 72) {
+      value = AccountState.failure(
+        errorMessage: 'Enter your 8-72 character account password.',
+        account: value.account,
+      );
+      return;
+    }
 
     value = AccountState.loading(account: value.account);
     try {
       final response = await _apiClient.depositUsd(
         accountId: accountId,
         amount: amount,
+        password: password,
       );
       value = AccountState.loaded(
         MockUsdAccount.fromJson(response.data ?? {}),

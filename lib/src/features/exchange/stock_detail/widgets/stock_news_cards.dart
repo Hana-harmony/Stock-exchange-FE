@@ -281,18 +281,17 @@ class _StockNewsImage extends StatelessWidget {
               ? Image.network(
                   imageUrl!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _fallbackImage(),
+                  errorBuilder: (_, __, ___) => const Icon(
+                    Icons.broken_image_outlined,
+                    color: AppColors.gray500,
+                  ),
                 )
-              : _fallbackImage(),
+              : const Icon(
+                  Icons.image_not_supported_outlined,
+                  color: AppColors.gray500,
+                ),
         ),
       ),
-    );
-  }
-
-  Widget _fallbackImage() {
-    return Image.asset(
-      AppAssets.noImageDefault,
-      fit: BoxFit.cover,
     );
   }
 }
@@ -339,9 +338,20 @@ class _StockNewsSentimentBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPositive = sentiment == _StockNewsSentiment.positive;
+    final isNeutral = sentiment == _StockNewsSentiment.neutral;
+    final backgroundColor = isNeutral
+        ? AppColors.gray100
+        : isPositive
+            ? AppColors.green100
+            : AppColors.red100;
+    final foregroundColor = isNeutral
+        ? AppColors.gray600
+        : isPositive
+            ? AppColors.green500
+            : AppColors.red500;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: isPositive ? AppColors.green100 : AppColors.red100,
+        color: backgroundColor,
         borderRadius: BorderRadius.circular(4),
       ),
       child: Padding(
@@ -349,20 +359,27 @@ class _StockNewsSentimentBadge extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Image.asset(
-              isPositive ? AppAssets.chartUpMini : AppAssets.chartDownMini,
-              width: 12,
-              height: 12,
-              fit: BoxFit.contain,
-            ),
+            if (isNeutral)
+              const Icon(Icons.remove, size: 12, color: AppColors.gray600)
+            else
+              Image.asset(
+                isPositive ? AppAssets.chartUpMini : AppAssets.chartDownMini,
+                width: 12,
+                height: 12,
+                fit: BoxFit.contain,
+              ),
             const SizedBox(width: 4),
             Text(
-              isPositive ? 'Positive' : 'Negative',
+              isNeutral
+                  ? 'Neutral'
+                  : isPositive
+                      ? 'Positive'
+                      : 'Negative',
               style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     fontSize: fontSize,
                     height: 1.4,
                     fontWeight: FontWeight.w500,
-                    color: isPositive ? AppColors.green500 : AppColors.red500,
+                    color: foregroundColor,
                   ),
             ),
           ],

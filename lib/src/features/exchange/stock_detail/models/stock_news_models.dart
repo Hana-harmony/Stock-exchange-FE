@@ -3,6 +3,7 @@ part of '../../exchange_pages.dart';
 enum _StockNewsSentiment {
   positive,
   negative,
+  neutral,
 }
 
 enum _StockNewsPriority {
@@ -121,9 +122,11 @@ String _cleanAnalysisLine(String value) {
 }
 
 _StockNewsSentiment _sentimentFromString(String value) {
-  return value.toUpperCase() == 'NEGATIVE'
-      ? _StockNewsSentiment.negative
-      : _StockNewsSentiment.positive;
+  return switch (value.toUpperCase()) {
+    'POSITIVE' => _StockNewsSentiment.positive,
+    'NEGATIVE' => _StockNewsSentiment.negative,
+    _ => _StockNewsSentiment.neutral,
+  };
 }
 
 _StockNewsPriority _priorityFromStrings(String importance, String riskLevel) {

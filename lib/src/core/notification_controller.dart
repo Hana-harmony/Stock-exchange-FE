@@ -4,7 +4,6 @@ import 'exchange_api_client.dart';
 
 part 'notifications/notification_state.dart';
 part 'notifications/notification_models.dart';
-part 'notifications/notification_demo_data.dart';
 part 'notifications/notification_parsing.dart';
 
 class NotificationController extends ValueNotifier<NotificationState> {
@@ -25,47 +24,6 @@ class NotificationController extends ValueNotifier<NotificationState> {
     value = const NotificationState.idle();
   }
 
-  void ensureDemoInbox() {
-    final currentInbox = value.inbox;
-    if (currentInbox != null && currentInbox.notifications.isNotEmpty) {
-      return;
-    }
-    _replaceInbox(_buildDemoInbox());
-  }
-
-  void markTopNotificationUnread() {
-    final sourceInbox = _resolvedInboxForLocalMutation();
-    if (sourceInbox.notifications.isEmpty) {
-      return;
-    }
-
-    final notifications =
-        List<NotificationItem>.from(sourceInbox.notifications);
-    notifications[0] = notifications[0].copyWith(
-      read: false,
-      createdAt: DateTime.now().toUtc(),
-      readAt: null,
-    );
-    _replaceInbox(sourceInbox.copyWith(notifications: notifications));
-  }
-
-  void markReadLocally(String notificationId) {
-    final currentInbox = value.inbox;
-    if (currentInbox == null) {
-      return;
-    }
-
-    final readAt = DateTime.now().toUtc();
-    final notifications = currentInbox.notifications
-        .map(
-          (item) => item.notificationId == notificationId
-              ? item.copyWith(read: true, readAt: readAt)
-              : item,
-        )
-        .toList();
-    _replaceInbox(currentInbox.copyWith(notifications: notifications));
-  }
-
   Future<void> loadAlerts({
     required String? accountId,
     String stockCode = '005930',
@@ -78,8 +36,10 @@ class NotificationController extends ValueNotifier<NotificationState> {
       return;
     }
 
+    final currentInbox =
+        value.inbox?.accountId == resolvedAccountId ? value.inbox : null;
     value = NotificationState.loading(
-      inbox: value.inbox,
+      inbox: currentInbox,
       feed: value.feed,
       devices: value.devices,
       selectedFilter: value.selectedFilter,
@@ -233,13 +193,13 @@ class NotificationController extends ValueNotifier<NotificationState> {
     }
   }
 
-  Future<void> registerLocalDevice({
+  Future<void> registerPushDevice({
     required String? accountId,
-    String platform = 'IOS',
-    String provider = 'LOCAL_NOOP_PUSH',
-    String deviceToken = 'local-mobile-device-token-0001',
-    String appVersion = '0.1.0',
-    String locale = 'en_US',
+    required String platform,
+    required String provider,
+    required String deviceToken,
+    required String appVersion,
+    required String locale,
   }) async {
     final resolvedAccountId = _validatedAccountId(
       accountId,
@@ -340,14 +300,6 @@ class NotificationController extends ValueNotifier<NotificationState> {
       feed: value.feed,
       devices: currentDevices.replace(device),
     );
-  }
-
-  NotificationInbox _resolvedInboxForLocalMutation() {
-    final currentInbox = value.inbox;
-    if (currentInbox != null && currentInbox.notifications.isNotEmpty) {
-      return currentInbox;
-    }
-    return _buildDemoInbox();
   }
 
   void _replaceInbox(NotificationInbox inbox) {

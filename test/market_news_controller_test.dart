@@ -91,4 +91,18 @@ void main() {
     expect(item.displayBody, isEmpty);
     expect(item.displayBody, isNot(contains('machine translation')));
   });
+
+  test('preserves translated article paragraphs and line breaks', () {
+    final item = MarketNewsItem.fromJson({
+      'newsId': 'mkt-3',
+      'translatedContent':
+          'The market opened higher.\nForeign investors led buying.\n\nSemiconductor shares outperformed.',
+      'contentAvailability': 'FULL_TEXT',
+    });
+
+    expect(
+      item.displayBody,
+      'The market opened higher.\nForeign investors led buying.\n\nSemiconductor shares outperformed.',
+    );
+  });
 }

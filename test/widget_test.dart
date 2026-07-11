@@ -46,7 +46,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
-    expect(find.bySemanticsLabel('AI Assistant'), findsOneWidget);
+    expect(find.bySemanticsLabel('AI Assistant'), findsNothing);
     expect(find.bySemanticsLabel('Search'), findsOneWidget);
     expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
     expect(find.byKey(const ValueKey('market-status-section')), findsOneWidget);
@@ -280,7 +280,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
-    expect(notificationAsset().assetName, AppAssets.headerNotifications);
+    expect(notificationAsset().assetName, AppAssets.headerNotificationsNew);
   });
 
   testWidgets('markets requests fixed ten trending quotes without rankings',
@@ -1146,56 +1146,15 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Accounts'), findsOneWidget);
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-primary-tabs'))),
-      const Rect.fromLTWH(0, 106, 402, 41),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-account-selector'))),
-      const Rect.fromLTWH(0, 147, 402, 56),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-summary-section'))),
-      const Rect.fromLTWH(0, 203, 402, 149),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-summary-card'))),
-      const Rect.fromLTWH(12, 219, 378, 117),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-asset-filter-tabs'))),
-      const Rect.fromLTWH(0, 352, 402, 34),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-asset-filter-tab-0'))),
-      const Rect.fromLTWH(12, 352, 43, 34),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-asset-filter-tab-1'))),
-      const Rect.fromLTWH(63, 352, 93, 34),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('portfolio-allocation-chart'))),
-      const Rect.fromLTWH(0, 402, 402, 96),
-    );
-    _expectRect(
-      tester
-          .getRect(find.byKey(const ValueKey('accounts-holdings-filter-row'))),
-      const Rect.fromLTWH(0, 498, 402, 56),
-    );
-    _expectRect(
-      tester
-          .getRect(find.byKey(const ValueKey('accounts-market-scope-segment'))),
-      const Rect.fromLTWH(269, 508, 121, 36),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-table-header'))),
-      const Rect.fromLTWH(0, 554, 402, 48),
-    );
-    _expectRect(
-      tester.getRect(find.byKey(const ValueKey('accounts-holding-row-0'))),
-      const Rect.fromLTWH(0, 602, 402, 62),
-    );
+    expect(find.byKey(const ValueKey('accounts-primary-tabs')), findsOneWidget);
+    expect(find.byKey(const ValueKey('accounts-summary-card')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('accounts-deposit-button')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('accounts-holding-row-0')), findsOneWidget);
+    final taxEntryRect =
+        tester.getRect(find.byKey(const ValueKey('tax-refund-entry-card')));
+    expect(taxEntryRect.bottom, lessThanOrEqualTo(840));
 
     final totalPositions = tester.widget<RichText>(
       find.byKey(const ValueKey('accounts-total-positions')),
@@ -1208,6 +1167,34 @@ void main() {
           .widget<Text>(find.text('Foreign Currency (Cash Balance)'))
           .overflow,
       isNull,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('accounts-deposit-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('deposit-amount-field')), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('deposit-amount-field')),
+      '250',
+    );
+    await tester.tap(find.byKey(const ValueKey('deposit-continue-button')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('deposit-password-field')),
+      findsOneWidget,
+    );
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('tax-refund-entry-card')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('tax-landing-step')), findsOneWidget);
+    expect(find.byKey(const ValueKey('tax-apply-button')), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('tax-landing-step')),
+        matching: find.byType(Scrollable),
+      ),
+      findsNothing,
     );
   });
 

@@ -18,7 +18,10 @@ void main() {
     final store = MemoryExchangeSessionStore();
     await store.write(storedSession);
     final controller = ExchangeSessionController(
-      apiClient: _client(),
+      apiClient: _client((request) async {
+        expect(request.url.path, '/api/v1/auth/token/verify');
+        return _successEnvelope({'valid': true});
+      }),
       sessionStore: store,
     );
 
@@ -188,6 +191,9 @@ void main() {
     final controller = ExchangeSessionController(
       sessionStore: store,
       apiClient: _client((request) async {
+        if (request.url.path == '/api/v1/auth/token/verify') {
+          return _successEnvelope({'valid': true});
+        }
         expect(request.url.path, '/api/v1/auth/token/refresh');
         expect(jsonDecode(request.body), {'refreshToken': 'old-refresh-token'});
         return _jsonResponse({
@@ -211,6 +217,60 @@ void main() {
     expect(controller.value.session?.accessToken, 'rotated-access-token');
     expect((await store.read())?.refreshToken, 'rotated-refresh-token');
   });
+
+  test('restore refreshes an invalid access token before exposing session',
+      () async {
+    const storedSession = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'invalid-access-token',
+      refreshToken: 'valid-refresh-token',
+    );
+    final store = MemoryExchangeSessionStore();
+    await store.write(storedSession);
+    final paths = <String>[];
+    final controller = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: _client((request) async {
+        paths.add(request.url.path);
+        if (request.url.path == '/api/v1/auth/token/verify') {
+          return _jsonResponse({
+            'success': false,
+            'status': 401,
+            'code': 'AUTH_003',
+            'message': 'Invalid auth token',
+          }, statusCode: 401);
+        }
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _sessionJson(accessToken: 'renewed-access-token'),
+        });
+      }),
+    );
+
+    await controller.restore();
+
+    expect(paths, [
+      '/api/v1/auth/token/verify',
+      '/api/v1/auth/token/refresh',
+    ]);
+    expect(controller.value.status, ExchangeSessionStatus.signedIn);
+    expect(controller.session?.accessToken, 'renewed-access-token');
+  });
+}
+
+http.Response _successEnvelope(Map<String, Object?> data) {
+  return _jsonResponse({
+    'success': true,
+    'status': 200,
+    'code': 'COMMON_000',
+    'message': 'OK',
+    'data': data,
+  });
 }
 
 ExchangeApiClient _client([
@@ -232,8 +292,8 @@ Map<String, Object?> _sessionJson({
     'tokenType': 'Bearer',
     'accessToken': accessToken,
     'refreshToken': refreshToken,
-    'accessTokenExpiresAt': '2026-06-18T07:00:00Z',
-    'refreshTokenExpiresAt': '2026-06-19T07:00:00Z',
+    'accessTokenExpiresAt': '2099-06-18T07:00:00Z',
+    'refreshTokenExpiresAt': '2099-06-19T07:00:00Z',
   };
 }
 

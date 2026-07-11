@@ -154,13 +154,15 @@ class _HeaderActionsBody extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _HeaderActionButton(
-          assetPath: AppAssets.headerAiIcon,
-          semanticLabel: 'AI Assistant',
-          onTap: onAiTap,
-          padding: const EdgeInsets.all(2),
-        ),
-        const SizedBox(width: 4),
+        if (onAiTap != null) ...[
+          _HeaderActionButton(
+            assetPath: AppAssets.headerAiIcon,
+            semanticLabel: 'AI Assistant',
+            onTap: onAiTap,
+            padding: const EdgeInsets.all(2),
+          ),
+          const SizedBox(width: 4),
+        ],
         _HeaderActionButton(
           assetPath: AppAssets.headerSearch,
           semanticLabel: 'Search',
