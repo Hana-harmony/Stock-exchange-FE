@@ -69,6 +69,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
     if (widget.tradeController.value.portfolio?.accountId != accountId) {
       widget.tradeController.loadPortfolio(accountId);
     }
+    if (widget.taxController.value.refundCase?.accountId != accountId) {
+      widget.taxController.loadRefundStatus(accountId);
+    }
   }
 
   @override
@@ -228,26 +231,21 @@ class _DepositUsdSheet extends StatefulWidget {
 
 class _DepositUsdSheetState extends State<_DepositUsdSheet> {
   final _amountController = TextEditingController();
-  final _pinController = TextEditingController();
   final _amountFocusNode = FocusNode();
-  final _pinFocusNode = FocusNode();
-  var _showPinStep = false;
   var _submitting = false;
   String? _errorMessage;
 
   @override
   void dispose() {
     _amountController.dispose();
-    _pinController.dispose();
     _amountFocusNode.dispose();
-    _pinFocusNode.dispose();
     super.dispose();
   }
 
   double? get _amount =>
       double.tryParse(_amountController.text.replaceAll(',', '').trim());
 
-  void _continueToPassword() {
+  Future<void> _continueToAccountPin() async {
     final amount = _amount;
     if (amount == null || amount <= 0) {
       setState(() => _errorMessage = 'Enter an amount greater than USD 0.');
@@ -255,32 +253,24 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
     }
     setState(() {
       _errorMessage = null;
-      _showPinStep = true;
+      _submitting = true;
     });
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    final pin = await _presentAccountPinBottomSheet(context);
+    if (!mounted || pin == null) {
       if (mounted) {
-        _pinFocusNode.requestFocus();
+        setState(() => _submitting = false);
       }
-    });
-  }
-
-  Future<void> _submit() async {
-    final amount = _amount;
-    final pin = _pinController.text;
-    if (amount == null || amount <= 0 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
-      setState(() => _errorMessage = 'Enter your 6-digit transaction PIN.');
       return;
     }
-    setState(() {
-      _submitting = true;
-      _errorMessage = null;
-    });
+    await _submit(amount, pin);
+  }
+
+  Future<void> _submit(double amount, String pin) async {
     await widget.accountController.depositUsd(
       accountId: widget.accountId,
       amount: amount,
       pin: pin,
     );
-    _pinController.clear();
     if (!mounted) {
       return;
     }
@@ -318,7 +308,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
             ),
             const SizedBox(height: 20),
             Text(
-              _showPinStep ? 'Confirm with PIN' : 'Add USD balance',
+              'Add USD balance',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.gray1000,
@@ -326,48 +316,27 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              _showPinStep
-                  ? 'This confirms the simulated balance change on the exchange ledger.'
-                  : 'Enter the USD amount to add to your simulated trading balance.',
+              'Enter the USD amount to add to your simulated trading balance.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: AppColors.gray600,
                   ),
             ),
             const SizedBox(height: 20),
-            if (!_showPinStep)
-              TextField(
-                key: const ValueKey('deposit-amount-field'),
-                controller: _amountController,
-                focusNode: _amountFocusNode,
-                autofocus: true,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-                textInputAction: TextInputAction.next,
-                onSubmitted: (_) => _continueToPassword(),
-                decoration: const InputDecoration(
-                  labelText: 'Amount',
-                  prefixText: 'USD ',
-                  border: OutlineInputBorder(),
-                ),
-              )
-            else
-              TextField(
-                key: const ValueKey('deposit-pin-field'),
-                controller: _pinController,
-                focusNode: _pinFocusNode,
-                obscureText: true,
-                enableSuggestions: false,
-                autocorrect: false,
-                keyboardType: TextInputType.number,
-                maxLength: 6,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-                decoration: const InputDecoration(
-                  labelText: 'Transaction PIN',
-                  counterText: '',
-                  border: OutlineInputBorder(),
-                ),
+            TextField(
+              key: const ValueKey('deposit-amount-field'),
+              controller: _amountController,
+              focusNode: _amountFocusNode,
+              autofocus: true,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textInputAction: TextInputAction.next,
+              onSubmitted: (_) => _continueToAccountPin(),
+              decoration: const InputDecoration(
+                labelText: 'Amount',
+                prefixText: 'USD ',
+                border: OutlineInputBorder(),
               ),
+            ),
             if (_errorMessage != null) ...[
               const SizedBox(height: 10),
               Text(
@@ -384,11 +353,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
               height: 48,
               child: FilledButton(
                 key: const ValueKey('deposit-continue-button'),
-                onPressed: _submitting
-                    ? null
-                    : _showPinStep
-                        ? _submit
-                        : _continueToPassword,
+                onPressed: _submitting ? null : _continueToAccountPin,
                 style: _exchangePrimaryButtonStyle(
                   backgroundColor: AppColors.orange500,
                   radius: 8,
@@ -401,7 +366,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
                           color: AppColors.white,
                         ),
                       )
-                    : Text(_showPinStep ? 'Confirm Add USD' : 'Continue'),
+                    : const Text('Continue'),
               ),
             ),
           ],

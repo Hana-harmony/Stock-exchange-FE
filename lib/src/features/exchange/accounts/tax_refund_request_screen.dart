@@ -89,6 +89,9 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
   void initState() {
     super.initState();
     widget.taxController.addListener(_handleTaxState);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      widget.taxController.loadRefundStatus(widget.accountId);
+    });
   }
 
   @override
@@ -189,6 +192,10 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     if (!mounted || widget.taxController.value.status == TaxStatus.failure) {
       return;
     }
+    await widget.taxController.syncRefundStatus(widget.accountId);
+    if (!mounted || widget.taxController.value.status == TaxStatus.failure) {
+      return;
+    }
     setState(() {
       _step = 8;
     });
@@ -281,6 +288,22 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
   }
 
   Widget _buildStep(BuildContext context, TaxState state, bool loading) {
+    final existingSubmission = state.refundCase;
+    if (_step == 0 &&
+        existingSubmission != null &&
+        existingSubmission.caseId.isNotEmpty &&
+        existingSubmission.status != 'NOT_SUBMITTED') {
+      return _TaxSubmittedStep(
+        refundCase: existingSubmission,
+        onConfirm: () => Navigator.of(context).pop(),
+        onReview: () => setState(() {
+          widget.taxController.beginReplacement();
+          _selectedFiles.clear();
+          _step = 1;
+        }),
+        isExistingSubmission: true,
+      );
+    }
     if (_step == 0) {
       return _TaxLandingStep(
         documents: _documents,
@@ -317,6 +340,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       refundCase: state.refundCase,
       onConfirm: () => Navigator.of(context).pop(),
       onReview: () => setState(() => _step = 0),
+      isExistingSubmission: false,
     );
   }
 
@@ -1200,11 +1224,13 @@ class _TaxSubmittedStep extends StatelessWidget {
     required this.refundCase,
     required this.onConfirm,
     required this.onReview,
+    required this.isExistingSubmission,
   });
 
   final TaxRefundCase? refundCase;
   final VoidCallback onConfirm;
   final VoidCallback onReview;
+  final bool isExistingSubmission;
 
   @override
   Widget build(BuildContext context) {
@@ -1213,34 +1239,46 @@ class _TaxSubmittedStep extends StatelessWidget {
       primaryLabel: 'Confirm',
       primaryKey: const ValueKey('tax-confirm-button'),
       onPrimary: onConfirm,
-      secondaryLabel: 'Review Documents',
+      secondaryLabel:
+          isExistingSubmission ? 'Submit again' : 'Review Documents',
       onSecondary: onReview,
       stackedSecondary: true,
-      child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 32, 16, 210),
-        children: [
-          Text(
-            'Documents Submitted!',
-            textAlign: TextAlign.center,
-            style: _taxTitleStyle(context),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            "All required documents have been submitted successfully. We'll review them and notify\nyou of the next steps.",
-            textAlign: TextAlign.center,
-            style: _taxBodyStyle(context),
-          ),
-          const SizedBox(height: 76),
-          const _TaxSubmittedIllustration(),
-          if (refundCase != null) ...[
-            const SizedBox(height: 24),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 32, 16, 150),
+        child: Column(
+          children: [
             Text(
-              '${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}',
+              refundCase?.status == 'COMPLETED'
+                  ? 'Tax Filing Complete!'
+                  : 'Documents Submitted!',
               textAlign: TextAlign.center,
-              style: _taxBodyStyle(context, fontSize: 14),
+              style: _taxTitleStyle(context)?.copyWith(fontSize: 28),
             ),
+            const SizedBox(height: 12),
+            Text(
+              refundCase?.status == 'COMPLETED'
+                  ? 'Your correction request has been processed by Hana OmniLens.'
+                  : isExistingSubmission
+                      ? 'Your verified documents are in review. Start a new submission only when the documents need to be updated.'
+                      : "All required documents have been submitted successfully. We'll review them and notify you of the next steps.",
+              textAlign: TextAlign.center,
+              style: _taxBodyStyle(context),
+            ),
+            const Spacer(),
+            const SizedBox(
+              height: 308,
+              width: double.infinity,
+              child: _TaxSubmittedIllustration(),
+            ),
+            const Spacer(),
+            if (refundCase != null)
+              Text(
+                '${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}',
+                textAlign: TextAlign.center,
+                style: _taxBodyStyle(context, fontSize: 14),
+              ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -1251,79 +1289,76 @@ class _TaxSubmittedIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 330,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned(
-            left: 80,
-            top: 18,
-            child: Icon(
-              Icons.description,
-              size: 156,
-              color: AppColors.gray200.withValues(alpha: 0.72),
-            ),
-          ),
-          Positioned(
-            left: 132,
-            top: 108,
-            child: Icon(
-              Icons.folder,
-              size: 212,
-              color: AppColors.gray200.withValues(alpha: 0.82),
-            ),
-          ),
-          const Positioned(
-            left: 18,
-            top: 132,
-            child: _TaxCoin(size: 122, symbolSize: 62),
-          ),
-          const Positioned(
-            right: 30,
-            top: 46,
-            child: _TaxCoin(size: 56, symbolSize: 30),
-          ),
-        ],
-      ),
+    return CustomPaint(
+      painter: _TaxSubmittedIllustrationPainter(),
+      child: const SizedBox.expand(),
     );
   }
 }
 
-class _TaxCoin extends StatelessWidget {
-  const _TaxCoin({
-    required this.size,
-    required this.symbolSize,
-  });
-
-  final double size;
-  final double symbolSize;
+class _TaxSubmittedIllustrationPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scale = size.width / 370;
+    canvas.scale(scale);
+    final paper = Paint()..color = const Color(0xFFF1F2F4);
+    final paperLine = Paint()
+      ..color = const Color(0xFFD9DCE0)
+      ..strokeWidth = 4;
+    final folder = Paint()..color = const Color(0xFFD7D9DD);
+    final orange = Paint()..color = const Color(0xFFFF9A47);
+    final coinEdge = Paint()
+      ..color = const Color(0xFFFFC58F)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 5;
+    final document = Path()
+      ..moveTo(106, 26)
+      ..lineTo(230, 26)
+      ..lineTo(272, 68)
+      ..lineTo(272, 202)
+      ..lineTo(106, 202)
+      ..close();
+    canvas.drawPath(document, paper);
+    canvas.drawLine(const Offset(130, 104), const Offset(239, 104), paperLine);
+    canvas.drawLine(const Offset(130, 124), const Offset(220, 124), paperLine);
+    final folderPath = Path()
+      ..moveTo(160, 147)
+      ..lineTo(218, 147)
+      ..lineTo(236, 165)
+      ..lineTo(306, 165)
+      ..lineTo(326, 280)
+      ..lineTo(142, 280)
+      ..close();
+    canvas.drawPath(folderPath, folder);
+    canvas.drawCircle(const Offset(102, 228), 61, orange);
+    canvas.drawCircle(const Offset(102, 228), 59, coinEdge);
+    canvas.drawCircle(const Offset(290, 88), 28, orange);
+    canvas.drawCircle(const Offset(290, 88), 26, coinEdge);
+    final dollar = TextPainter(
+      text: const TextSpan(
+          text: '\$',
+          style: TextStyle(
+              color: AppColors.white,
+              fontSize: 61,
+              fontWeight: FontWeight.w700)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    dollar.paint(canvas, const Offset(84, 192));
+    final smallDollar = TextPainter(
+      text: const TextSpan(
+          text: '\$',
+          style: TextStyle(
+              color: AppColors.white,
+              fontSize: 29,
+              fontWeight: FontWeight.w700)),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    smallDollar.paint(canvas, const Offset(282, 70));
+  }
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.orange300,
-        border: Border.all(color: const Color(0xFFFFC284), width: 4),
-        boxShadow: const [
-          BoxShadow(
-            color: Color.fromRGBO(255, 121, 27, 0.22),
-            blurRadius: 8,
-            offset: Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Icon(
-        Icons.attach_money,
-        size: symbolSize,
-        color: AppColors.white,
-      ),
-    );
-  }
+  bool shouldRepaint(covariant _TaxSubmittedIllustrationPainter oldDelegate) =>
+      false;
 }
 
 class _TaxScreenWithBottomAction extends StatelessWidget {
