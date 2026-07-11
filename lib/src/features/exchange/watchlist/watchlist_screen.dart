@@ -247,15 +247,17 @@ class _WatchlistEmptyState extends StatelessWidget {
           body: errorMessage ??
               'Tap the heart on a stock detail page to add it here.',
         ),
-        const SizedBox(height: 16),
-        FilledButton(
-          key: const ValueKey('watchlist-refresh-button'),
-          onPressed: onRefresh,
-          style: _exchangePrimaryButtonStyle(
-            backgroundColor: AppColors.orange500,
+        if (errorMessage != null) ...[
+          const SizedBox(height: 16),
+          FilledButton(
+            key: const ValueKey('watchlist-refresh-button'),
+            onPressed: onRefresh,
+            style: _exchangePrimaryButtonStyle(
+              backgroundColor: AppColors.orange500,
+            ),
+            child: const Text('Try again'),
           ),
-          child: const Text('Refresh'),
-        ),
+        ],
       ],
     );
   }
@@ -272,12 +274,7 @@ class _WatchlistSummaryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final liveLabel = switch (liveStatus) {
-      MarketQuoteLiveStatus.live => 'Live',
-      MarketQuoteLiveStatus.connecting => 'Connecting',
-      MarketQuoteLiveStatus.failure => 'Reconnect',
-      MarketQuoteLiveStatus.disconnected => 'Paused',
-    };
+    final liveLabel = liveStatus == MarketQuoteLiveStatus.live ? ' · Live' : '';
     return DecoratedBox(
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -295,7 +292,7 @@ class _WatchlistSummaryCard extends StatelessWidget {
                     ),
               ),
             ),
-            Text('$itemCount stocks · $liveLabel'),
+            Text('$itemCount stocks$liveLabel'),
           ],
         ),
       ),

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'exchange_api_client.dart';
@@ -76,6 +78,7 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
 
   final ExchangeApiClient _apiClient;
   final ExchangeSessionStore _sessionStore;
+  Timer? _refreshTimer;
 
   AuthSession? get session => value.session;
 
@@ -87,7 +90,35 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
       return;
     }
 
-    value = ExchangeSessionState.signedIn(restoredSession);
+    final now = DateTime.now().toUtc();
+    final refreshExpiresAt = restoredSession.refreshTokenExpiresAt?.toUtc();
+    if (refreshExpiresAt != null && !refreshExpiresAt.isAfter(now)) {
+      await _sessionStore.clear();
+      value = const ExchangeSessionState.signedOut();
+      return;
+    }
+
+    final accessExpiresAt = restoredSession.accessTokenExpiresAt?.toUtc();
+    if (accessExpiresAt != null &&
+        !accessExpiresAt.isAfter(now.add(const Duration(minutes: 1)))) {
+      value = ExchangeSessionState.signedIn(restoredSession);
+      await refresh();
+      return;
+    }
+
+    try {
+      await _apiClient.verifyToken(restoredSession.accessToken);
+      _setSignedIn(restoredSession);
+    } on ExchangeApiException catch (error) {
+      if (error.status == 401) {
+        value = ExchangeSessionState.signedIn(restoredSession);
+        await refresh();
+        return;
+      }
+      _setSignedIn(restoredSession);
+    } on Object {
+      _setSignedIn(restoredSession);
+    }
   }
 
   Future<void> login({
@@ -110,7 +141,7 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
         password: password,
       );
       await _sessionStore.write(nextSession);
-      value = ExchangeSessionState.signedIn(nextSession);
+      _setSignedIn(nextSession);
     } on ExchangeApiException catch (error) {
       value = ExchangeSessionState.failure(error.message, session: session);
     } on Object {
@@ -145,7 +176,7 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
         password: password,
       );
       await _sessionStore.write(nextSession);
-      value = ExchangeSessionState.signedIn(nextSession);
+      _setSignedIn(nextSession);
     } on ExchangeApiException catch (error) {
       value = ExchangeSessionState.failure(error.message, session: session);
     } on Object {
@@ -169,9 +200,23 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
         currentSession.refreshToken,
       );
       await _sessionStore.write(nextSession);
-      value = ExchangeSessionState.signedIn(nextSession);
+      _setSignedIn(nextSession);
+    } on ExchangeApiException catch (error) {
+      if (error.status == 401) {
+        await _clearSession();
+        return;
+      }
+      value = ExchangeSessionState.failure(
+        'Unable to renew the session. Check your connection.',
+        session: currentSession,
+      );
+      _scheduleRefresh(currentSession, retryDelay: const Duration(seconds: 30));
     } on Object {
-      await signOut();
+      value = ExchangeSessionState.failure(
+        'Unable to renew the session. Check your connection.',
+        session: currentSession,
+      );
+      _scheduleRefresh(currentSession, retryDelay: const Duration(seconds: 30));
     }
   }
 
@@ -184,8 +229,43 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
         // 로그아웃은 로컬 세션 제거가 우선이다.
       }
     }
+    await _clearSession();
+  }
+
+  void _setSignedIn(AuthSession session) {
+    value = ExchangeSessionState.signedIn(session);
+    _scheduleRefresh(session);
+  }
+
+  void _scheduleRefresh(
+    AuthSession session, {
+    Duration? retryDelay,
+  }) {
+    _refreshTimer?.cancel();
+    final expiresAt = session.accessTokenExpiresAt?.toUtc();
+    if (expiresAt == null && retryDelay == null) {
+      return;
+    }
+    final delay = retryDelay ??
+        (expiresAt!.difference(DateTime.now().toUtc()) -
+            const Duration(minutes: 1));
+    _refreshTimer = Timer(
+      delay.isNegative ? Duration.zero : delay,
+      () => unawaited(refresh()),
+    );
+  }
+
+  Future<void> _clearSession() async {
+    _refreshTimer?.cancel();
+    _refreshTimer = null;
     await _sessionStore.clear();
     value = const ExchangeSessionState.signedOut();
+  }
+
+  @override
+  void dispose() {
+    _refreshTimer?.cancel();
+    super.dispose();
   }
 
   String? _credentialValidationError({

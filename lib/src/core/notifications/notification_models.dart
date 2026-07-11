@@ -107,7 +107,7 @@ class NotificationItem {
       deliveryStatus.isEmpty ? 'PENDING' : deliveryStatus;
 
   String get deliveryProviderLabel =>
-      deliveryProvider.isEmpty ? 'LOCAL_NOOP_PUSH' : deliveryProvider;
+      deliveryProvider.isEmpty ? 'Not delivered' : deliveryProvider;
 
   String get deliveryAttemptLabel {
     if (deliveryAttemptCount <= 0) {
@@ -120,8 +120,6 @@ class NotificationItem {
     final status = deliveryStatusLabel.toUpperCase();
     return status == 'FAILED' || status == 'RETRYING';
   }
-
-  bool get isLocalOnly => notificationId.startsWith('LOCAL-');
 
   static NotificationItem fromJson(Map<String, dynamic> json) {
     return NotificationItem(

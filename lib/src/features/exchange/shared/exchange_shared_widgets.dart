@@ -327,37 +327,16 @@ class _MutedInfoCard extends StatelessWidget {
   }
 }
 
-Future<void> _showComingSoonDialog(
-  BuildContext context, {
-  required String featureName,
-}) {
-  return showDialog<void>(
-    context: context,
-    builder: (context) {
-      return AlertDialog(
-        key: ValueKey('coming-soon-dialog-$featureName'),
-        title: const Text('Coming soon'),
-        content: Text('$featureName is being prepared.'),
-        actions: [
-          TextButton(
-            key: const ValueKey('coming-soon-confirm'),
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
-      );
-    },
-  );
-}
-
 class _ErrorStateCard extends StatelessWidget {
   const _ErrorStateCard({
+    required this.title,
     required this.message,
-    required this.onRetry,
+    this.onRetry,
   });
 
+  final String title;
   final String message;
-  final VoidCallback onRetry;
+  final VoidCallback? onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -373,7 +352,7 @@ class _ErrorStateCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Search error',
+              title,
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 6),
@@ -381,11 +360,13 @@ class _ErrorStateCard extends StatelessWidget {
               message,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-            const SizedBox(height: 12),
-            FilledButton(
-              onPressed: onRetry,
-              child: const Text('Retry'),
-            ),
+            if (onRetry != null) ...[
+              const SizedBox(height: 12),
+              FilledButton(
+                onPressed: onRetry,
+                child: const Text('Retry'),
+              ),
+            ],
           ],
         ),
       ),

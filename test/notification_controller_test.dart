@@ -156,7 +156,14 @@ void main() {
     );
     addTearDown(controller.dispose);
 
-    await controller.registerLocalDevice(accountId: 'ACC-ABC123456789');
+    await controller.registerPushDevice(
+      accountId: 'ACC-ABC123456789',
+      platform: 'IOS',
+      provider: 'LOCAL_NOOP_PUSH',
+      deviceToken: 'local-mobile-device-token-0001',
+      appVersion: '0.1.0',
+      locale: 'en_US',
+    );
 
     expect(controller.value.devices?.activeCount, 1);
     expect(

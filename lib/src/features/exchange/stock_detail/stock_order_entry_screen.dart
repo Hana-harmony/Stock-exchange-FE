@@ -8,6 +8,7 @@ class _StockOrderEntryScreen extends StatefulWidget {
     required this.tradeController,
     required this.notificationController,
     required this.stockCode,
+    required this.side,
     required this.snapshot,
     required this.initialIsFavorite,
     this.onFavoriteToggle,
@@ -20,6 +21,7 @@ class _StockOrderEntryScreen extends StatefulWidget {
   final TradeController tradeController;
   final NotificationController notificationController;
   final String stockCode;
+  final String side;
   final _StockDetailSnapshot snapshot;
   final bool initialIsFavorite;
   final VoidCallback? onFavoriteToggle;
@@ -97,7 +99,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
                     onFavorite: _toggleFavorite,
                   ),
                   _StockOrderTopSection(snapshot: widget.snapshot),
-                  const _StockOrderEntryTabs(),
+                  _StockOrderEntryTabs(side: widget.side),
                 ],
               ),
             ),
@@ -130,6 +132,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
                           onDecreasePrice: _decreasePrice,
                           onIncreasePrice: _increasePrice,
                           onSubmit: _showAccountPinBottomSheet,
+                          side: widget.side,
                         );
                       },
                     ),
@@ -330,7 +333,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     await widget.tradeController.checkOrderability(
       accountId: widget.sessionController.session?.accountId,
       stockCode: widget.stockCode,
-      side: 'BUY',
+      side: widget.side,
       quantity: _quantity,
     );
     if (!mounted) {
@@ -356,7 +359,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     return widget.tradeController.executeTrade(
       accountId: widget.sessionController.session?.accountId,
       stockCode: widget.stockCode,
-      side: 'BUY',
+      side: widget.side,
       quantity: _quantity,
       limitPriceUsd: _estimateLimitPriceUsd(),
     );
@@ -395,11 +398,14 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     return showGeneralDialog<bool>(
       context: context,
       barrierDismissible: false,
-      barrierLabel: 'Confirm buy order',
+      barrierLabel: 'Confirm ${widget.side.toLowerCase()} order',
       barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
       transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (context, animation, secondaryAnimation) {
-        return _OrderConfirmationDialog(confirmation: confirmation);
+        return _OrderConfirmationDialog(
+          confirmation: confirmation,
+          side: widget.side,
+        );
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(opacity: animation, child: child);
@@ -590,7 +596,9 @@ class _StockOrderTopSection extends StatelessWidget {
 }
 
 class _StockOrderEntryTabs extends StatelessWidget {
-  const _StockOrderEntryTabs();
+  const _StockOrderEntryTabs({required this.side});
+
+  final String side;
 
   @override
   Widget build(BuildContext context) {
@@ -603,16 +611,24 @@ class _StockOrderEntryTabs extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.only(left: 12, top: 10),
           child: Row(
-            children: const [
-              _StockOrderTopTab(label: 'Buy', width: 32, isSelected: true),
-              SizedBox(width: 18),
-              _StockOrderTopTab(label: 'Sell', width: 30),
-              SizedBox(width: 18),
-              _StockOrderTopTab(label: 'Modify/Cancel', width: 119),
-              SizedBox(width: 18),
-              _StockOrderTopTab(label: 'Filled/Pending', width: 117),
-              SizedBox(width: 18),
-              _StockOrderTopTab(label: 'Scheduled Orders', width: 148),
+            children: [
+              _StockOrderTopTab(
+                label: 'Buy',
+                width: 32,
+                isSelected: side == 'BUY',
+              ),
+              const SizedBox(width: 18),
+              _StockOrderTopTab(
+                label: 'Sell',
+                width: 30,
+                isSelected: side == 'SELL',
+              ),
+              const SizedBox(width: 18),
+              const _StockOrderTopTab(label: 'Modify/Cancel', width: 119),
+              const SizedBox(width: 18),
+              const _StockOrderTopTab(label: 'Filled/Pending', width: 117),
+              const SizedBox(width: 18),
+              const _StockOrderTopTab(label: 'Scheduled Orders', width: 148),
             ],
           ),
         ),
@@ -656,88 +672,6 @@ class _StockOrderQuoteList extends StatelessWidget {
     required this.onPriceTap,
   });
 
-  static const _fallbackQuotes = [
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '+5.11%',
-      quantity: '13,678',
-      isPositive: true,
-      isGrayBackground: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '+5.11%',
-      quantity: '13,678',
-      isPositive: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '+5.11%',
-      quantity: '13,678',
-      isPositive: true,
-      isGrayBackground: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '+5.11%',
-      quantity: '13,678',
-      isPositive: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-      isGrayBackground: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-      isGrayBackground: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-      isGrayBackground: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-      isGrayBackground: true,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-    ),
-    _OrderQuoteData(
-      price: '223,000',
-      changeRate: '-5.11%',
-      quantity: '13,678',
-      isPositive: false,
-      isGrayBackground: true,
-    ),
-  ];
-
   final _StockDetailSnapshot snapshot;
   final MarketOrderBook? orderBook;
   final ValueChanged<String> onPriceTap;
@@ -745,6 +679,24 @@ class _StockOrderQuoteList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final quotes = _buildQuotes();
+
+    if (quotes.isEmpty) {
+      return const DecoratedBox(
+        key: ValueKey('stock-order-quote-list-shell'),
+        decoration: BoxDecoration(
+          border: Border(right: BorderSide(color: AppColors.gray100)),
+        ),
+        child: Center(
+          child: Padding(
+            padding: EdgeInsets.all(12),
+            child: Text(
+              'Order book unavailable',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
 
     return DecoratedBox(
       key: const ValueKey('stock-order-quote-list-shell'),
@@ -772,7 +724,7 @@ class _StockOrderQuoteList extends StatelessWidget {
       ...(orderBook?.bids ?? const <OrderBookLevel>[]),
     ];
     if (levels.isEmpty) {
-      return _fallbackQuotes;
+      return const [];
     }
 
     final referencePrice = _parseAmount(snapshot.previousCloseKrwRaw) ??
@@ -897,6 +849,7 @@ class _StockOrderFormPanel extends StatelessWidget {
     required this.onDecreasePrice,
     required this.onIncreasePrice,
     required this.onSubmit,
+    required this.side,
   });
 
   final TextEditingController quantityController;
@@ -909,6 +862,7 @@ class _StockOrderFormPanel extends StatelessWidget {
   final VoidCallback onDecreasePrice;
   final VoidCallback onIncreasePrice;
   final VoidCallback onSubmit;
+  final String side;
 
   @override
   Widget build(BuildContext context) {
@@ -955,7 +909,11 @@ class _StockOrderFormPanel extends StatelessWidget {
             ),
           ],
           const Spacer(),
-          _OrderSubmitSection(orderAmount: orderAmount, onSubmit: onSubmit),
+          _OrderSubmitSection(
+            orderAmount: orderAmount,
+            onSubmit: onSubmit,
+            side: side,
+          ),
         ],
       ),
     );
@@ -1321,10 +1279,12 @@ class _OrderSubmitSection extends StatelessWidget {
   const _OrderSubmitSection({
     required this.orderAmount,
     required this.onSubmit,
+    required this.side,
   });
 
   final int orderAmount;
   final VoidCallback onSubmit;
+  final String side;
 
   @override
   Widget build(BuildContext context) {
@@ -1367,6 +1327,7 @@ class _OrderSubmitSection extends StatelessWidget {
           child: _OrderSubmitButton(
             key: const ValueKey('stock-order-submit-button'),
             onTap: onSubmit,
+            side: side,
           ),
         ),
       ],
@@ -1572,13 +1533,17 @@ class _OrderConfirmationDetails {
 }
 
 class _OrderConfirmationDialog extends StatelessWidget {
-  const _OrderConfirmationDialog({required this.confirmation});
+  const _OrderConfirmationDialog({
+    required this.confirmation,
+    required this.side,
+  });
 
   static const _dialogWidth = 360.0;
   static const _dialogHeight = 362.0;
   static const _contentHeight = 164.0;
 
   final _OrderConfirmationDetails confirmation;
+  final String side;
 
   @override
   Widget build(BuildContext context) {
@@ -1616,7 +1581,7 @@ class _OrderConfirmationDialog extends StatelessWidget {
                         children: [
                           Expanded(
                             child: Text(
-                              'Confirm Buy Order',
+                              'Confirm ${side == 'SELL' ? 'Sell' : 'Buy'} Order',
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                               style: Theme.of(context)
@@ -2010,21 +1975,26 @@ class _OrderCompletedActionButton extends StatelessWidget {
 }
 
 class _OrderSubmitButton extends StatelessWidget {
-  const _OrderSubmitButton({super.key, required this.onTap});
+  const _OrderSubmitButton({
+    super.key,
+    required this.onTap,
+    required this.side,
+  });
 
   final VoidCallback onTap;
+  final String side;
 
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.green500,
+      color: side == 'SELL' ? AppColors.red500 : AppColors.green500,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Center(
           child: Text(
-            'Buy',
+            side == 'SELL' ? 'Sell' : 'Buy',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(
                   fontSize: 18,
                   fontWeight: FontWeight.w600,

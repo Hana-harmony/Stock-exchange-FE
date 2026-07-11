@@ -38,7 +38,10 @@ void main() {
           request.url.path,
           '/api/v1/accounts/ACC-ABC123456789/deposits',
         );
-        expect(jsonDecode(request.body), {'amountUsd': 250.75});
+        expect(jsonDecode(request.body), {
+          'amountUsd': 250.75,
+          'password': 'localPass123!',
+        });
 
         return _jsonResponse({
           'success': true,
@@ -57,6 +60,7 @@ void main() {
     await controller.depositUsd(
       accountId: 'ACC-ABC123456789',
       amount: 250.75,
+      password: 'localPass123!',
     );
 
     expect(controller.value.status, AccountStatus.loaded);
@@ -76,7 +80,11 @@ void main() {
     await controller.loadAccount(null);
     expect(controller.value.errorMessage, 'Sign in to load your USD account.');
 
-    await controller.depositUsd(accountId: 'ACC-ABC123456789', amount: 0);
+    await controller.depositUsd(
+      accountId: 'ACC-ABC123456789',
+      amount: 0,
+      password: 'localPass123!',
+    );
     expect(controller.value.errorMessage,
         'Enter a deposit amount greater than 0.');
     expect(requestCount, 0);

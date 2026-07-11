@@ -34,16 +34,6 @@ class MarketScreen extends StatefulWidget {
 }
 
 class _MarketScreenState extends State<MarketScreen> {
-  static const _marketCategories = <({String label, double width})>[
-    (label: 'Stocks', width: 58),
-    (label: 'Crypto', width: 58),
-    (label: 'Options', width: 65),
-    (label: 'ETFs', width: 41),
-    (label: 'Overview', width: 78),
-    (label: 'More', width: 43),
-  ];
-
-  int _selectedCategoryIndex = 0;
   List<String> _marketTrendingStockCodes = _defaultTrendingStockCodes;
   Timer? _calendarClockTimer;
   DateTime? _lastCalendarRequestedAt;
@@ -142,42 +132,6 @@ class _MarketScreenState extends State<MarketScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(0, 4, 0, 24),
           children: [
-            SizedBox(
-              height: 41,
-              child: Padding(
-                padding: const EdgeInsets.only(left: 12, top: 10),
-                child: ListView.separated(
-                  padding: EdgeInsets.zero,
-                  scrollDirection: Axis.horizontal,
-                  itemBuilder: (context, index) {
-                    final isSelected = index == _selectedCategoryIndex;
-                    final category = _marketCategories[index];
-                    return _MarketCategoryTab(
-                      label: category.label,
-                      width: category.width,
-                      isSelected: isSelected,
-                      onTap: () {
-                        if (index != 0) {
-                          unawaited(
-                            _showComingSoonDialog(
-                              context,
-                              featureName: category.label,
-                            ),
-                          );
-                          return;
-                        }
-                        setState(() {
-                          _selectedCategoryIndex = index;
-                        });
-                      },
-                    );
-                  },
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(width: 18),
-                  itemCount: _marketCategories.length,
-                ),
-              ),
-            ),
             const SizedBox(height: 24),
             _MarketStatusSection(
               cards: marketStatusCards,
@@ -1062,38 +1016,6 @@ class _LoadingBlock extends StatelessWidget {
         borderRadius: BorderRadius.circular(radius),
       ),
       child: SizedBox(width: width, height: height),
-    );
-  }
-}
-
-class _MarketCategoryTab extends StatelessWidget {
-  const _MarketCategoryTab({
-    required this.label,
-    required this.width,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String label;
-  final double width;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return AppUnderlineTab(
-      label: label,
-      width: width,
-      isSelected: isSelected,
-      onTap: onTap,
-      fontSize: 18,
-      lineHeight: 25 / 18,
-      fontWeightSelected: FontWeight.w600,
-      fontWeightUnselected: FontWeight.w500,
-      activeColor: AppColors.gray1000,
-      inactiveColor: AppColors.gray600,
-      underlineWidth: width,
-      underlineHeight: 3,
     );
   }
 }

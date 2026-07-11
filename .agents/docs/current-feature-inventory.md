@@ -28,9 +28,9 @@
 | `auth.login` | access/refresh token 발급 | `POST /api/v1/auth/login` |
 | `auth.refresh` | refresh rotation | `POST /api/v1/auth/token/refresh` |
 | `account.balance` | 계좌와 USD 잔고 | `GET /api/v1/accounts/{accountId}` |
-| `account.deposit` | mock USD 입금 | `POST /api/v1/accounts/{accountId}/deposits` |
+| `account.deposit` | 금액 입력 후 계정 비밀번호 재확인을 거치는 mock USD 원장 충전 | `POST /api/v1/accounts/{accountId}/deposits` |
 
-토큰은 `SecureExchangeSessionStore`를 통해 `flutter_secure_storage`에 보관한다. 로그아웃 시 서버 세션과 로컬 토큰을 함께 제거한다.
+토큰은 `SecureExchangeSessionStore`를 통해 `flutter_secure_storage`에 보관한다. 앱 복원 시 access token을 서버에서 검증하고 만료·401 응답 시 refresh token rotation을 수행하며, access token 만료 1분 전에 자동 갱신한다. refresh token이 거부되면 로컬 세션을 제거한다.
 
 ## 시장과 종목 상세
 
@@ -65,9 +65,9 @@
 | --- | --- | --- |
 | `news.market` | 시장 뉴스, trending, 상세 | `/api/v1/market/news/**` |
 | `notifications.inbox` | 알림 목록·필터·읽음 처리 | `/api/v1/accounts/{accountId}/notifications/**` |
-| `notifications.devices` | push device 등록·비활성화 | `/notifications/devices/**` |
+| `notifications.devices` | iOS APNs 실제 토큰 등록·비활성화 | `/notifications/devices/**` |
 
-번역 상태, 원문 링크, What/Why/Impact, sentiment, importance, glossary를 표시한다. 잘린 요약이나 품질 메타 문구를 사용자 문장으로 조합하지 않는다.
+번역 상태, 원문 링크, What/Why/Impact, sentiment, importance, glossary를 표시한다. 알림함은 서버 응답만 사용하고 로컬 demo 항목을 만들지 않는다. 로그인 시 iOS가 APNs 권한과 실제 device token을 받아 계정에 등록하며, 시뮬레이터에서는 가짜 토큰으로 대체하지 않는다. 기사 전문은 원문의 문단·줄바꿈을 보존하며 glossary 설명은 내용 높이에 맞춘다.
 
 ## 글로벌 세무 자동화
 
@@ -81,7 +81,7 @@
 | `tax.case` | 검증 완료 3문서로 환급 케이스 생성 | `POST /tax/refund-cases` |
 | `tax.sync` | Hana 상태 동기화 | `POST /tax/refund-status/sync` |
 
-파일 선택은 `file_selector`를 사용한다. 세 문서를 순서대로 업로드하며 각 문서가 Hannah OCR `VERIFIED` 상태여야 다음 신청 단계가 열린다. 허용 확장자·MIME·크기 오류, OCR 진행, 검수 필요, 거절 사유를 분리해 표시한다. 파일명과 세무 데이터는 로그·샘플 화면에서 마스킹한다.
+파일 선택은 `file_selector`를 사용한다. 세 문서를 순서대로 업로드하며 각 문서가 Hannah OCR `VERIFIED` 상태여야 다음 신청 단계가 열린다. 선택한 이미지 문서 위로 scan animation을 표시하고 검증 실패·거절 사유는 즉시 팝업으로 안내한 뒤 재업로드 단계로 복귀한다. 402×875 기준 각 단계는 스크롤 없이 보이고, 파일명과 세무 데이터는 로그·샘플 화면에서 마스킹한다.
 
 ## 컨트롤러
 

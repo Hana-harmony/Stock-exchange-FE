@@ -67,6 +67,7 @@ class _MarketNewsScreenState extends State<MarketNewsScreen> {
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
             children: [
               _ErrorStateCard(
+                title: 'Market news unavailable',
                 message: state.errorMessage ?? 'Unable to load market news.',
                 onRetry: () =>
                     widget.marketNewsController.loadLatest(limit: 20),

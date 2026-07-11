@@ -323,27 +323,6 @@ class _NotificationArticleDetailHeader extends StatelessWidget {
               ),
             ),
             const Spacer(),
-            _NotificationHeaderIconButton(
-              semanticLabel: 'Article Search',
-              onTap: () {},
-              child: Image.asset(
-                AppAssets.headerSearch,
-                width: 24,
-                height: 24,
-                fit: BoxFit.contain,
-              ),
-            ),
-            const SizedBox(width: 4),
-            _NotificationHeaderIconButton(
-              semanticLabel: 'Article More',
-              onTap: () {},
-              child: Image.asset(
-                AppAssets.headerMoreIcon,
-                width: 36,
-                height: 36,
-                fit: BoxFit.contain,
-              ),
-            ),
           ],
         ),
       ),
@@ -360,26 +339,22 @@ class _NotificationArticleHeroImage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (imageUrl == null || imageUrl!.isEmpty) {
+      return const SizedBox.shrink();
+    }
     return SizedBox(
       width: double.infinity,
       height: 240,
       child: DecoratedBox(
         decoration: const BoxDecoration(color: AppColors.surface),
-        child: imageUrl != null && imageUrl!.isNotEmpty
-            ? Image.network(
-                imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _fallbackImage(),
-              )
-            : _fallbackImage(),
+        child: Image.network(
+          imageUrl!,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const Center(
+            child: Text('Article image unavailable'),
+          ),
+        ),
       ),
-    );
-  }
-
-  Widget _fallbackImage() {
-    return Image.asset(
-      AppAssets.noImageDefault,
-      fit: BoxFit.cover,
     );
   }
 }
@@ -685,7 +660,7 @@ class _NotificationArticleDetailData {
   List<String> get bodyParagraphs {
     final normalized = bodyText
         .split(RegExp(r'\n\s*\n'))
-        .map((paragraph) => paragraph.replaceAll('\n', ' ').trim())
+        .map((paragraph) => paragraph.trim())
         .where((paragraph) => paragraph.isNotEmpty)
         .toList();
     return normalized;
@@ -738,23 +713,9 @@ class _NotificationArticleDetailData {
       title: item.title,
       companyLabel: _notificationCompanyLabel(item),
       relativeTimeLabel: _relativeTimeLabel(item.createdAt),
-      sentiment: _StockNewsSentiment.positive,
-      priority: _StockNewsPriority.high,
-      analysisRows: [
-        _StockNewsSummaryRowData(
-          label: 'What',
-          value: item.title,
-        ),
-        _StockNewsSummaryRowData(
-          label: 'Why',
-          value: item.summary.isNotEmpty ? item.summary : item.title,
-        ),
-        _StockNewsSummaryRowData(
-          label: 'Impact',
-          value:
-              '${item.targetLabel} notification triggered for ${_notificationCompanyLabel(item)}.',
-        ),
-      ],
+      sentiment: _StockNewsSentiment.neutral,
+      priority: _StockNewsPriority.medium,
+      analysisRows: const [],
       bodyText: resolvedBodyText,
       glossaryEntries: resolvedGlossaryEntries,
       originalUrl: item.originalUrl,
@@ -786,8 +747,8 @@ class _NotificationArticleDetailData {
       title: item.displayTitle,
       companyLabel: item.displayQuery,
       relativeTimeLabel: _relativeTimeLabel(item.publishedAt ?? item.createdAt),
-      sentiment: _StockNewsSentiment.positive,
-      priority: _StockNewsPriority.medium,
+      sentiment: _sentimentFromString(item.sentiment),
+      priority: _priorityFromStrings(item.importance, ''),
       analysisRows: rows,
       bodyText: bodyText,
       glossaryEntries: _glossaryEntriesFromTerms(
@@ -917,8 +878,8 @@ class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
   final Rect anchorRect;
   final double maxWidth;
 
-  static const double _bubbleWidth = 264;
-  static const double _bubbleHeight = 176;
+  static const double _preferredBubbleWidth = 264;
+  static const double _maxBubbleHeight = 320;
   static const double _pointerWidth = 34;
   static const double _pointerHeight = 20;
   static const double _pointerOverlap = 12;
@@ -927,29 +888,66 @@ class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final left = (anchorRect.center.dx - (_bubbleWidth / 2))
-        .clamp(0.0, (maxWidth - _bubbleWidth).clamp(0.0, double.infinity))
+    final bubbleWidth = math.min(_preferredBubbleWidth, maxWidth);
+    final textTheme = Theme.of(context).textTheme;
+    final eyebrowStyle = textTheme.bodyMedium?.copyWith(
+      fontSize: 12,
+      height: 1.4,
+      fontWeight: FontWeight.w500,
+      color: AppColors.orange500,
+    );
+    final titleStyle = textTheme.bodyMedium?.copyWith(
+      fontSize: 14,
+      height: 1.4,
+      fontWeight: FontWeight.w600,
+      color: AppColors.white,
+    );
+    final descriptionStyle = textTheme.bodyMedium?.copyWith(
+      fontSize: 12,
+      height: 1.4,
+      fontWeight: FontWeight.w500,
+      color: AppColors.gray400,
+    );
+    final contentHeight = 32 +
+        _tooltipTextHeight(glossary.eyebrow, eyebrowStyle, bubbleWidth - 32) +
+        4 +
+        _tooltipTextHeight(glossary.title, titleStyle, bubbleWidth - 32) +
+        (glossary.description.isEmpty
+            ? 0
+            : 4 +
+                _tooltipTextHeight(
+                  glossary.description,
+                  descriptionStyle,
+                  bubbleWidth - 32,
+                ));
+    final bubbleHeight = math.min(contentHeight, _maxBubbleHeight);
+    final left = (anchorRect.center.dx - (bubbleWidth / 2))
+        .clamp(0.0, (maxWidth - bubbleWidth).clamp(0.0, double.infinity))
         .toDouble();
-    final top = (anchorRect.top -
-            (_bubbleHeight + _pointerHeight - _pointerOverlap + _topGap))
+    final top = math
+        .max(
+          0,
+          anchorRect.top -
+              (bubbleHeight + _pointerHeight - _pointerOverlap + _topGap),
+        )
         .toDouble();
     final pointerLeft =
         (anchorRect.center.dx - left - (_pointerWidth / 2) - _pointerAnchorBias)
-            .clamp(16.0, _bubbleWidth - _pointerWidth - 16)
+            .clamp(16.0, bubbleWidth - _pointerWidth - 16)
             .toDouble();
 
     return Positioned(
       left: left,
       top: top,
       child: SizedBox(
-        width: _bubbleWidth,
-        height: _bubbleHeight + _pointerHeight - _pointerOverlap,
+        width: bubbleWidth,
+        height: bubbleHeight + _pointerHeight - _pointerOverlap,
         child: Stack(
           clipBehavior: Clip.none,
           children: [
             Container(
-              width: _bubbleWidth,
-              height: _bubbleHeight,
+              width: bubbleWidth,
+              height: bubbleHeight,
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
               decoration: BoxDecoration(
                 color: AppColors.slate600,
@@ -962,36 +960,18 @@ class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
                   children: [
                     Text(
                       glossary.eyebrow,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 12,
-                            height: 1.4,
-                            fontWeight: FontWeight.w500,
-                            letterSpacing: 0,
-                            color: AppColors.orange500,
-                          ),
+                      style: eyebrowStyle,
                     ),
                     const SizedBox(height: 4),
                     Text(
                       glossary.title,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            fontSize: 14,
-                            height: 1.4,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0,
-                            color: AppColors.white,
-                          ),
+                      style: titleStyle,
                     ),
                     if (glossary.description.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Text(
                         glossary.description,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              fontSize: 12,
-                              height: 1.4,
-                              fontWeight: FontWeight.w500,
-                              letterSpacing: 0,
-                              color: AppColors.gray400,
-                            ),
+                        style: descriptionStyle,
                       ),
                     ],
                   ],
@@ -1000,7 +980,7 @@ class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
             ),
             Positioned(
               left: pointerLeft,
-              top: _bubbleHeight - _pointerOverlap,
+              top: bubbleHeight - _pointerOverlap,
               child: CustomPaint(
                 size: const Size(_pointerWidth, _pointerHeight),
                 painter: _NotificationArticleTooltipPointerPainter(),
@@ -1011,6 +991,18 @@ class _NotificationArticleGlossaryTooltipOverlay extends StatelessWidget {
       ),
     );
   }
+}
+
+double _tooltipTextHeight(
+  String text,
+  TextStyle? style,
+  double maxWidth,
+) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: TextDirection.ltr,
+  )..layout(maxWidth: maxWidth);
+  return painter.height;
 }
 
 class _NotificationArticleTooltipPointerPainter extends CustomPainter {
