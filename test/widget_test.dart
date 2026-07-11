@@ -750,10 +750,18 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final marketQuoteController = _marketQuoteController();
+    final globalPeerRequests = <Uri>[];
+    final marketDetailController = _marketDetailController(
+      globalPeerRequests: globalPeerRequests,
+    );
     addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
 
     await tester.pumpWidget(
-      _stockExchangeTestApp(marketQuoteController: marketQuoteController),
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketDetailController: marketDetailController,
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -820,14 +828,14 @@ void main() {
     final collapsedSheet = tester.getRect(
       find.byKey(const ValueKey('global-peer-bottom-sheet')),
     );
-    await tester.tap(
-      find.byKey(const ValueKey('global-peer-bottom-sheet')),
-    );
+    expect(globalPeerRequests, hasLength(1));
+    await tester.tap(find.byKey(const ValueKey('global-peer-bottom-sheet')));
     await tester.pumpAndSettle();
     final expandedSheet = tester.getRect(
       find.byKey(const ValueKey('global-peer-bottom-sheet')),
     );
     expect(expandedSheet.height, greaterThan(collapsedSheet.height));
+    expect(globalPeerRequests, hasLength(1));
     expect(find.byKey(const ValueKey('global-peer-swipe-hint')), findsNothing);
 
     final memoryCard = tester.getRect(
@@ -2381,6 +2389,7 @@ MarketDetailController _marketDetailController({
   bool viActive = false,
   String priceLimitState = 'NORMAL',
   List<Uri>? chartRequests,
+  List<Uri>? globalPeerRequests,
   String stockMarketDataTime = '2026-06-18T06:00:00Z',
   String foreignOwnershipPredictionConfidenceLevel = 'TIME_SERIES_ADJUSTED',
   String foreignOwnershipPredictionConfidenceScore = '0.91',
@@ -2482,6 +2491,7 @@ MarketDetailController _marketDetailController({
         }
         if (path == '/api/v1/stocks/035720/global-peers' ||
             path == '/api/v1/stocks/005930/global-peers') {
+          globalPeerRequests?.add(request.url);
           final isSamsung = path.contains('/005930/');
           return _jsonEnvelope({
             'stockCode': isSamsung ? '005930' : '035720',

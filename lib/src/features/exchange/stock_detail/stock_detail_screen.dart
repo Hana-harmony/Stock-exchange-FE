@@ -526,6 +526,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   Future<void> _showGlobalPeers() {
+    final peerFuture = widget.marketDetailController.loadGlobalPeers(
+      stockCode: widget.stockCode,
+    );
     return showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -533,9 +536,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return _GlobalPeerBottomSheet(
-          peerFuture: widget.marketDetailController.loadGlobalPeers(
-            stockCode: widget.stockCode,
-          ),
+          peerFuture: peerFuture,
         );
       },
     );
@@ -633,10 +634,10 @@ class _GlobalPeerBottomSheetState extends State<_GlobalPeerBottomSheet> {
       expand: false,
       builder: (context, scrollController) {
         return GestureDetector(
-          key: const ValueKey('global-peer-bottom-sheet'),
           behavior: HitTestBehavior.opaque,
           onTap: _isExpanded ? null : () => unawaited(_expandSheet()),
           child: Container(
+            key: const ValueKey('global-peer-bottom-sheet'),
             decoration: const BoxDecoration(
               color: AppColors.white,
               borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -653,7 +654,9 @@ class _GlobalPeerBottomSheetState extends State<_GlobalPeerBottomSheet> {
               future: widget.peerFuture,
               builder: (context, snapshot) {
                 if (snapshot.connectionState != ConnectionState.done) {
-                  return const _GlobalPeerSheetFrame(
+                  return _GlobalPeerSheetFrame(
+                    onExpand:
+                        _isExpanded ? null : () => unawaited(_expandSheet()),
                     child: Center(
                       child: Padding(
                         padding: EdgeInsets.symmetric(vertical: 32),
@@ -665,7 +668,9 @@ class _GlobalPeerBottomSheetState extends State<_GlobalPeerBottomSheet> {
                   );
                 }
                 if (snapshot.hasError || snapshot.data == null) {
-                  return const _GlobalPeerSheetFrame(
+                  return _GlobalPeerSheetFrame(
+                    onExpand:
+                        _isExpanded ? null : () => unawaited(_expandSheet()),
                     child: _MutedInfoCard(
                       title: 'Peer match unavailable',
                       body: 'Global peer analysis could not be loaded.',
@@ -677,6 +682,8 @@ class _GlobalPeerBottomSheetState extends State<_GlobalPeerBottomSheet> {
                   child: _GlobalPeerSheetContent(
                     match: snapshot.data!,
                     isExpanded: _isExpanded,
+                    onExpand:
+                        _isExpanded ? null : () => unawaited(_expandSheet()),
                   ),
                 );
               },
@@ -689,9 +696,13 @@ class _GlobalPeerBottomSheetState extends State<_GlobalPeerBottomSheet> {
 }
 
 class _GlobalPeerSheetFrame extends StatelessWidget {
-  const _GlobalPeerSheetFrame({required this.child});
+  const _GlobalPeerSheetFrame({
+    required this.child,
+    this.onExpand,
+  });
 
   final Widget child;
+  final VoidCallback? onExpand;
 
   @override
   Widget build(BuildContext context) {
@@ -702,7 +713,16 @@ class _GlobalPeerSheetFrame extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const _FigmaBottomSheetHandle(),
+            Semantics(
+              button: onExpand != null,
+              label: 'Expand global peers',
+              child: GestureDetector(
+                key: const ValueKey('global-peer-expand-handle'),
+                behavior: HitTestBehavior.opaque,
+                onTap: onExpand,
+                child: const _FigmaBottomSheetHandle(),
+              ),
+            ),
             const SizedBox(height: 20),
             child,
           ],
@@ -716,10 +736,12 @@ class _GlobalPeerSheetContent extends StatelessWidget {
   const _GlobalPeerSheetContent({
     required this.match,
     required this.isExpanded,
+    this.onExpand,
   });
 
   final GlobalPeerMatch match;
   final bool isExpanded;
+  final VoidCallback? onExpand;
 
   @override
   Widget build(BuildContext context) {
@@ -729,6 +751,7 @@ class _GlobalPeerSheetContent extends StatelessWidget {
     final strengthItems = _globalPeerStrengthItems(match);
 
     return _GlobalPeerSheetFrame(
+      onExpand: onExpand,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
