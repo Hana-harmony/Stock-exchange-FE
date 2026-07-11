@@ -98,7 +98,13 @@ void main() {
     );
 
     await expectLater(
-      client.signUp(username: '한나', password: 'short'),
+      client.signUp(
+        username: '한나',
+        password: 'short',
+        confirmPassword: 'short',
+        pin: '135790',
+        confirmPin: '135790',
+      ),
       throwsA(
         isA<ExchangeApiException>().having(
           (error) => error.message,
@@ -305,7 +311,7 @@ void main() {
         expect(_header(request, 'authorization'), 'Bearer access-token');
         expect(jsonDecode(request.body), {
           'amountUsd': 500,
-          'password': 'localPass123!',
+          'pin': '135790',
         });
 
         return _jsonResponse({
@@ -327,7 +333,7 @@ void main() {
     final response = await client.depositUsd(
       accountId: 'ACC-ABC123456789',
       amount: 500,
-      password: 'localPass123!',
+      pin: '135790',
     );
 
     expect(response.data?['cashBalanceUsd'], '500.00');
@@ -354,7 +360,7 @@ void main() {
       client.depositUsd(
         accountId: 'ACC-ABC123456789',
         amount: 500,
-        password: 'localPass123!',
+        pin: '135790',
       ),
       throwsA(
         isA<ExchangeApiException>()
@@ -488,6 +494,7 @@ void main() {
             'quantity': 2,
             'orderType': 'LIMIT',
             'limitPriceUsd': 50.0,
+            'pin': '135790',
           });
           return _jsonResponse({
             'success': true,
@@ -523,6 +530,7 @@ void main() {
       side: 'BUY',
       quantity: 2,
       limitPriceUsd: 50.00,
+      pin: '135790',
     );
     await client.getPortfolio('ACC-ABC123456789');
 

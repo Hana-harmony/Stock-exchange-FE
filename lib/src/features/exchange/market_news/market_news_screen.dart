@@ -94,9 +94,13 @@ class _MarketNewsScreenState extends State<MarketNewsScreen> {
           child: ListView.separated(
             controller: _scrollController,
             key: const ValueKey('discover-market-news-list'),
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 120),
+            padding: const EdgeInsets.only(bottom: 120),
             itemCount: news.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 14),
+            separatorBuilder: (_, __) => const Divider(
+              height: 1,
+              thickness: 1,
+              color: AppColors.gray100,
+            ),
             itemBuilder: (context, index) {
               final item = news[index];
               return _MarketNewsCard(
@@ -136,45 +140,41 @@ class _MarketNewsCard extends StatelessWidget {
     return Material(
       key: ValueKey('market-news-card-${item.newsId}'),
       color: AppColors.white,
-      borderRadius: BorderRadius.circular(8),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: AppColors.gray200),
-          ),
+        child: SizedBox(
+          height: 113,
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           Flexible(
                             child: _StockNewsTargetBadge(
                               label: item.displayQuery,
                             ),
                           ),
-                          const Spacer(),
-                          Text(
-                            _relativeTimeLabel(
-                              item.publishedAt ?? item.createdAt,
+                          const SizedBox(width: 6),
+                          _StockNewsSentimentBadge(
+                            sentiment: _sentimentFromString(item.sentiment),
+                          ),
+                          const SizedBox(width: 6),
+                          Flexible(
+                            child: _StockNewsPriorityBadge(
+                              priority:
+                                  _priorityFromStrings(item.importance, ''),
                             ),
-                            style:
-                                Theme.of(context).textTheme.bodySmall?.copyWith(
-                                      fontSize: 12,
-                                      color: AppColors.gray600,
-                                    ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 5),
                       Text(
                         item.displayTitle,
                         maxLines: 2,
@@ -182,32 +182,31 @@ class _MarketNewsCard extends StatelessWidget {
                         style:
                             Theme.of(context).textTheme.titleMedium?.copyWith(
                                   fontSize: 16,
-                                  height: 1.35,
-                                  fontWeight: FontWeight.w700,
+                                  height: 1.4,
+                                  fontWeight: FontWeight.w600,
                                   color: AppColors.gray1000,
                                 ),
                       ),
-                      const SizedBox(height: 10),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          _StockNewsSentimentBadge(
-                            sentiment: _sentimentFromString(item.sentiment),
-                          ),
-                          _StockNewsPriorityBadge(
-                            priority: _priorityFromStrings(item.importance, ''),
-                          ),
-                        ],
+                      const Spacer(),
+                      Text(
+                        '${_marketNewsSourceLabel(item.originalUrl)} · '
+                        '${_relativeTimeLabel(item.publishedAt ?? item.createdAt)}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontSize: 12,
+                              height: 1.4,
+                              color: AppColors.gray600,
+                            ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 20),
                 _StockNewsImage(
                   imageUrl: item.imageUrl,
-                  width: 88,
-                  height: 88,
+                  width: 85,
+                  height: 85,
                 ),
               ],
             ),
@@ -216,4 +215,13 @@ class _MarketNewsCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _marketNewsSourceLabel(String rawUrl) {
+  final uri = Uri.tryParse(rawUrl.trim());
+  final host = uri?.host.toLowerCase() ?? '';
+  if (host.isEmpty) {
+    return 'K-News';
+  }
+  return host.startsWith('www.') ? host.substring(4) : host;
 }

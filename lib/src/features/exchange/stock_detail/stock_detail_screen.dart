@@ -612,6 +612,17 @@ class _GlobalPeerBottomSheetState extends State<_GlobalPeerBottomSheet> {
     });
   }
 
+  Future<void> _expandSheet() async {
+    if (_isExpanded || !_sheetController.isAttached) {
+      return;
+    }
+    await _sheetController.animateTo(
+      0.92,
+      duration: const Duration(milliseconds: 260),
+      curve: Curves.easeOutCubic,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -621,51 +632,55 @@ class _GlobalPeerBottomSheetState extends State<_GlobalPeerBottomSheet> {
       maxChildSize: 0.92,
       expand: false,
       builder: (context, scrollController) {
-        return Container(
+        return GestureDetector(
           key: const ValueKey('global-peer-bottom-sheet'),
-          decoration: const BoxDecoration(
-            color: AppColors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-            boxShadow: [
-              BoxShadow(
-                color: Color.fromRGBO(0, 0, 0, 0.05),
-                blurRadius: 10,
-                offset: Offset(4, 0),
-              ),
-            ],
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: FutureBuilder<GlobalPeerMatch>(
-            future: widget.peerFuture,
-            builder: (context, snapshot) {
-              if (snapshot.connectionState != ConnectionState.done) {
-                return const _GlobalPeerSheetFrame(
-                  child: Center(
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: 32),
-                      child: CircularProgressIndicator(
-                        color: AppColors.orange500,
+          behavior: HitTestBehavior.opaque,
+          onTap: _isExpanded ? null : () => unawaited(_expandSheet()),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: AppColors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: Color.fromRGBO(0, 0, 0, 0.05),
+                  blurRadius: 10,
+                  offset: Offset(4, 0),
+                ),
+              ],
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: FutureBuilder<GlobalPeerMatch>(
+              future: widget.peerFuture,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState != ConnectionState.done) {
+                  return const _GlobalPeerSheetFrame(
+                    child: Center(
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(vertical: 32),
+                        child: CircularProgressIndicator(
+                          color: AppColors.orange500,
+                        ),
                       ),
                     ),
+                  );
+                }
+                if (snapshot.hasError || snapshot.data == null) {
+                  return const _GlobalPeerSheetFrame(
+                    child: _MutedInfoCard(
+                      title: 'Peer match unavailable',
+                      body: 'Global peer analysis could not be loaded.',
+                    ),
+                  );
+                }
+                return SingleChildScrollView(
+                  controller: scrollController,
+                  child: _GlobalPeerSheetContent(
+                    match: snapshot.data!,
+                    isExpanded: _isExpanded,
                   ),
                 );
-              }
-              if (snapshot.hasError || snapshot.data == null) {
-                return const _GlobalPeerSheetFrame(
-                  child: _MutedInfoCard(
-                    title: 'Peer match unavailable',
-                    body: 'Global peer analysis could not be loaded.',
-                  ),
-                );
-              }
-              return SingleChildScrollView(
-                controller: scrollController,
-                child: _GlobalPeerSheetContent(
-                  match: snapshot.data!,
-                  isExpanded: _isExpanded,
-                ),
-              );
-            },
+              },
+            ),
           ),
         );
       },

@@ -110,6 +110,9 @@ void main() {
     await controller.signUpAndLogin(
       username: '한나',
       password: 'secret123',
+      confirmPassword: 'secret123',
+      pin: '135790',
+      confirmPin: '135790',
     );
 
     expect(requestCount, 0);
@@ -130,7 +133,13 @@ void main() {
       }),
     );
 
-    await controller.signUpAndLogin(username: 'hana_user', password: 'short');
+    await controller.signUpAndLogin(
+      username: 'hana_user',
+      password: 'short',
+      confirmPassword: 'short',
+      pin: '135790',
+      confirmPin: '135790',
+    );
 
     expect(requestCount, 0);
     expect(controller.value.status, ExchangeSessionStatus.failure);
@@ -171,6 +180,9 @@ void main() {
     await controller.signUpAndLogin(
       username: ' hana ',
       password: 'secret123',
+      confirmPassword: 'secret123',
+      pin: '135790',
+      confirmPin: '135790',
     );
 
     expect(paths, ['/api/v1/auth/signup', '/api/v1/auth/login']);

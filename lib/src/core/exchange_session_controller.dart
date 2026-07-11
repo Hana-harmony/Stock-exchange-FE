@@ -155,6 +155,9 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
   Future<void> signUpAndLogin({
     required String username,
     required String password,
+    required String confirmPassword,
+    required String pin,
+    required String confirmPin,
   }) async {
     final validationError = _credentialValidationError(
       username: username,
@@ -164,12 +167,24 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
       value = ExchangeSessionState.failure(validationError);
       return;
     }
+    if (password != confirmPassword) {
+      value = const ExchangeSessionState.failure('Passwords do not match.');
+      return;
+    }
+    if (!RegExp(r'^\d{6}$').hasMatch(pin) || pin != confirmPin) {
+      value = const ExchangeSessionState.failure(
+          'Enter the same 6-digit PIN twice.');
+      return;
+    }
 
     value = ExchangeSessionState.loading(session: value.session);
     try {
       await _apiClient.signUp(
         username: username.trim(),
         password: password,
+        confirmPassword: confirmPassword,
+        pin: pin,
+        confirmPin: confirmPin,
       );
       final nextSession = await _apiClient.login(
         username: username.trim(),

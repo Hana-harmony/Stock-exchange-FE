@@ -551,8 +551,9 @@ class TradeController extends ValueNotifier<TradeState> {
     required String side,
     required int quantity,
     required num limitPriceUsd,
+    required String pin,
   }) async {
-    if (!_isValid(accountId, stockCode, quantity, limitPriceUsd)) {
+    if (!_isValid(accountId, stockCode, quantity, limitPriceUsd, pin)) {
       return;
     }
 
@@ -563,6 +564,7 @@ class TradeController extends ValueNotifier<TradeState> {
         side: side,
         quantity: quantity,
         limitPriceUsd: limitPriceUsd,
+        pin: pin,
       );
       final order = TradeOrderPlacement.fromJson(response.data ?? {});
       final portfolioResponse = await _apiClient.getPortfolio(accountId);
@@ -588,6 +590,7 @@ class TradeController extends ValueNotifier<TradeState> {
     String stockCode,
     int quantity, [
     num? limitPriceUsd,
+    String? pin,
   ]) {
     if (accountId == null || accountId.isEmpty) {
       value = TradeState.failure(
@@ -628,6 +631,18 @@ class TradeController extends ValueNotifier<TradeState> {
     if (limitPriceUsd != null && limitPriceUsd <= 0) {
       value = TradeState.failure(
         errorMessage: 'Limit price must be greater than 0.',
+        portfolio: value.portfolio,
+        tradeHistory: value.tradeHistory,
+        orderHistory: value.orderHistory,
+        orderability: value.orderability,
+        lastTrade: value.lastTrade,
+        lastOrder: value.lastOrder,
+      );
+      return false;
+    }
+    if (pin != null && !RegExp(r'^\d{6}$').hasMatch(pin)) {
+      value = TradeState.failure(
+        errorMessage: 'Enter your 6 digit transaction PIN.',
         portfolio: value.portfolio,
         tradeHistory: value.tradeHistory,
         orderHistory: value.orderHistory,

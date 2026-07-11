@@ -110,6 +110,7 @@ void main() {
             'quantity': 2,
             'orderType': 'LIMIT',
             'limitPriceUsd': 50.0,
+            'pin': '135790',
           });
           return _jsonResponse({
             'success': true,
@@ -152,6 +153,7 @@ void main() {
       side: 'BUY',
       quantity: 2,
       limitPriceUsd: 50.00,
+      pin: '135790',
     );
 
     expect(paths, [
@@ -174,6 +176,7 @@ void main() {
             'quantity': 1,
             'orderType': 'LIMIT',
             'limitPriceUsd': 70.0,
+            'pin': '135790',
           });
           final trade = _tradeJson(
             side: 'SELL',
@@ -244,6 +247,7 @@ void main() {
       side: 'SELL',
       quantity: 1,
       limitPriceUsd: 70.00,
+      pin: '135790',
     );
 
     expect(controller.value.lastTrade?.isSell, isTrue);
@@ -267,8 +271,23 @@ void main() {
       side: 'BUY',
       quantity: 1,
       limitPriceUsd: 50.00,
+      pin: '135790',
     );
     expect(controller.value.errorMessage, 'Sign in before placing an order.');
+
+    await controller.executeTrade(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 1,
+      limitPriceUsd: 50.00,
+      pin: '1234',
+    );
+    expect(
+      controller.value.errorMessage,
+      'Enter your 6 digit transaction PIN.',
+    );
+    expect(requestCount, 0);
 
     await controller.checkOrderability(
       accountId: 'ACC-ABC123456789',

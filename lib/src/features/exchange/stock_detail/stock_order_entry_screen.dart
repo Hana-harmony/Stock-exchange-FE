@@ -275,7 +275,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
       return;
     }
 
-    final isPinConfirmed = await showGeneralDialog<bool>(
+    final transactionPin = await showGeneralDialog<String>(
       context: context,
       barrierDismissible: false,
       barrierLabel: 'Account PIN',
@@ -298,7 +298,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
       },
     );
 
-    if (isPinConfirmed != true || !mounted) {
+    if (transactionPin == null || !mounted) {
       return;
     }
 
@@ -315,7 +315,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
       return;
     }
 
-    await _executeTrade();
+    await _executeTrade(transactionPin);
     if (!mounted) {
       return;
     }
@@ -355,13 +355,14 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     return true;
   }
 
-  Future<void> _executeTrade() {
+  Future<void> _executeTrade(String pin) {
     return widget.tradeController.executeTrade(
       accountId: widget.sessionController.session?.accountId,
       stockCode: widget.stockCode,
       side: widget.side,
       quantity: _quantity,
       limitPriceUsd: _estimateLimitPriceUsd(),
+      pin: pin,
     );
   }
 
@@ -1367,7 +1368,7 @@ class _AccountPinBottomSheetDialogState
     if (!_isConfirmEnabled) {
       return;
     }
-    Navigator.of(context).pop(true);
+    Navigator.of(context).pop(_pin);
   }
 
   @override
