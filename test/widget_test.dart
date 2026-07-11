@@ -229,6 +229,38 @@ void main() {
       find.byKey(const ValueKey('notification-filter-watchlist')),
       findsOneWidget,
     );
+    final portfolioFilter = find.byKey(
+      const ValueKey('notification-filter-portfolio'),
+    );
+    final watchlistFilter = find.byKey(
+      const ValueKey('notification-filter-watchlist'),
+    );
+    final portfolioFilterText = tester.widget<Text>(
+      find.descendant(of: portfolioFilter, matching: find.text('My Portfolio')),
+    );
+    final watchlistFilterText = tester.widget<Text>(
+      find.descendant(of: watchlistFilter, matching: find.text('Watchlist')),
+    );
+    expect(portfolioFilterText.maxLines, 1);
+    expect(portfolioFilterText.softWrap, isFalse);
+    expect(watchlistFilterText.maxLines, 1);
+    expect(watchlistFilterText.softWrap, isFalse);
+    expect(
+      tester
+          .getSize(
+            portfolioFilter,
+          )
+          .width,
+      112,
+    );
+    expect(
+      tester
+          .getSize(
+            watchlistFilter,
+          )
+          .width,
+      88,
+    );
     expect(
       find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
       findsOneWidget,

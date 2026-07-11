@@ -49,6 +49,8 @@ class AppUnderlineTab extends StatelessWidget {
               alignment: Alignment.topLeft,
               child: Text(
                 label,
+                maxLines: 1,
+                softWrap: false,
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontSize: fontSize,
                       height: lineHeight,
