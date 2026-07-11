@@ -368,7 +368,7 @@ class _NotificationInboxTabBar extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             physics: const ClampingScrollPhysics(),
             child: SizedBox(
-              width: 234,
+              width: 266,
               height: 31,
               child: Row(
                 children: [
@@ -381,14 +381,14 @@ class _NotificationInboxTabBar extends StatelessWidget {
                   const SizedBox(width: 18),
                   _NotificationFilterTab(
                     filter: NotificationFilter.portfolio,
-                    width: 100,
+                    width: 112,
                     isSelected: selectedFilter == NotificationFilter.portfolio,
                     onTap: () => onSelected(NotificationFilter.portfolio),
                   ),
                   const SizedBox(width: 18),
                   _NotificationFilterTab(
                     filter: NotificationFilter.watchlist,
-                    width: 76,
+                    width: 88,
                     isSelected: selectedFilter == NotificationFilter.watchlist,
                     onTap: () => onSelected(NotificationFilter.watchlist),
                   ),
