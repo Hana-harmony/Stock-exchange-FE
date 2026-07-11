@@ -1,6 +1,6 @@
 # Stock-exchange-FE
 
-Flutter 기반 iOS/Android MTS 프론트엔드다. 사용자는 한국 상장주식의 실시간 시세, 종목 상세, 뉴스·공시 인텔리전스, 외국인 한도 신호, 모의 원장 기반 주문/자산, 세무 환급 상태를 영어 UI와 USD 환산 기준으로 확인한다.
+Flutter Web 기반 MTS 프론트엔드다. 데스크톱 브라우저에서도 앱 영역을 최대 430px로 유지해 모바일 화면 밀도를 보존한다. 사용자는 한국 상장주식의 실시간 시세, 종목 상세, 뉴스·공시 인텔리전스, 외국인 한도 신호, 모의 원장 기반 주문/자산, 세무 환급 상태를 영어 UI와 USD 환산 기준으로 확인한다.
 
 ## 핵심 기능
 - Markets: KOSPI/KOSDAQ/KOSPI 200 지수, 인기 종목, 검색, 시장별 시세
@@ -10,14 +10,16 @@ Flutter 기반 iOS/Android MTS 프론트엔드다. 사용자는 한국 상장주
 - Watchlist/Portfolio: 관심종목, 보유종목, 계좌별 quote snapshot과 WebSocket tick 반영
 - 인증·계좌: secure storage 세션, access token 검증·자동 갱신, 비밀번호 재확인 USD 모의 원장 충전
 - 주문 화면: 실제 주문이 아닌 mock ledger 주문, orderability 경고/차단 표시
-- 알림함: 관심·보유종목 뉴스·공시 알림, 읽음 처리, iOS APNs 토큰 등록
+- 알림함: 관심·보유종목 뉴스·공시 알림, 감성·중요도·썸네일, All/My Portfolio/Watchlist 필터, 읽음 처리, 표준 Web Push 구독
 - 세무 화면: 거주자 증명서·아포스티유·제한세율 적용신청서 파일 선택과 순차 업로드, OCR 진행·검증, 환급 신청 상태, 사후 환수 위험 고지
 
 ## 실행
 ```bash
 flutter pub get
 flutter test
-flutter run --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
+flutter run -d chrome \
+  --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000 \
+  --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=<VAPID_PUBLIC_KEY>
 ```
 
 로컬 앱 검증 절차는 [docs/LOCAL_APP_TESTING.md](docs/LOCAL_APP_TESTING.md)를 따른다. 백엔드는 `Hannah-Montana-AI -> Hana-OmniLens-API -> Stock-exchange-BE` 순서로 먼저 띄운다.
@@ -27,12 +29,15 @@ flutter run --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
 flutter test
-flutter build ios --simulator --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
+flutter build web --release \
+  --dart-define=EXCHANGE_API_BASE_URL=https://api.example.com \
+  --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=<VAPID_PUBLIC_KEY>
 ```
 
 ## 책임 경계
 - FE는 Stock-exchange-BE만 호출한다.
 - Hana-OmniLens-API, Hannah-Montana-AI, 외부 provider key는 앱에 노출하지 않는다.
+- 브라우저에는 공개 VAPID 키만 주입한다. 비공개 VAPID 키와 push gateway 자격증명은 Stock-exchange-BE에서 관리한다.
 - 실제 주문 체결, 정산, 환전, 세무 지급/환수 실행은 FE 책임이 아니다.
 
 ## 문서

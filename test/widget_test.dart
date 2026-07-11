@@ -214,6 +214,36 @@ void main() {
       find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
       findsOneWidget,
     );
+    expect(find.text('Positive'), findsOneWidget);
+    expect(find.text('High Priority'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('notification-filter-portfolio')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
+      findsNothing,
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(
+      find.byKey(const ValueKey('notification-filter-watchlist')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey('notification-filter-all')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
 
     await tester.tap(
       find.byKey(const ValueKey('notification-card-LOCAL-NTF-0001')),
@@ -3006,6 +3036,9 @@ Map<String, Object?> _notificationInboxJson() {
         'summary': 'Dividend payout translated by OmniLens.',
         'originalUrl': 'https://dart.fss.or.kr/report',
         'primaryStockCode': '005930',
+        'imageUrls': ['https://news.example.com/samsung-notification.jpg'],
+        'sentiment': 'POSITIVE',
+        'importance': 'HIGH',
         'matchedStockCodes': ['005930'],
         'matchReasons': ['WATCHLIST'],
         'glossaryTerms': [

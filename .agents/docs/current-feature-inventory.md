@@ -65,9 +65,9 @@
 | --- | --- | --- |
 | `news.market` | 시장 뉴스, trending, 상세 | `/api/v1/market/news/**` |
 | `notifications.inbox` | 알림 목록·필터·읽음 처리 | `/api/v1/accounts/{accountId}/notifications/**` |
-| `notifications.devices` | iOS APNs 실제 토큰 등록·비활성화 | `/notifications/devices/**` |
+| `notifications.devices` | Web Push 구독 등록·비활성화 | `/notifications/devices/**` |
 
-번역 상태, 원문 링크, What/Why/Impact, sentiment, importance, glossary를 표시한다. 알림함은 서버 응답만 사용하고 로컬 demo 항목을 만들지 않는다. 로그인 시 iOS가 APNs 권한과 실제 device token을 받아 계정에 등록하며, 시뮬레이터에서는 가짜 토큰으로 대체하지 않는다. 기사 전문은 원문의 문단·줄바꿈을 보존하며 glossary 설명은 내용 높이에 맞춘다.
+번역 상태, 원문 링크, What/Why/Impact, sentiment, importance, thumbnail, glossary를 표시한다. 알림함은 서버 응답만 사용하고 로컬 demo 항목을 만들지 않는다. Notifications 화면의 사용자 클릭으로 브라우저 권한을 요청하고 표준 `PushSubscription`을 등록한다. 기사 전문은 원문의 문단·줄바꿈을 보존하며 glossary 설명은 내용 높이에 맞춘다.
 
 ## 글로벌 세무 자동화
 
