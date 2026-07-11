@@ -131,8 +131,27 @@ void main() {
       _findNetworkImage('https://news.example.com/market.jpg'),
       findsOneWidget,
     );
+    final discoverRow = find.byKey(
+      const ValueKey('market-news-card-MKT-NEWS-001'),
+    );
+    expect(tester.getSize(discoverRow).height, 113);
+    expect(
+      find.descendant(of: discoverRow, matching: find.text('Neutral')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: discoverRow, matching: find.text('Medium Priority')),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: discoverRow,
+        matching: find.textContaining('news.example.com · '),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(
-      find.byKey(const ValueKey('market-news-card-MKT-NEWS-001')),
+      discoverRow,
     );
     await tester.pumpAndSettle();
 
@@ -766,11 +785,18 @@ void main() {
     );
     expect(_findAssetImage(AppAssets.stockQuestionAiIcon), findsOneWidget);
 
-    await tester.drag(
+    final collapsedSheet = tester.getRect(
       find.byKey(const ValueKey('global-peer-bottom-sheet')),
-      const Offset(0, -500),
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('global-peer-bottom-sheet')),
     );
     await tester.pumpAndSettle();
+    final expandedSheet = tester.getRect(
+      find.byKey(const ValueKey('global-peer-bottom-sheet')),
+    );
+    expect(expandedSheet.height, greaterThan(collapsedSheet.height));
+    expect(find.byKey(const ValueKey('global-peer-swipe-hint')), findsNothing);
 
     final memoryCard = tester.getRect(
       find.byKey(const ValueKey('global-peer-strength-card-memory')),
@@ -1209,7 +1235,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('deposit-continue-button')));
     await tester.pumpAndSettle();
     expect(
-      find.byKey(const ValueKey('deposit-password-field')),
+      find.byKey(const ValueKey('deposit-pin-field')),
       findsOneWidget,
     );
     await tester.binding.handlePopRoute();
@@ -1283,6 +1309,104 @@ void main() {
       find.descendant(of: signInButton, matching: find.text('Sign in')),
       findsOneWidget,
     );
+  });
+
+  testWidgets('creates account through password and transaction PIN steps',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final submittedBodies = <Map<String, dynamic>>[];
+    final sessionController = ExchangeSessionController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          submittedBodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+          if (request.url.path == '/api/v1/auth/signup') {
+            return _jsonEnvelope({
+              'username': 'newtrader',
+              'accountId': 'ACC-NEWTRADER0001',
+            });
+          }
+          if (request.url.path == '/api/v1/auth/login') {
+            return _jsonEnvelope({
+              'username': 'newtrader',
+              'accountId': 'ACC-NEWTRADER0001',
+              'tokenType': 'Bearer',
+              'accessToken': 'new-access-token',
+              'refreshToken': 'new-refresh-token',
+            });
+          }
+          return http.Response('{}', 404);
+        }),
+      ),
+      sessionStore: MemoryExchangeSessionStore(),
+    );
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(sessionController.dispose);
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        sessionController: sessionController,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-MY')));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('my-create-account-submit')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('my-signup-form')), findsOneWidget);
+    expect(find.text('1/3'), findsOneWidget);
+
+    await tester.enterText(
+      find.byKey(const ValueKey('my-signup-username')),
+      'newtrader',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('my-signup-password')),
+      'SecurePass123!',
+    );
+    await tester.enterText(
+      find.byKey(const ValueKey('my-signup-password-confirm')),
+      'SecurePass123!',
+    );
+    await tester.tap(find.byKey(const ValueKey('my-signup-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('2/3'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('my-signup-pin')),
+      '135790',
+    );
+    await tester.tap(find.byKey(const ValueKey('my-signup-continue')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('3/3'), findsOneWidget);
+    await tester.enterText(
+      find.byKey(const ValueKey('my-signup-pin-confirm')),
+      '135790',
+    );
+    await tester.tap(find.byKey(const ValueKey('my-signup-continue')));
+    await tester.pumpAndSettle();
+
+    expect(sessionController.value.isSignedIn, isTrue);
+    expect(find.text('newtrader'), findsWidgets);
+    expect(submittedBodies, [
+      {
+        'username': 'newtrader',
+        'password': 'SecurePass123!',
+        'confirmPassword': 'SecurePass123!',
+        'pin': '135790',
+        'confirmPin': '135790',
+      },
+      {
+        'username': 'newtrader',
+        'password': 'SecurePass123!',
+      },
+    ]);
   });
 
   testWidgets('shows K-News toolbar and switches between list and card layouts',

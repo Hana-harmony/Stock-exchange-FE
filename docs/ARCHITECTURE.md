@@ -12,7 +12,7 @@
 - 기본 사용자 언어는 English, 기본 표시·충전·모의 주문 화폐는 USD다.
 
 ## 화면 구성
-- `auth`: 아이디/비밀번호 회원가입, 로그인
+- `auth`: 아이디/비밀번호·비밀번호 확인, 6자리 거래 PIN 생성·확인 회원가입, 로그인
 - `market`: 전체/시장별 종목 실시간 시세 목록, 종목 검색, 종목 상세, 현재가/호가, 과거 시세 차트 표시
 - `account`: mock USD 계좌 잔고, 실제 결제 없는 달러 충전
 - `order`: 자체 mock ledger 모의 주문 패드, 주문 가능 여부, VI/상·하한가 제한 안내
@@ -28,10 +28,10 @@
 4. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
 5. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.
 6. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, KIS REST snapshot/cache 기반 외국인 보유율, snapshot/orderability 기반 당일 예측 범위, VI/단일가/상·하한가 상태를 표시한다.
-7. 회원가입은 아이디/비밀번호만 받고, 가입 후 mock USD 계좌와 충전 화면을 제공한다.
-8. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 실제 주문이 아닌 자체 mock 거래임을 표시한다.
+7. 회원가입은 아이디/비밀번호 확인 후 6자리 거래 PIN을 생성·재확인하고, 가입 완료 후 mock USD 계좌와 충전 화면을 제공한다.
+8. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 거래 PIN 확인 후 실제 주문이 아닌 자체 mock 거래를 실행한다.
 9. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
-10. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. 알림 카드는 target, 감성, 중요도, 썸네일을 서버 데이터로 표시한다. Notifications 화면의 사용자 동작으로 Web Push 권한을 요청하고 전체 subscription을 계좌에 등록한다.
+10. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. Notifications와 Discover 리스트는 target·감성·중요도 라벨, 제목, 출처·상대시간, 썸네일 순으로 동일하게 표시한다. Notifications 화면의 사용자 동작으로 Web Push 권한을 요청하고 전체 subscription을 계좌에 등록한다.
 11. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
 
 ## 현재 구현 상태
@@ -43,14 +43,14 @@
 - 영문 glossary 하이라이트는 대소문자를 구분하지 않되 영숫자 토큰 경계가 완전한 경우에만 클릭 가능하며, `significant`·`participant`·`antitrust` 내부의 `ant`처럼 다른 단어의 부분 문자열은 제외한다.
 - Tax 탭은 서류 metadata upload, 환급 신청, Hana status sync, 환급 추정, 상태 timeline, 매도 실현손익 기반 입력, 선지급 완료 영수증, 선지급 후 환수 리스크 고지 영역을 가진다.
 - `ExchangeApiClient`는 Stock-exchange-BE 공통 응답 envelope(`success/status/code/message/data`)를 파싱하고, bearer auth session header를 REST 요청에 적용한다.
-- Auth signup/login/refresh/verify, account/deposit, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint 호출 골격이 존재한다.
+- Auth signup/login/refresh/verify, account/deposit, trade, market quote snapshot, watchlist/portfolio quote, notification, tax refund status endpoint를 실제 호출한다.
 - `ExchangeSessionController`는 login, restore, refresh, sign out 상태 전이를 관리하고, `ExchangeSessionStore` 경계를 통해 session 저장소를 분리한다.
 - `SecureExchangeSessionStore`는 운영 앱 기본 session 저장소이며 `flutter_secure_storage`에 bearer token session을 JSON으로 보관한다.
 - `AccountController`는 Stock-exchange-BE account REST 조회와 mock USD deposit 상태를 관리한다.
 - `TradeController`는 Stock-exchange-BE orderability, mock trade execution, portfolio REST 상태를 관리한다.
 - `TaxController`는 Stock-exchange-BE `POST /api/v1/accounts/{accountId}/tax/documents`, `POST /api/v1/accounts/{accountId}/tax/refund-cases`, `GET /api/v1/accounts/{accountId}/tax/refund-status`, `POST /api/v1/accounts/{accountId}/tax/refund-status/sync`를 호출해 세무 서류 metadata, 환급 신청, 정부 검증 상태, 참조번호, 예상 환급 금액을 관리한다.
-- Market/Portfolio 세션 패널은 username/password 로그인, 회원가입 후 로그인, refresh, sign out 액션을 session controller에 바인딩한다.
-- Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액을 `amountUsd`로 보내 실제 결제 없는 mock deposit ledger를 생성한다.
+- MY 세션 패널은 username/password 로그인과 별도 3단계 회원가입 폼, refresh, sign out 액션을 session controller에 바인딩한다.
+- Portfolio mock cash 패널은 로그인된 accountId로 잔고를 조회하고, 입력 금액과 6자리 거래 PIN을 보내 실제 결제 없는 mock deposit ledger를 생성한 뒤 계좌·포트폴리오를 다시 조회한다.
 - Portfolio mock order pad는 주문 전 `GET /trades/orderability`로 외국인 한도, VI, 단일가, 상·하한가 warning/blocking reason을 조회하고, backend code를 영어 사용자 문구로 변환해 표시한 뒤 `POST /trades`로 Stock-exchange-BE 자체 mock ledger만 갱신한다. 최근 SELL 체결의 realized PnL은 세무 환급 입력과 연결되는 화면 영역에 표시한다.
 - `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, All/KOSPI/KOSDAQ market query, quote/cache/FX 기준시각/출처/stale metadata를 Market 화면과 각 quote row에 바인딩한다.
 - `MarketDetailController`는 Stock-exchange-BE `GET /api/v1/stocks/{stockCode}`, `GET /api/v1/market/stocks/{stockCode}/chart`, `GET /api/v1/market/stocks/{stockCode}/orderbook`을 함께 조회해 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 Market 화면에 바인딩한다.

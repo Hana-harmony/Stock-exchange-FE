@@ -207,6 +207,9 @@ class _AccountsScreenState extends State<AccountsScreen> {
         accountController: widget.accountController,
       ),
     );
+    if (widget.accountController.value.status == AccountStatus.loaded) {
+      await widget.tradeController.loadPortfolio(accountId);
+    }
   }
 }
 
@@ -225,19 +228,19 @@ class _DepositUsdSheet extends StatefulWidget {
 
 class _DepositUsdSheetState extends State<_DepositUsdSheet> {
   final _amountController = TextEditingController();
-  final _passwordController = TextEditingController();
+  final _pinController = TextEditingController();
   final _amountFocusNode = FocusNode();
-  final _passwordFocusNode = FocusNode();
-  var _showPasswordStep = false;
+  final _pinFocusNode = FocusNode();
+  var _showPinStep = false;
   var _submitting = false;
   String? _errorMessage;
 
   @override
   void dispose() {
     _amountController.dispose();
-    _passwordController.dispose();
+    _pinController.dispose();
     _amountFocusNode.dispose();
-    _passwordFocusNode.dispose();
+    _pinFocusNode.dispose();
     super.dispose();
   }
 
@@ -252,20 +255,20 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
     }
     setState(() {
       _errorMessage = null;
-      _showPasswordStep = true;
+      _showPinStep = true;
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
-        _passwordFocusNode.requestFocus();
+        _pinFocusNode.requestFocus();
       }
     });
   }
 
   Future<void> _submit() async {
     final amount = _amount;
-    final password = _passwordController.text;
-    if (amount == null || amount <= 0 || password.length < 8) {
-      setState(() => _errorMessage = 'Enter your account password.');
+    final pin = _pinController.text;
+    if (amount == null || amount <= 0 || !RegExp(r'^\d{6}$').hasMatch(pin)) {
+      setState(() => _errorMessage = 'Enter your 6-digit transaction PIN.');
       return;
     }
     setState(() {
@@ -275,9 +278,9 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
     await widget.accountController.depositUsd(
       accountId: widget.accountId,
       amount: amount,
-      password: password,
+      pin: pin,
     );
-    _passwordController.clear();
+    _pinController.clear();
     if (!mounted) {
       return;
     }
@@ -315,7 +318,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
             ),
             const SizedBox(height: 20),
             Text(
-              _showPasswordStep ? 'Confirm with password' : 'Add USD balance',
+              _showPinStep ? 'Confirm with PIN' : 'Add USD balance',
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w600,
                     color: AppColors.gray1000,
@@ -323,7 +326,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
             ),
             const SizedBox(height: 8),
             Text(
-              _showPasswordStep
+              _showPinStep
                   ? 'This confirms the simulated balance change on the exchange ledger.'
                   : 'Enter the USD amount to add to your simulated trading balance.',
               style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -331,7 +334,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
                   ),
             ),
             const SizedBox(height: 20),
-            if (!_showPasswordStep)
+            if (!_showPinStep)
               TextField(
                 key: const ValueKey('deposit-amount-field'),
                 controller: _amountController,
@@ -349,16 +352,19 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
               )
             else
               TextField(
-                key: const ValueKey('deposit-password-field'),
-                controller: _passwordController,
-                focusNode: _passwordFocusNode,
+                key: const ValueKey('deposit-pin-field'),
+                controller: _pinController,
+                focusNode: _pinFocusNode,
                 obscureText: true,
                 enableSuggestions: false,
                 autocorrect: false,
+                keyboardType: TextInputType.number,
+                maxLength: 6,
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _submit(),
                 decoration: const InputDecoration(
-                  labelText: 'Account password',
+                  labelText: 'Transaction PIN',
+                  counterText: '',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -380,7 +386,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
                 key: const ValueKey('deposit-continue-button'),
                 onPressed: _submitting
                     ? null
-                    : _showPasswordStep
+                    : _showPinStep
                         ? _submit
                         : _continueToPassword,
                 style: _exchangePrimaryButtonStyle(
@@ -395,7 +401,7 @@ class _DepositUsdSheetState extends State<_DepositUsdSheet> {
                           color: AppColors.white,
                         ),
                       )
-                    : Text(_showPasswordStep ? 'Confirm Add USD' : 'Continue'),
+                    : Text(_showPinStep ? 'Confirm Add USD' : 'Continue'),
               ),
             ),
           ],
@@ -1430,10 +1436,12 @@ class _AccountsScreenSnapshot {
             ? '${account.accountId} [ISA(Brokerage)]'
             : 'Account loading';
 
-    final totalAssetsValue = _safeDouble(
-      portfolio?.totalAssetValueUsd,
+    final cashBalance = _safeDouble(account?.cashBalanceUsd, fallback: 0);
+    final holdingsValue = _safeDouble(
+      portfolio?.totalMarketValueUsd,
       fallback: 0,
     );
+    final totalAssetsValue = cashBalance + holdingsValue;
     final totalPnlValue = _safeDouble(
       portfolio?.unrealizedPnlUsd,
       fallback: 0,

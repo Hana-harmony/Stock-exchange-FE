@@ -40,7 +40,7 @@ void main() {
         );
         expect(jsonDecode(request.body), {
           'amountUsd': 250.75,
-          'password': 'localPass123!',
+          'pin': '135790',
         });
 
         return _jsonResponse({
@@ -60,7 +60,7 @@ void main() {
     await controller.depositUsd(
       accountId: 'ACC-ABC123456789',
       amount: 250.75,
-      password: 'localPass123!',
+      pin: '135790',
     );
 
     expect(controller.value.status, AccountStatus.loaded);
@@ -83,7 +83,7 @@ void main() {
     await controller.depositUsd(
       accountId: 'ACC-ABC123456789',
       amount: 0,
-      password: 'localPass123!',
+      pin: '135790',
     );
     expect(controller.value.errorMessage,
         'Enter a deposit amount greater than 0.');

@@ -198,10 +198,19 @@ class ExchangeApiClient {
   Future<SignUpResult> signUp({
     required String username,
     required String password,
+    required String confirmPassword,
+    required String pin,
+    required String confirmPin,
   }) async {
     final envelope = await post<SignUpResult>(
       '/api/v1/auth/signup',
-      body: {'username': username, 'password': password},
+      body: {
+        'username': username,
+        'password': password,
+        'confirmPassword': confirmPassword,
+        'pin': pin,
+        'confirmPin': confirmPin,
+      },
       decodeData: (value) => SignUpResult.fromJson(_asMap(value)),
     );
 
@@ -252,11 +261,11 @@ class ExchangeApiClient {
   Future<ApiEnvelope<Map<String, dynamic>>> depositUsd({
     required String accountId,
     required num amount,
-    required String password,
+    required String pin,
   }) {
     return post<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/deposits',
-      body: {'amountUsd': amount, 'password': password},
+      body: {'amountUsd': amount, 'pin': pin},
     );
   }
 
@@ -514,6 +523,7 @@ class ExchangeApiClient {
     required String side,
     required int quantity,
     required num limitPriceUsd,
+    required String pin,
   }) {
     return post<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/trades',
@@ -523,6 +533,7 @@ class ExchangeApiClient {
         'quantity': quantity,
         'orderType': 'LIMIT',
         'limitPriceUsd': limitPriceUsd,
+        'pin': pin,
       },
     );
   }
