@@ -110,6 +110,20 @@ class MarketNewsController extends ValueNotifier<MarketNewsState> {
     final response = await _apiClient.getMarketNewsDetail(newsId);
     return MarketNewsItem.fromJson(response.data ?? {});
   }
+
+  Future<void> recordTermClick({
+    required String term,
+    required MarketNewsItem item,
+  }) async {
+    await _apiClient.explainFinancialTerm(
+      term: term,
+      sourceType: 'NEWS',
+      title: item.displayTitle,
+      context: item.displayBody,
+      articleId: item.newsId,
+      articleUrl: item.originalUrl,
+    );
+  }
 }
 
 class MarketNewsFeed {

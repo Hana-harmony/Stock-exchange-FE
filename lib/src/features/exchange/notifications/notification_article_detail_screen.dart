@@ -4,10 +4,12 @@ class NotificationArticleDetailScreen extends StatefulWidget {
   const NotificationArticleDetailScreen({
     super.key,
     required this.item,
+    required this.notificationController,
     this.intelligenceItem,
   });
 
   final NotificationItem item;
+  final NotificationController notificationController;
   final StockIntelligenceItem? intelligenceItem;
 
   @override
@@ -155,6 +157,11 @@ class _NotificationArticleDetailScreenState
     _glossaryTooltipTimer = Timer(
       const Duration(seconds: 10),
       _dismissGlossaryTooltip,
+    );
+    unawaited(
+      widget.notificationController
+          .recordTermClick(term: glossary.highlightedText, item: widget.item)
+          .catchError((Object _) {}),
     );
   }
 

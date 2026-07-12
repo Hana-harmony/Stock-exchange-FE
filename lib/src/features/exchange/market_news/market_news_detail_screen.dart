@@ -195,6 +195,11 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
       const Duration(seconds: 10),
       _dismissGlossaryTooltip,
     );
+    unawaited(
+      widget.marketNewsController
+          .recordTermClick(term: glossary.highlightedText, item: widget.item)
+          .catchError((Object _) {}),
+    );
   }
 
   void _dismissGlossaryTooltip() {

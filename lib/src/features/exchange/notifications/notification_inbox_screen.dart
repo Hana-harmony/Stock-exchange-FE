@@ -80,6 +80,7 @@ class _NotificationInboxScreenState extends State<NotificationInboxScreen> {
       MaterialPageRoute<void>(
         builder: (context) => NotificationArticleDetailScreen(
           item: currentItem,
+          notificationController: widget.notificationController,
           intelligenceItem: _findNotificationIntelligenceItem(
             currentState.feed?.items,
             currentItem,
