@@ -5,10 +5,12 @@ class TaxRefundRequestScreen extends StatefulWidget {
     super.key,
     required this.accountId,
     required this.taxController,
+    this.filePicker,
   });
 
   final String accountId;
   final TaxController taxController;
+  final Future<XFile?> Function()? filePicker;
 
   @override
   State<TaxRefundRequestScreen> createState() => _TaxRefundRequestScreenState();
@@ -124,7 +126,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
   Future<void> _upload(_TaxRequiredDocument document) async {
     final _PickedTaxDocumentFile? file;
     try {
-      file = await _pickTaxDocumentFile();
+      file = await _pickTaxDocumentFile(widget.filePicker);
     } on _TaxFileSelectionException catch (error) {
       if (mounted) {
         await _showUploadError(error.message);
@@ -189,15 +191,47 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
           _uploaded('REDUCED_TAX_APPLICATION')?.originalFileName ?? '',
       advancePaymentRequested: true,
     );
-    if (!mounted || widget.taxController.value.status == TaxStatus.failure) {
+    if (!mounted) {
       return;
     }
-    await widget.taxController.syncRefundStatus(widget.accountId);
-    if (!mounted || widget.taxController.value.status == TaxStatus.failure) {
+    if (widget.taxController.value.status == TaxStatus.failure) {
+      setState(() {
+        _step = 6;
+      });
+      await _showSubmissionError(
+        'The verified documents could not be submitted. Please try again.',
+      );
       return;
     }
     setState(() {
       _step = 8;
+    });
+    await widget.taxController.syncRefundStatus(widget.accountId);
+    if (!mounted) {
+      return;
+    }
+    if (widget.taxController.value.status == TaxStatus.failure) {
+      await _showSubmissionError(
+        'Your documents were saved, but status sync failed. Retry status sync.',
+      );
+    }
+  }
+
+  Future<void> _retryStatusSync() async {
+    await widget.taxController.syncRefundStatus(widget.accountId);
+    if (!mounted || widget.taxController.value.status != TaxStatus.failure) {
+      return;
+    }
+    await _showSubmissionError(
+      'Status sync failed. Your submitted documents remain safely saved.',
+    );
+  }
+
+  void _startReplacement() {
+    widget.taxController.beginReplacement();
+    _selectedFiles.clear();
+    setState(() {
+      _step = 1;
     });
   }
 
@@ -237,6 +271,23 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Upload failed'),
+        content: _TaxFileErrorPanel(message: message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _showSubmissionError(String message) {
+    return showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        key: const ValueKey('tax-submission-error-dialog'),
+        title: const Text('Status update failed'),
         content: _TaxFileErrorPanel(message: message),
         actions: [
           TextButton(
@@ -296,11 +347,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       return _TaxSubmittedStep(
         refundCase: existingSubmission,
         onConfirm: () => Navigator.of(context).pop(),
-        onReview: () => setState(() {
-          widget.taxController.beginReplacement();
-          _selectedFiles.clear();
-          _step = 1;
-        }),
+        onReview: _startReplacement,
         isExistingSubmission: true,
       );
     }
@@ -339,8 +386,12 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     return _TaxSubmittedStep(
       refundCase: state.refundCase,
       onConfirm: () => Navigator.of(context).pop(),
-      onReview: () => setState(() => _step = 0),
+      onReview: state.status == TaxStatus.failure
+          ? _retryStatusSync
+          : _startReplacement,
       isExistingSubmission: false,
+      syncFailed: state.status == TaxStatus.failure,
+      syncing: state.status == TaxStatus.loading,
     );
   }
 
@@ -367,10 +418,13 @@ bool _isVerified(TaxDocumentUpload? upload) {
   return upload?.isVerified ?? false;
 }
 
-Future<_PickedTaxDocumentFile?> _pickTaxDocumentFile() async {
-  final selected = await openFile(acceptedTypeGroups: [
-    _TaxRefundRequestScreenState._documentTypeGroup,
-  ]);
+Future<_PickedTaxDocumentFile?> _pickTaxDocumentFile(
+  Future<XFile?> Function()? picker,
+) async {
+  final selected = await (picker?.call() ??
+      openFile(acceptedTypeGroups: [
+        _TaxRefundRequestScreenState._documentTypeGroup,
+      ]));
   if (selected == null) {
     return null;
   }
@@ -978,13 +1032,14 @@ class _TaxInfoCallout extends StatelessWidget {
     final height = title.contains('\n') ? 134.0 : 129.0;
     return Container(
       width: double.infinity,
-      height: height,
-      padding: const EdgeInsets.fromLTRB(12, 32, 12, 16),
+      constraints: BoxConstraints(minHeight: height),
+      padding: const EdgeInsets.fromLTRB(12, 20, 12, 16),
       decoration: BoxDecoration(
         color: AppColors.orange100,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
@@ -1225,12 +1280,16 @@ class _TaxSubmittedStep extends StatelessWidget {
     required this.onConfirm,
     required this.onReview,
     required this.isExistingSubmission,
+    this.syncFailed = false,
+    this.syncing = false,
   });
 
   final TaxRefundCase? refundCase;
   final VoidCallback onConfirm;
   final VoidCallback onReview;
   final bool isExistingSubmission;
+  final bool syncFailed;
+  final bool syncing;
 
   @override
   Widget build(BuildContext context) {
@@ -1238,13 +1297,16 @@ class _TaxSubmittedStep extends StatelessWidget {
       key: const ValueKey('tax-submitted-step'),
       primaryLabel: 'Confirm',
       primaryKey: const ValueKey('tax-confirm-button'),
+      primaryLoading: syncing,
       onPrimary: onConfirm,
-      secondaryLabel:
-          isExistingSubmission ? 'Submit again' : 'Review Documents',
-      onSecondary: onReview,
+      secondaryLabel: syncFailed ? 'Retry Status Sync' : 'Submit Again',
+      secondaryKey: ValueKey(
+        syncFailed ? 'tax-retry-status-sync-button' : 'tax-submit-again-button',
+      ),
+      onSecondary: syncing ? null : onReview,
       stackedSecondary: true,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 32, 16, 150),
+        padding: const EdgeInsets.fromLTRB(16, 32, 16, 190),
         child: Column(
           children: [
             Text(
@@ -1264,6 +1326,13 @@ class _TaxSubmittedStep extends StatelessWidget {
               textAlign: TextAlign.center,
               style: _taxBodyStyle(context),
             ),
+            if (syncFailed) ...[
+              const SizedBox(height: 16),
+              const _TaxFileErrorPanel(
+                message:
+                    'Your documents are saved. Status sync needs to be retried.',
+              ),
+            ],
             const Spacer(),
             const SizedBox(
               height: 308,
@@ -1273,7 +1342,9 @@ class _TaxSubmittedStep extends StatelessWidget {
             const Spacer(),
             if (refundCase != null)
               Text(
-                '${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}',
+                refundCase!.hasRefundableProfit
+                    ? 'Estimated refund ${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}'
+                    : 'No refundable realized profit found · Case ${refundCase!.referenceDisplay}',
                 textAlign: TextAlign.center,
                 style: _taxBodyStyle(context, fontSize: 14),
               ),
@@ -1370,6 +1441,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
     this.primaryKey,
     this.primaryLoading = false,
     this.secondaryLabel,
+    this.secondaryKey,
     this.onSecondary,
     this.stackedSecondary = false,
   });
@@ -1380,6 +1452,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
   final Key? primaryKey;
   final bool primaryLoading;
   final String? secondaryLabel;
+  final Key? secondaryKey;
   final VoidCallback? onSecondary;
   final bool stackedSecondary;
 
@@ -1414,6 +1487,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
             child: stackedSecondary
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _TaxPrimaryButton(
                         key: primaryKey,
@@ -1424,6 +1498,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
                       if (secondaryLabel != null) ...[
                         const SizedBox(height: 12),
                         _TaxSecondaryButton(
+                          key: secondaryKey,
                           label: secondaryLabel!,
                           onPressed: onSecondary,
                         ),
@@ -1436,6 +1511,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
                         SizedBox(
                           width: 120,
                           child: _TaxSecondaryButton(
+                            key: secondaryKey,
                             label: secondaryLabel!,
                             onPressed: onSecondary,
                           ),
@@ -1527,6 +1603,7 @@ class _TaxPrimaryButton extends StatelessWidget {
 
 class _TaxSecondaryButton extends StatelessWidget {
   const _TaxSecondaryButton({
+    super.key,
     required this.label,
     required this.onPressed,
   });
