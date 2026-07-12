@@ -138,8 +138,8 @@ class TaxDocumentVerification {
   }
 
   bool get isTerminal {
-    return progressPercent >= 100 ||
-        verificationStatus == 'VERIFIED' ||
+    return verificationStatus == 'VERIFIED' ||
+        verificationStatus == 'REVIEW_REQUIRED' ||
         verificationStatus == 'REJECTED' ||
         verificationStatus == 'FAILED';
   }

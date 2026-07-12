@@ -209,6 +209,52 @@ void main() {
       'Complete Hana Montana OCR verification for every required tax document before submitting.',
     );
   });
+
+  test('keeps polling when progress is 100 but verification is pending',
+      () async {
+    var verificationRequests = 0;
+    final controller = TaxController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          if (request.url.path.endsWith('/tax/documents')) {
+            return _jsonResponse({
+              'documentId': 'DOC-PENDING',
+              'documentType': 'RESIDENCE_CERTIFICATE',
+              'originalFileName': 'residence.png',
+              'sizeBytes': 12,
+              'createdAt': '2026-07-12T15:25:34Z',
+              'verification': {
+                ..._pendingVerificationJson('RESIDENCE_CERTIFICATE'),
+                'progressPercent': 100,
+              },
+            });
+          }
+          verificationRequests += 1;
+          if (verificationRequests == 1) {
+            return _jsonResponse({
+              ..._pendingVerificationJson('RESIDENCE_CERTIFICATE'),
+              'progressPercent': 100,
+              'stage': 'HANNAH_MONTANA_PENDING',
+            });
+          }
+          return _jsonResponse(_verificationJson('RESIDENCE_CERTIFICATE'));
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await controller.uploadDocument(
+      accountId: 'ACC-ABC123456789',
+      documentType: 'RESIDENCE_CERTIFICATE',
+      fileName: 'residence.png',
+      bytes: Uint8List.fromList(utf8.encode('residence')),
+    );
+
+    expect(verificationRequests, 2);
+    expect(controller.value.status, TaxStatus.loaded);
+    expect(controller.hasVerifiedDocument('RESIDENCE_CERTIFICATE'), isTrue);
+  });
 }
 
 Map<String, Object?> _verificationJson(String documentType) {
