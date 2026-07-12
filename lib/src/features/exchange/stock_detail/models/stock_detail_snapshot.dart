@@ -249,7 +249,7 @@ class _StockDetailSnapshot {
           ? 'Foreign Ownership Limit Alert'
           : 'Foreign Ownership Forecast',
       foreignLimitCardDescription: isForeignLimitAlert
-          ? 'Based on a time-series regression analysis\nwith a 95% confidence interval'
+          ? 'Based on stock-level walk-forward validation\nwith an empirical 90% prediction interval'
           : 'Based on the latest foreign ownership data\nand the forecast model',
       foreignLimitCardMessage: _foreignLimitCardMessage(
         isAlert: isForeignLimitAlert,
