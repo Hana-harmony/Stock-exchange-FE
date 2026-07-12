@@ -134,7 +134,7 @@ void main() {
     final discoverRow = find.byKey(
       const ValueKey('market-news-card-MKT-NEWS-001'),
     );
-    expect(tester.getSize(discoverRow).height, 113);
+    expect(tester.getSize(discoverRow).height, 124);
     expect(
       find.descendant(of: discoverRow, matching: find.text('Neutral')),
       findsOneWidget,

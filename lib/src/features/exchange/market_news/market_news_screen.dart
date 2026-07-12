@@ -143,7 +143,7 @@ class _MarketNewsCard extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: SizedBox(
-          height: 113,
+          height: 124,
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
@@ -166,10 +166,10 @@ class _MarketNewsCard extends StatelessWidget {
                             sentiment: _sentimentFromString(item.sentiment),
                           ),
                           const SizedBox(width: 6),
-                          Flexible(
-                            child: _StockNewsPriorityBadge(
-                              priority:
-                                  _priorityFromStrings(item.importance, ''),
+                          _StockNewsPriorityBadge(
+                            priority: _priorityFromStrings(
+                              item.importance,
+                              '',
                             ),
                           ),
                         ],
