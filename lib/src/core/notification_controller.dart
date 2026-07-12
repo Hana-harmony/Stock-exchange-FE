@@ -24,6 +24,21 @@ class NotificationController extends ValueNotifier<NotificationState> {
     value = const NotificationState.idle();
   }
 
+  Future<void> recordTermClick({
+    required String term,
+    required NotificationItem item,
+  }) async {
+    await _apiClient.explainFinancialTerm(
+      term: term,
+      sourceType: item.sourceType,
+      title: item.title,
+      context: item.summary,
+      stockCode: item.primaryStockCode,
+      articleId: item.eventId,
+      articleUrl: item.originalUrl,
+    );
+  }
+
   Future<void> loadAlerts({
     required String? accountId,
     String stockCode = '005930',

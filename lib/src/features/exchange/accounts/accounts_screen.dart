@@ -390,6 +390,7 @@ class _TaxRefundEntryCard extends StatelessWidget {
     final submitted = taxState.refundCase?.status == 'READY_FOR_HANA_SYNC' ||
         taxState.refundCase?.status == 'SYNCED_WITH_HANA' ||
         taxState.refundCase?.status == 'ADVANCE_PAID';
+    final approved = taxState.refundCase?.status == 'REFUND_APPROVED';
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
       child: Material(
@@ -422,7 +423,9 @@ class _TaxRefundEntryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Reduced Withholding Tax Rate Available',
+                        approved
+                            ? 'Reduced Withholding Tax Rate Approved'
+                            : 'Reduced Withholding Tax Rate Available',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style:
@@ -435,9 +438,11 @@ class _TaxRefundEntryCard extends StatelessWidget {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        submitted
-                            ? 'Documents submitted for Hana review.'
-                            : 'OCR verify and submit tax documents.',
+                        approved
+                            ? 'Approved and submitted to the National Tax Service.'
+                            : submitted
+                                ? 'Documents submitted for Hana review.'
+                                : 'OCR verify and submit tax documents.',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.bodyMedium?.copyWith(

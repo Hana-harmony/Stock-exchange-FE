@@ -138,24 +138,25 @@ void main() {
 
     expect(syncRequests, 2);
     expect(find.text('Retry Status Sync'), findsNothing);
-    expect(find.text('Submit Again'), findsOneWidget);
+    expect(find.text('Review Documents'), findsOneWidget);
     expect(
       tester.getSize(find.byKey(const ValueKey('tax-confirm-button'))).width,
       closeTo(398, 0.1),
     );
     expect(
       tester
-          .getSize(find.byKey(const ValueKey('tax-submit-again-button')))
+          .getSize(find.byKey(const ValueKey('tax-review-documents-button')))
           .width,
       closeTo(398, 0.1),
     );
 
-    await tester.tap(find.byKey(const ValueKey('tax-submit-again-button')));
+    await tester.tap(find.byKey(const ValueKey('tax-review-documents-button')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
   });
 
-  testWidgets('explains zero refund and keeps submitted actions functional',
+  testWidgets(
+      'shows only case reference and keeps submitted actions functional',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -194,8 +195,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('open-tax-request')));
     await tester.pumpAndSettle();
 
+    expect(find.textContaining('Case TAX-CASE-1'), findsOneWidget);
     expect(find.textContaining('No refundable realized profit found'),
-        findsOneWidget);
+        findsNothing);
     expect(find.textContaining('USD 0.00'), findsNothing);
     expect(
       tester.getSize(find.byKey(const ValueKey('tax-confirm-button'))).width,
@@ -203,7 +205,7 @@ void main() {
     );
     expect(
       tester
-          .getSize(find.byKey(const ValueKey('tax-submit-again-button')))
+          .getSize(find.byKey(const ValueKey('tax-review-documents-button')))
           .width,
       closeTo(398, 0.1),
     );
@@ -214,7 +216,7 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('open-tax-request')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('tax-submit-again-button')));
+    await tester.tap(find.byKey(const ValueKey('tax-review-documents-button')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
   });

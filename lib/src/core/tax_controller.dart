@@ -380,8 +380,19 @@ class TaxController extends ValueNotifier<TaxState> {
     );
     try {
       final response = await _apiClient.getTaxRefundStatus(accountId);
+      var refundCase = TaxRefundCase.fromJson(response.data ?? {});
+      if (refundCase.caseId.isNotEmpty &&
+          const {'READY_FOR_HANA_SYNC', 'SYNCED_WITH_HANA'}
+              .contains(refundCase.status)) {
+        try {
+          final synced = await _apiClient.syncTaxRefundStatus(accountId);
+          refundCase = TaxRefundCase.fromJson(synced.data ?? {});
+        } on Object {
+          // 조회 결과는 유지하고 다음 화면 진입 때 상태 동기화를 다시 시도한다.
+        }
+      }
       value = TaxState.loaded(
-        TaxRefundCase.fromJson(response.data ?? {}),
+        refundCase,
         uploadedDocuments: value.uploadedDocuments,
       );
     } on ExchangeApiException catch (error) {
