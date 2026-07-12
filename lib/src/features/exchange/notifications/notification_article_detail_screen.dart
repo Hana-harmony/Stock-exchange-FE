@@ -330,7 +330,7 @@ class _NotificationArticleDetailHeader extends StatelessWidget {
   }
 }
 
-class _NotificationArticleHeroImage extends StatelessWidget {
+class _NotificationArticleHeroImage extends StatefulWidget {
   const _NotificationArticleHeroImage({
     required this.imageUrl,
   });
@@ -338,21 +338,45 @@ class _NotificationArticleHeroImage extends StatelessWidget {
   final String? imageUrl;
 
   @override
+  State<_NotificationArticleHeroImage> createState() =>
+      _NotificationArticleHeroImageState();
+}
+
+class _NotificationArticleHeroImageState
+    extends State<_NotificationArticleHeroImage> {
+  bool _loadFailed = false;
+
+  @override
+  void didUpdateWidget(covariant _NotificationArticleHeroImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.imageUrl != widget.imageUrl) {
+      _loadFailed = false;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    if (imageUrl == null || imageUrl!.isEmpty) {
+    final imageUrl = widget.imageUrl?.trim() ?? '';
+    if (imageUrl.isEmpty || _loadFailed) {
       return const SizedBox.shrink();
     }
     return SizedBox(
+      key: const ValueKey('notification-article-hero-image'),
       width: double.infinity,
       height: 240,
       child: DecoratedBox(
         decoration: const BoxDecoration(color: AppColors.surface),
         child: Image.network(
-          imageUrl!,
+          imageUrl,
           fit: BoxFit.cover,
-          errorBuilder: (_, __, ___) => const Center(
-            child: Text('Article image unavailable'),
-          ),
+          errorBuilder: (_, __, ___) {
+            WidgetsBinding.instance.addPostFrameCallback((_) {
+              if (mounted && !_loadFailed) {
+                setState(() => _loadFailed = true);
+              }
+            });
+            return const SizedBox.shrink();
+          },
         ),
       ),
     );
