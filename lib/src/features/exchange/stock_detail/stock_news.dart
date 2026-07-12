@@ -192,6 +192,7 @@ class _StockNewsTabState extends State<_StockNewsTab> {
             createdAt: sourceItem.receivedAt ?? sourceItem.publishedAt,
             deliveredAt: sourceItem.receivedAt ?? sourceItem.publishedAt,
           ),
+          notificationController: widget.notificationController,
           intelligenceItem: sourceItem,
         ),
       ),

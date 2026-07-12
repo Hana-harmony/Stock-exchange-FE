@@ -1299,9 +1299,11 @@ class _TaxSubmittedStep extends StatelessWidget {
       primaryKey: const ValueKey('tax-confirm-button'),
       primaryLoading: syncing,
       onPrimary: onConfirm,
-      secondaryLabel: syncFailed ? 'Retry Status Sync' : 'Submit Again',
+      secondaryLabel: syncFailed ? 'Retry Status Sync' : 'Review Documents',
       secondaryKey: ValueKey(
-        syncFailed ? 'tax-retry-status-sync-button' : 'tax-submit-again-button',
+        syncFailed
+            ? 'tax-retry-status-sync-button'
+            : 'tax-review-documents-button',
       ),
       onSecondary: syncing ? null : onReview,
       stackedSecondary: true,
@@ -1310,19 +1312,21 @@ class _TaxSubmittedStep extends StatelessWidget {
         child: Column(
           children: [
             Text(
-              refundCase?.status == 'COMPLETED'
-                  ? 'Tax Filing Complete!'
-                  : 'Documents Submitted!',
+              _isApproved
+                  ? 'Application Approved!'
+                  : refundCase?.status == 'COMPLETED'
+                      ? 'Tax Filing Complete!'
+                      : 'Documents Submitted!',
               textAlign: TextAlign.center,
               style: _taxTitleStyle(context)?.copyWith(fontSize: 28),
             ),
             const SizedBox(height: 12),
             Text(
-              refundCase?.status == 'COMPLETED'
-                  ? 'Your correction request has been processed by Hana OmniLens.'
-                  : isExistingSubmission
-                      ? 'Your verified documents are in review. Start a new submission only when the documents need to be updated.'
-                      : "All required documents have been submitted successfully. We'll review them and notify you of the next steps.",
+              _isApproved
+                  ? 'Your application has been approved and submitted to the National Tax Service.'
+                  : refundCase?.status == 'COMPLETED'
+                      ? 'Your correction request has been processed by Hana OmniLens.'
+                      : 'All required documents have been submitted successfully. We’ll review them and notify you of the next steps.',
               textAlign: TextAlign.center,
               style: _taxBodyStyle(context),
             ),
@@ -1342,9 +1346,7 @@ class _TaxSubmittedStep extends StatelessWidget {
             const Spacer(),
             if (refundCase != null)
               Text(
-                refundCase!.hasRefundableProfit
-                    ? 'Estimated refund ${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}'
-                    : 'No refundable realized profit found · Case ${refundCase!.referenceDisplay}',
+                'Case ${refundCase!.referenceDisplay}',
                 textAlign: TextAlign.center,
                 style: _taxBodyStyle(context, fontSize: 14),
               ),
@@ -1353,6 +1355,8 @@ class _TaxSubmittedStep extends StatelessWidget {
       ),
     );
   }
+
+  bool get _isApproved => refundCase?.status == 'REFUND_APPROVED';
 }
 
 class _TaxSubmittedIllustration extends StatelessWidget {
@@ -1360,76 +1364,79 @@ class _TaxSubmittedIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return CustomPaint(
-      painter: _TaxSubmittedIllustrationPainter(),
-      child: const SizedBox.expand(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final scale = constraints.maxWidth / 402;
+        return ClipRect(
+          child: Stack(
+            children: [
+              Positioned(
+                left: 35.4 * scale,
+                top: 7 * scale,
+                width: 256 * scale,
+                height: 235 * scale,
+                child: Image.asset(
+                  'assets/illustrations/tax_submitted_document.png',
+                  fit: BoxFit.fill,
+                  alignment: Alignment.bottomCenter,
+                ),
+              ),
+              Positioned(
+                left: 116 * scale,
+                top: 85 * scale,
+                width: 265 * scale,
+                height: 221 * scale,
+                child: ClipRect(
+                  child: Stack(
+                    clipBehavior: Clip.hardEdge,
+                    children: [
+                      Positioned(
+                        left: -496.13 * scale,
+                        top: -1395.15 * scale,
+                        width: 1249.55 * scale,
+                        height: 2720.49 * scale,
+                        child: Image.asset(
+                          'assets/illustrations/tax_submitted_folder.png',
+                          fit: BoxFit.fill,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned(
+                left: 289.2 * scale,
+                top: 15.2 * scale,
+                width: 83.325 * scale,
+                height: 83.325 * scale,
+                child: Transform.rotate(
+                  angle: 26.48 * math.pi / 180,
+                  child: Image.asset(
+                    'assets/illustrations/tax_submitted_coin_small.png',
+                  ),
+                ),
+              ),
+              Positioned(
+                left: -9 * scale,
+                top: 101 * scale,
+                width: 192.431 * scale,
+                height: 192.431 * scale,
+                child: Transform(
+                  alignment: Alignment.center,
+                  transform: Matrix4.identity()
+                    ..rotateZ(155.79 * math.pi / 180)
+                    ..scaleByDouble(1.0, -1.0, 1.0, 1.0),
+                  child: Image.asset(
+                    'assets/illustrations/tax_submitted_coin_large.png',
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
-}
-
-class _TaxSubmittedIllustrationPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final scale = size.width / 370;
-    canvas.scale(scale);
-    final paper = Paint()..color = const Color(0xFFF1F2F4);
-    final paperLine = Paint()
-      ..color = const Color(0xFFD9DCE0)
-      ..strokeWidth = 4;
-    final folder = Paint()..color = const Color(0xFFD7D9DD);
-    final orange = Paint()..color = const Color(0xFFFF9A47);
-    final coinEdge = Paint()
-      ..color = const Color(0xFFFFC58F)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 5;
-    final document = Path()
-      ..moveTo(106, 26)
-      ..lineTo(230, 26)
-      ..lineTo(272, 68)
-      ..lineTo(272, 202)
-      ..lineTo(106, 202)
-      ..close();
-    canvas.drawPath(document, paper);
-    canvas.drawLine(const Offset(130, 104), const Offset(239, 104), paperLine);
-    canvas.drawLine(const Offset(130, 124), const Offset(220, 124), paperLine);
-    final folderPath = Path()
-      ..moveTo(160, 147)
-      ..lineTo(218, 147)
-      ..lineTo(236, 165)
-      ..lineTo(306, 165)
-      ..lineTo(326, 280)
-      ..lineTo(142, 280)
-      ..close();
-    canvas.drawPath(folderPath, folder);
-    canvas.drawCircle(const Offset(102, 228), 61, orange);
-    canvas.drawCircle(const Offset(102, 228), 59, coinEdge);
-    canvas.drawCircle(const Offset(290, 88), 28, orange);
-    canvas.drawCircle(const Offset(290, 88), 26, coinEdge);
-    final dollar = TextPainter(
-      text: const TextSpan(
-          text: '\$',
-          style: TextStyle(
-              color: AppColors.white,
-              fontSize: 61,
-              fontWeight: FontWeight.w700)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    dollar.paint(canvas, const Offset(84, 192));
-    final smallDollar = TextPainter(
-      text: const TextSpan(
-          text: '\$',
-          style: TextStyle(
-              color: AppColors.white,
-              fontSize: 29,
-              fontWeight: FontWeight.w700)),
-      textDirection: TextDirection.ltr,
-    )..layout();
-    smallDollar.paint(canvas, const Offset(282, 70));
-  }
-
-  @override
-  bool shouldRepaint(covariant _TaxSubmittedIllustrationPainter oldDelegate) =>
-      false;
 }
 
 class _TaxScreenWithBottomAction extends StatelessWidget {
