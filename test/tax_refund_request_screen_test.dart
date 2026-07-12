@@ -155,7 +155,8 @@ void main() {
     expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
   });
 
-  testWidgets('shows only case reference and keeps submitted actions functional',
+  testWidgets(
+      'shows only case reference and keeps submitted actions functional',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
