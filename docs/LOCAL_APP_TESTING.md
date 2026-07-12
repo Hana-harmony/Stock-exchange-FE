@@ -23,9 +23,12 @@ python3 -m pre_commit run --all-files
 
 ```bash
 flutter run -d chrome \
+  --web-port=15100 \
   --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000 \
   --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=<VAPID_PUBLIC_KEY>
 ```
+
+`15100`은 Stock-exchange-BE의 로컬 CORS·WebSocket 허용 Origin이다. 임의 포트로 실행하면 REST preflight와 실시간 시세 WebSocket 연결이 차단될 수 있다.
 
 Web Push 권한은 로그인만으로 요청하지 않는다. Notifications 화면의 알림 활성화 버튼을 누르면 service worker와 브라우저 구독을 생성하고 전체 `PushSubscription` JSON을 백엔드에 등록한다. 운영 배포는 HTTPS가 필요하며 localhost만 개발 예외다. 웹 전용 배포에는 APNs 자격증명이 필요 없다.
 
