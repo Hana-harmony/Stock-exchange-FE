@@ -138,7 +138,85 @@ void main() {
 
     expect(syncRequests, 2);
     expect(find.text('Retry Status Sync'), findsNothing);
-    expect(find.text('Review Documents'), findsOneWidget);
+    expect(find.text('Submit Again'), findsOneWidget);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('tax-confirm-button'))).width,
+      closeTo(398, 0.1),
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('tax-submit-again-button')))
+          .width,
+      closeTo(398, 0.1),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('tax-submit-again-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
+  });
+
+  testWidgets('explains zero refund and keeps submitted actions functional',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final controller = TaxController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async => _jsonResponse(
+              _taxCaseJson(status: 'NO_REFUNDABLE_PROFIT', refundable: false),
+            )),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(MaterialApp(
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: FilledButton(
+              key: const ValueKey('open-tax-request'),
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => TaxRefundRequestScreen(
+                    accountId: 'ACC-ABC123456789',
+                    taxController: controller,
+                  ),
+                ),
+              ),
+              child: const Text('Open tax request'),
+            ),
+          ),
+        ),
+      ),
+    ));
+
+    await tester.tap(find.byKey(const ValueKey('open-tax-request')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('No refundable realized profit found'),
+        findsOneWidget);
+    expect(find.textContaining('USD 0.00'), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('tax-confirm-button'))).width,
+      closeTo(398, 0.1),
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('tax-submit-again-button')))
+          .width,
+      closeTo(398, 0.1),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('tax-confirm-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('open-tax-request')), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('open-tax-request')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('tax-submit-again-button')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
   });
 }
 
@@ -162,7 +240,10 @@ Map<String, Object?> _verifiedJson(String documentType) {
   };
 }
 
-Map<String, Object?> _taxCaseJson({required String status}) {
+Map<String, Object?> _taxCaseJson({
+  required String status,
+  bool refundable = true,
+}) {
   return {
     'caseId': status == 'NOT_SUBMITTED' ? '' : 'TAX-CASE-1',
     'accountId': 'ACC-ABC123456789',
@@ -174,15 +255,15 @@ Map<String, Object?> _taxCaseJson({required String status}) {
     'status': status,
     'currency': 'USD',
     'totalSellAmountUsd': '70.00',
-    'realizedProfitUsd': '20.00',
+    'realizedProfitUsd': refundable ? '20.00' : '0.00',
     'realizedLossUsd': '0.00',
-    'netRealizedPnlUsd': '20.00',
-    'taxableRealizedPnlUsd': '20.00',
-    'estimatedWithholdingTaxUsd': '4.40',
-    'estimatedTreatyTaxUsd': '3.00',
-    'estimatedRefundUsd': '1.40',
-    'advancePaymentEligible': true,
-    'matchedTradeCount': 1,
+    'netRealizedPnlUsd': refundable ? '20.00' : '0.00',
+    'taxableRealizedPnlUsd': refundable ? '20.00' : '0.00',
+    'estimatedWithholdingTaxUsd': refundable ? '4.40' : '0.00',
+    'estimatedTreatyTaxUsd': refundable ? '3.00' : '0.00',
+    'estimatedRefundUsd': refundable ? '1.40' : '0.00',
+    'advancePaymentEligible': refundable,
+    'matchedTradeCount': refundable ? 1 : 0,
     'matchedTrades': <Object?>[],
     'dataSource': 'EXCHANGE_MOCK_LEDGER_REALIZED_PNL',
     'createdAt': '2026-07-12T15:26:35Z',

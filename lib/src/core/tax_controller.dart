@@ -245,6 +245,12 @@ class TaxRefundCase {
   String get refundDisplay =>
       formatCurrencyDisplay(currency, estimatedRefundUsd);
 
+  bool get hasRefundableProfit {
+    final taxableProfit = double.tryParse(taxableRealizedPnlUsd) ?? 0;
+    final estimatedRefund = double.tryParse(estimatedRefundUsd) ?? 0;
+    return taxableProfit > 0 && estimatedRefund > 0;
+  }
+
   String get withholdingDisplay =>
       formatCurrencyDisplay(currency, estimatedWithholdingTaxUsd);
 

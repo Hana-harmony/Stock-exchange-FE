@@ -227,6 +227,14 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     );
   }
 
+  void _startReplacement() {
+    widget.taxController.beginReplacement();
+    _selectedFiles.clear();
+    setState(() {
+      _step = 1;
+    });
+  }
+
   Future<void> _showVerificationFailure(
     TaxDocumentVerification? verification,
   ) {
@@ -339,11 +347,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       return _TaxSubmittedStep(
         refundCase: existingSubmission,
         onConfirm: () => Navigator.of(context).pop(),
-        onReview: () => setState(() {
-          widget.taxController.beginReplacement();
-          _selectedFiles.clear();
-          _step = 1;
-        }),
+        onReview: _startReplacement,
         isExistingSubmission: true,
       );
     }
@@ -384,7 +388,7 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
       onConfirm: () => Navigator.of(context).pop(),
       onReview: state.status == TaxStatus.failure
           ? _retryStatusSync
-          : () => setState(() => _step = 0),
+          : _startReplacement,
       isExistingSubmission: false,
       syncFailed: state.status == TaxStatus.failure,
       syncing: state.status == TaxStatus.loading,
@@ -1295,15 +1299,14 @@ class _TaxSubmittedStep extends StatelessWidget {
       primaryKey: const ValueKey('tax-confirm-button'),
       primaryLoading: syncing,
       onPrimary: onConfirm,
-      secondaryLabel: syncFailed
-          ? 'Retry Status Sync'
-          : isExistingSubmission
-              ? 'Submit again'
-              : 'Review Documents',
-      onSecondary: onReview,
+      secondaryLabel: syncFailed ? 'Retry Status Sync' : 'Submit Again',
+      secondaryKey: ValueKey(
+        syncFailed ? 'tax-retry-status-sync-button' : 'tax-submit-again-button',
+      ),
+      onSecondary: syncing ? null : onReview,
       stackedSecondary: true,
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 32, 16, 150),
+        padding: const EdgeInsets.fromLTRB(16, 32, 16, 190),
         child: Column(
           children: [
             Text(
@@ -1339,7 +1342,9 @@ class _TaxSubmittedStep extends StatelessWidget {
             const Spacer(),
             if (refundCase != null)
               Text(
-                '${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}',
+                refundCase!.hasRefundableProfit
+                    ? 'Estimated refund ${refundCase!.refundDisplay} · Case ${refundCase!.referenceDisplay}'
+                    : 'No refundable realized profit found · Case ${refundCase!.referenceDisplay}',
                 textAlign: TextAlign.center,
                 style: _taxBodyStyle(context, fontSize: 14),
               ),
@@ -1436,6 +1441,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
     this.primaryKey,
     this.primaryLoading = false,
     this.secondaryLabel,
+    this.secondaryKey,
     this.onSecondary,
     this.stackedSecondary = false,
   });
@@ -1446,6 +1452,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
   final Key? primaryKey;
   final bool primaryLoading;
   final String? secondaryLabel;
+  final Key? secondaryKey;
   final VoidCallback? onSecondary;
   final bool stackedSecondary;
 
@@ -1480,6 +1487,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
             child: stackedSecondary
                 ? Column(
                     mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _TaxPrimaryButton(
                         key: primaryKey,
@@ -1490,6 +1498,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
                       if (secondaryLabel != null) ...[
                         const SizedBox(height: 12),
                         _TaxSecondaryButton(
+                          key: secondaryKey,
                           label: secondaryLabel!,
                           onPressed: onSecondary,
                         ),
@@ -1502,6 +1511,7 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
                         SizedBox(
                           width: 120,
                           child: _TaxSecondaryButton(
+                            key: secondaryKey,
                             label: secondaryLabel!,
                             onPressed: onSecondary,
                           ),
@@ -1593,6 +1603,7 @@ class _TaxPrimaryButton extends StatelessWidget {
 
 class _TaxSecondaryButton extends StatelessWidget {
   const _TaxSecondaryButton({
+    super.key,
     required this.label,
     required this.onPressed,
   });
