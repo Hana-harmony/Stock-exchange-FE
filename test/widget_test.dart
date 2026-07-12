@@ -159,6 +159,11 @@ void main() {
       find.byKey(const ValueKey('market-news-detail-screen')),
       findsOneWidget,
     );
+    expect(
+      find.byKey(const ValueKey('notification-article-hero-image')),
+      findsNothing,
+    );
+    expect(find.text('Article image unavailable'), findsNothing);
     expect(find.text('AI Analysis'), findsOneWidget);
     expect(
       find.byWidgetPredicate(
