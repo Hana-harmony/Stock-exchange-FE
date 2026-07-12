@@ -27,7 +27,7 @@
 3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
 4. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
 5. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.
-6. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, KIS REST snapshot/cache 기반 외국인 보유율, snapshot/orderability 기반 당일 예측 범위, VI/단일가/상·하한가 상태를 표시한다.
+6. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, KIS REST snapshot/cache 기반 외국인 보유율, 종목별 walk-forward 검증 오차 상한과 최신 60개 관측의 변화분포 90분위수로 보정한 당일 예측 범위, VI/단일가/상·하한가 상태를 표시한다.
 7. 회원가입은 아이디/비밀번호 확인 후 6자리 거래 PIN을 생성·재확인하고, 가입 완료 후 mock USD 계좌와 충전 화면을 제공한다.
 8. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 거래 PIN 확인 후 실제 주문이 아닌 자체 mock 거래를 실행한다.
 9. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
