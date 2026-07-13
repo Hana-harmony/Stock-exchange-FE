@@ -180,6 +180,86 @@ void main() {
     expect(connection.closed, isTrue);
   });
 
+  test('notifies only the listenable for the stock changed by a live tick',
+      () async {
+    late _FakeQuoteSocketConnection connection;
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async => _jsonResponse({})),
+      liveClient: MarketQuoteLiveClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        socketConnector: (uri) {
+          connection = _FakeQuoteSocketConnection();
+          return connection;
+        },
+      ),
+      seedQuotes: seedMarketQuotes,
+    );
+    final samsung = controller.acquireQuoteListenable('005930');
+    final kakao = controller.acquireQuoteListenable('035720');
+    var samsungNotifications = 0;
+    var kakaoNotifications = 0;
+    samsung.addListener(() => samsungNotifications++);
+    kakao.addListener(() => kakaoNotifications++);
+
+    await controller.subscribeMarketLiveStocks(['005930', '035720']);
+    connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
+    connection.emit(
+      'MESSAGE\ndestination:/topic/market/stocks/035720\n\n'
+      '${jsonEncode({
+            ..._tickJson(),
+            'stockCode': '035720',
+            'stockName': 'Kakao',
+          })}\u0000',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(kakaoNotifications, 1);
+    expect(kakao.value?.stockCode, '035720');
+    expect(samsungNotifications, 0);
+
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    connection.emit(
+      'MESSAGE\ndestination:/topic/market/stocks/005930\n\n'
+      '${jsonEncode({
+            ..._tickJson(),
+            'currentPriceKrw': '83000',
+          })}\u0000',
+    );
+    await Future<void>.delayed(Duration.zero);
+
+    expect(samsungNotifications, 1);
+    expect(samsung.value?.currentPriceKrw, '83000');
+    expect(kakaoNotifications, 1);
+
+    await controller.unsubscribeLive();
+    controller.releaseQuoteListenable('005930');
+    controller.releaseQuoteListenable('035720');
+  });
+
+  test('updates a stock listenable when a REST snapshot is loaded', () async {
+    final controller = MarketQuoteController(
+      apiClient: _client((request) async {
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _snapshotJson(stockName: 'NAVER', stockCode: '035420'),
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+    final naver = controller.acquireQuoteListenable('035420');
+    var notifications = 0;
+    naver.addListener(() => notifications++);
+
+    await controller.loadSnapshot();
+
+    expect(notifications, 1);
+    expect(naver.value?.stockName, 'NAVER');
+    controller.releaseQuoteListenable('035420');
+  });
+
   test('keeps newer live quote when REST snapshot returns older price',
       () async {
     late _FakeQuoteSocketConnection connection;
