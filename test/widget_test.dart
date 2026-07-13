@@ -2044,6 +2044,64 @@ void main() {
     expect(find.byKey(const ValueKey('vi-restriction-dialog')), findsNothing);
   });
 
+  testWidgets('shows a circuit breaker banner from realtime quote state',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController(
+      seedQuotes: [
+        _marketQuoteForCode('005930', 0),
+        MarketQuote(
+          stockCode: '035720',
+          stockName: 'Kakao',
+          market: 'KOSPI',
+          currentPriceKrw: '54200',
+          changeRate: '-8.00%',
+          volume: 1200000,
+          localCurrency: 'USD',
+          localCurrencyPrice: '35.50',
+          fxRate: '1525.93',
+          fxRateTime: null,
+          fxRateSource: 'Hana-OmniLens-API',
+          fxStale: false,
+          tradingHalted: true,
+          circuitBreakerActive: true,
+          tradingHaltReason: '서킷브레이커 발동',
+        ),
+      ],
+    );
+    final marketDetailController = _marketDetailController();
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketDetailController: marketDetailController,
+        marketQuoteController: marketQuoteController,
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      '카카오',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('circuit-breaker-triggered-banner')),
+      findsOneWidget,
+    );
+    expect(find.text('Circuit breaker triggered!'), findsOneWidget);
+    expect(find.text('Market-wide trading is temporarily halted.'),
+        findsOneWidget);
+  });
+
   testWidgets(
       'blocks buy with price limit warning modal when low limit is triggered',
       (tester) async {
@@ -3106,6 +3164,11 @@ Map<String, Object?> _quoteJson(MarketQuote quote) {
     'fxRateSource': quote.fxRateSource,
     'fxStale': quote.fxStale,
     'marketDataTime': quote.marketDataTime?.toUtc().toIso8601String(),
+    'viActive': quote.viActive,
+    'singlePriceTrading': quote.singlePriceTrading,
+    'tradingHalted': quote.tradingHalted,
+    'circuitBreakerActive': quote.circuitBreakerActive,
+    'tradingHaltReason': quote.tradingHaltReason,
     'badge': quote.badge,
   };
 }

@@ -218,8 +218,10 @@ class _StockDetailSnapshot {
       showsForeignOwnershipEstimate: showsForeignOwnershipEstimate,
       isForeignOwnershipTradingUnavailable:
           isForeignOwnershipTradingUnavailable,
-      isTradeEnabled:
-          !isForeignOwnershipTradingUnavailable && (detail?.orderable ?? true),
+      isTradeEnabled: !isForeignOwnershipTradingUnavailable &&
+          (detail?.orderable ?? true) &&
+          !(quote?.tradingHalted ?? false) &&
+          !(quote?.circuitBreakerActive ?? false),
       estimatedOwnershipLabel: _estimatedOwnershipLabel(
         detail,
         nowUtc: nowUtc,
