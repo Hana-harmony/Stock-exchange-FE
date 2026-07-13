@@ -1696,6 +1696,8 @@ void main() {
       marketQuoteController.quoteFor('035720')?.marketDataTime?.toUtc(),
       DateTime.utc(2026, 7, 3, 5, 1, 30),
     );
+    expect(find.text('Live quote updating'), findsOneWidget);
+    expect(find.textContaining('Market Closed'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('stock-detail-tab-chart')));
     await tester.pumpAndSettle();

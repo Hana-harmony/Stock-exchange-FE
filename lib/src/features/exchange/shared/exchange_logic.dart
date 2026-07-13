@@ -68,6 +68,15 @@ String? _formatMarketStatus(DateTime? marketDataTime, {DateTime? nowUtc}) {
   if (marketDataTime == null) {
     return null;
   }
+  final nowKst =
+      (nowUtc ?? DateTime.now()).toUtc().add(const Duration(hours: 9));
+  final minutes = nowKst.hour * 60 + nowKst.minute;
+  final isRegularHours = _isKoreanRegularSessionWeekday(nowKst) &&
+      minutes >= _koreanRegularOpenMinutes &&
+      minutes < _koreanRegularCloseMinutes;
+  if (isRegularHours) {
+    return null;
+  }
   return formatKoreanMarketClosedLabel(marketDataTime, nowUtc: nowUtc);
 }
 
