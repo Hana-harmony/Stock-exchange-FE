@@ -519,7 +519,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
-  void _handleTradeAction(String side, [_StockDetailSnapshot? snapshot]) {
+  Future<void> _handleTradeAction(
+    String side, [
+    _StockDetailSnapshot? snapshot,
+  ]) async {
     if (!_buildSnapshot(liveQuote: _liveQuoteListenable.value).isTradeEnabled) {
       return;
     }
@@ -534,6 +537,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     if (_showViBanner) {
       _showViRestrictionDialog();
       return;
+    }
+    if (side == 'Buy' && snapshot?.foreignLimitBuyWarning == true) {
+      await _showForeignLimitBuyWarningDialog();
+      if (!mounted) {
+        return;
+      }
     }
     if (snapshot != null) {
       Navigator.of(context).push(
@@ -629,6 +638,22 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (context, animation, secondaryAnimation) {
         return const _PriceLimitRestrictionDialog();
+      },
+      transitionBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(opacity: animation, child: child);
+      },
+    );
+  }
+
+  Future<void> _showForeignLimitBuyWarningDialog() {
+    return showGeneralDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      barrierLabel: 'Foreign ownership limit warning',
+      barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
+      transitionDuration: const Duration(milliseconds: 180),
+      pageBuilder: (context, animation, secondaryAnimation) {
+        return const _ForeignLimitBuyWarningDialog();
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
         return FadeTransition(opacity: animation, child: child);

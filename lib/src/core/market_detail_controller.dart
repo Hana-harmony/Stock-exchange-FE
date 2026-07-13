@@ -70,6 +70,7 @@ class StockDetail {
     required this.foreignOwnershipPredictionConfidenceScore,
     required this.foreignOwnershipPredictionModelVersion,
     required this.foreignOwnershipBaseDate,
+    this.foreignLimitBuyWarning = false,
     required this.viActive,
     required this.singlePriceTrading,
     required this.priceLimitState,
@@ -101,6 +102,7 @@ class StockDetail {
   final String foreignOwnershipPredictionConfidenceScore;
   final String foreignOwnershipPredictionModelVersion;
   final String foreignOwnershipBaseDate;
+  final bool foreignLimitBuyWarning;
   final bool viActive;
   final bool singlePriceTrading;
   final String priceLimitState;
@@ -215,6 +217,7 @@ class StockDetail {
         json['foreignOwnershipBaseDate'],
         fallback: 'unknown',
       ),
+      foreignLimitBuyWarning: json['foreignLimitBuyWarning'] as bool? ?? false,
       viActive: json['viActive'] as bool? ?? false,
       singlePriceTrading: json['singlePriceTrading'] as bool? ?? false,
       priceLimitState: _string(json['priceLimitState'], fallback: 'NORMAL'),

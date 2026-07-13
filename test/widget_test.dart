@@ -2046,6 +2046,65 @@ void main() {
     expect(find.byKey(const ValueKey('vi-restriction-dialog')), findsNothing);
   });
 
+  testWidgets('warns buy when foreign ownership is expected to reach its limit',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    final marketDetailController = _marketDetailController(
+      foreignLimitBuyWarning: true,
+      foreignOwnershipRate: '49.00',
+      foreignLimitExhaustionRate: '99.99',
+      predictedForeignLimitExhaustionRateMin: '99.994175',
+      predictedForeignLimitExhaustionRateMax: '99.995166',
+    );
+    addTearDown(marketQuoteController.dispose);
+    addTearDown(marketDetailController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketDetailController: marketDetailController,
+        marketQuoteController: marketQuoteController,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('market-search-input')),
+      'Samsung',
+    );
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('stock-search-result-005930')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Buy'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('foreign-limit-buy-warning-dialog')),
+      findsOneWidget,
+    );
+    expect(find.text('Foreign Ownership Limit Warning!'), findsOneWidget);
+    expect(find.textContaining('may fail to execute'), findsOneWidget);
+
+    await tester.tap(
+      find.byKey(const ValueKey('foreign-limit-buy-warning-confirm')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('foreign-limit-buy-warning-dialog')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('stock-order-entry-screen')),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('shows a circuit breaker banner from realtime quote state',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -2470,6 +2529,7 @@ MarketDetailController _marketDetailController({
   String foreignLimitExhaustionRate = '27.1',
   String predictedForeignLimitExhaustionRateMin = '49.0',
   String predictedForeignLimitExhaustionRateMax = '51.0',
+  bool foreignLimitBuyWarning = false,
   bool orderable = true,
 }) {
   return MarketDetailController(
@@ -2514,6 +2574,7 @@ MarketDetailController _marketDetailController({
             'foreignOwnershipPredictionModelVersion':
                 foreignOwnershipPredictionModelVersion,
             'foreignOwnershipBaseDate': foreignOwnershipBaseDate,
+            'foreignLimitBuyWarning': foreignLimitBuyWarning,
             'viActive': viActive,
             'singlePriceTrading': false,
             'priceLimitState': priceLimitState,
