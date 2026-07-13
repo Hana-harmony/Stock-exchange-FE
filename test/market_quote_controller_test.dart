@@ -74,6 +74,22 @@ void main() {
     expect(snapshot.mergeRegularTick(closingTick).volume, 18300000);
   });
 
+  test('keeps circuit breaker state from a realtime tick', () {
+    final snapshot = MarketQuote.fromJson(_tickJson());
+    final circuitTick = MarketQuote.fromJson({
+      ..._tickJson(),
+      'tradingHalted': true,
+      'circuitBreakerActive': true,
+      'tradingHaltReason': '서킷브레이커 발동',
+    });
+
+    final merged = snapshot.mergeRegularTick(circuitTick);
+
+    expect(merged.tradingHalted, isTrue);
+    expect(merged.circuitBreakerActive, isTrue);
+    expect(merged.tradingHaltReason, '서킷브레이커 발동');
+  });
+
   test('hides seed quotes when initial snapshot request fails', () async {
     final controller = MarketQuoteController(
       apiClient: _client((request) async {

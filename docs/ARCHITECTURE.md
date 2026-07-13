@@ -23,17 +23,18 @@
 
 ## 데이터 흐름
 1. FE는 Stock-exchange-BE에서 전체/시장별/watchlist/보유종목 실시간 시세 snapshot을 REST로 먼저 조회하고 KRW 가격과 USD 가격을 함께 표시한다.
-2. FE는 Stock-exchange-BE quote WebSocket의 장중 가격, 호가, 등락률, VI/단일가/상·하한가와 USD 환산 가격을 실시간 반영한다. 외국인 보유수량·보유율·한도소진율은 Stock-exchange-BE REST의 Hana KIS snapshot/cache와 orderability 결과로 표시한다.
+2. FE는 Stock-exchange-BE quote WebSocket의 장중 가격, 호가, 등락률, VI/단일가/상·하한가/서킷브레이커와 USD 환산 가격을 실시간 반영한다. 서킷브레이커가 활성화되면 종목 상세에 VI 배너와 같은 디자인의 전용 문구를 표시하고 주문 액션을 비활성화한다. 외국인 보유수량·보유율·한도소진율은 Stock-exchange-BE REST의 Hana KIS snapshot/cache와 orderability 결과로 표시한다.
 3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
-4. 하단 탭을 선택하거나 현재 탭을 다시 누르면 해당 화면 상태를 새로 만들고 REST snapshot을 다시 조회한다.
-5. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
-6. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.
-7. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, KIS REST snapshot/cache 기반 외국인 보유율, 종목별 walk-forward 검증 오차 상한과 최신 60개 관측의 변화분포 90분위수로 보정한 당일 예측 범위, VI/단일가/상·하한가 상태를 표시한다.
-8. 회원가입은 아이디/비밀번호 확인 후 6자리 거래 PIN을 생성·재확인하고, 가입 완료 후 mock USD 계좌와 충전 화면을 제공한다.
-9. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 거래 PIN 확인 후 실제 주문이 아닌 자체 mock 거래를 실행한다.
-10. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
-11. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. Notifications와 Discover 리스트는 target·감성·중요도 라벨, 제목, 출처·상대시간, 썸네일 순으로 동일하게 표시한다. Notifications 화면의 사용자 동작으로 Web Push 권한을 요청하고 전체 subscription을 계좌에 등록한다.
-12. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
+4. 종목상세의 시장 상태 라벨은 시세 timestamp의 존재만으로 종가 상태를 만들지 않고 현재 KST 평일 09:00~15:30 여부를 기준으로 장중 `Live quote updating`과 장외 `Market Closed`를 구분한다.
+5. 하단 탭을 선택하거나 현재 탭을 다시 누르면 해당 화면 상태를 새로 만들고 REST snapshot을 다시 조회한다.
+6. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
+7. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.
+8. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, KIS REST snapshot/cache 기반 외국인 보유율, 종목별 walk-forward 검증 오차 상한과 최신 60개 관측의 변화분포 90분위수로 보정한 당일 예측 범위, VI/단일가/상·하한가 상태를 표시한다.
+9. 회원가입은 아이디/비밀번호 확인 후 6자리 거래 PIN을 생성·재확인하고, 가입 완료 후 mock USD 계좌와 충전 화면을 제공한다.
+10. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 거래 PIN 확인 후 실제 주문이 아닌 자체 mock 거래를 실행한다.
+11. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
+12. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. Notifications와 Discover 리스트는 target·감성·중요도 라벨, 제목, 출처·상대시간, 썸네일 순으로 동일하게 표시한다. Notifications 화면의 사용자 동작으로 Web Push 권한을 요청하고 전체 subscription을 계좌에 등록한다.
+13. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
 
 ## 현재 구현 상태
 - Flutter 앱 하네스, Material 3 기반 앱 shell, 하단 탭 navigation, widget test, GitHub Actions CI가 존재한다.

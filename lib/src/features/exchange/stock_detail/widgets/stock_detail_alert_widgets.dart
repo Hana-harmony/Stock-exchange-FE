@@ -111,6 +111,26 @@ class _ViTriggeredBanner extends StatelessWidget {
   }
 }
 
+class _CircuitBreakerTriggeredBanner extends StatelessWidget {
+  const _CircuitBreakerTriggeredBanner({
+    required this.onInfoTap,
+  });
+
+  final VoidCallback onInfoTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return _AlertStatusBanner(
+      key: const ValueKey('circuit-breaker-triggered-banner'),
+      iconAssetPath: AppAssets.warningViIcon,
+      title: 'Circuit breaker triggered!',
+      description: 'Market-wide trading is temporarily halted.',
+      infoKey: const ValueKey('circuit-breaker-triggered-banner-info'),
+      onInfoTap: onInfoTap,
+    );
+  }
+}
+
 class _LowLimitReachedBanner extends StatelessWidget {
   const _LowLimitReachedBanner({
     required this.onInfoTap,
@@ -173,6 +193,65 @@ class _ViInfoPanel extends StatelessWidget {
           const SizedBox(height: 10),
           Text(
             'VI is a temporary volatility interruption used to pause trading when price movement becomes too sharp.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  fontSize: 14,
+                  height: 1.45,
+                  fontWeight: FontWeight.w400,
+                  color: AppColors.gray700,
+                ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CircuitBreakerInfoPanel extends StatelessWidget {
+  const _CircuitBreakerInfoPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return _StockAlertInfoPanelFrame(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Image.asset(
+                AppAssets.warningViIcon,
+                width: 20,
+                height: 20,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Circuit breaker triggered!',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        color: AppColors.red500,
+                        fontSize: 18,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Market-wide trading is temporarily halted.',
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                  fontSize: 16,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                  color: AppColors.gray900,
+                ),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'A circuit breaker pauses the entire market after a sharp index decline. Trading resumes according to the exchange schedule.',
             style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                   fontSize: 14,
                   height: 1.45,
