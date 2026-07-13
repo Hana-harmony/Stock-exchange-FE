@@ -23,7 +23,7 @@
 
 ## 데이터 흐름
 1. FE는 Stock-exchange-BE에서 전체/시장별/watchlist/보유종목 실시간 시세 snapshot을 REST로 먼저 조회하고 KRW 가격과 USD 가격을 함께 표시한다.
-2. FE는 Stock-exchange-BE quote WebSocket의 장중 가격, 호가, 등락률, VI/단일가/상·하한가/서킷브레이커와 USD 환산 가격을 실시간 반영한다. 서킷브레이커가 활성화되면 종목 상세에 VI 배너와 같은 디자인의 전용 문구를 표시하고 주문 액션을 비활성화한다. 외국인 보유수량·보유율·한도소진율은 Stock-exchange-BE REST의 Hana KIS snapshot/cache와 orderability 결과로 표시하고, `foreignLimitBuyWarning=true`인 종목의 Buy 선택 시 VI 경고와 동일한 디자인으로 체결 실패 가능성을 고지한다.
+2. FE는 Stock-exchange-BE quote WebSocket의 장중 가격, 등락률, VI/단일가/상·하한가/서킷브레이커와 USD 환산 가격을 실시간 반영한다. 주문 화면 호가는 WebSocket tick 수신 즉시 USD orderbook snapshot을 다시 받고 화면 표시 중에는 rate limit을 넘지 않는 2초 복구 주기로 호가 전용 변경도 반영한다. tick과 복구 요청은 같은 최소 간격 제한을 공유해 중복 호출을 막는다. 서킷브레이커가 활성화되면 종목 상세에 VI 배너와 같은 디자인의 전용 문구를 표시하고 주문 액션을 비활성화한다. 외국인 보유수량·보유율·한도소진율은 Stock-exchange-BE REST의 Hana KIS snapshot/cache와 orderability 결과로 표시하고, `foreignLimitBuyWarning=true`인 종목의 Buy 선택 시 VI 경고와 동일한 디자인으로 체결 실패 가능성을 고지한다.
 3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
 4. 종목상세의 시장 상태 라벨은 시세 timestamp의 존재만으로 종가 상태를 만들지 않고 현재 KST 평일 09:00~15:30 여부를 기준으로 장중 `Live quote updating`과 장외 `Market Closed`를 구분한다.
 5. 하단 탭을 선택하거나 현재 탭을 다시 누르면 해당 화면 상태를 새로 만들고 REST snapshot을 다시 조회한다.
@@ -57,6 +57,7 @@
 - `MarketQuoteController`는 Stock-exchange-BE `GET /api/v1/market/quotes` REST snapshot을 조회하고, All/KOSPI/KOSDAQ market query, quote/cache/FX 기준시각/출처/stale metadata를 Market 화면과 각 quote row에 바인딩한다.
 - `MarketDetailController`는 Stock-exchange-BE `GET /api/v1/stocks/{stockCode}`, `GET /api/v1/market/stocks/{stockCode}/chart`, `GET /api/v1/market/stocks/{stockCode}/orderbook`을 함께 조회해 종목 상세, KRX 기반 과거 차트, 호가 snapshot을 Market 화면에 바인딩한다.
 - Market 종목 상세 패널은 현재가 KRW와 USD 환산 가격, best ask/bid KRW·USD 호가, KIS REST snapshot/cache 기반 외국인 보유율/한도소진율 게이지, snapshot/orderability 기반 당일 예상 외국인 보유율/한도소진율 boundary, VI/단일가/상·하한가 상태 badge, 과거 시세 라인 차트, 최근 KRW/USD 종가를 표시한다.
+- 주문 화면은 상세 화면과 같은 live snapshot을 사용하며 Buy/Sell과 `MARKET`/`LIMIT` 선택을 화면 상태와 API 계약에 연결한다. 호가·지정가·주문금액은 USD로 표시하고 시장가는 최신 실시간 USD 관측가로 예상금액을 갱신한다.
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다. 연결 후 10초 heartbeat를 송신한다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket onDone/onError를 한 번만 처리하고 기존 stream을 취소한 뒤 backoff 지연 후 동일 topic을 재구독한다. 마지막 tick 이후 끊긴 live feed는 stale로 표시해 REST snapshot refresh를 유도한다.

@@ -550,7 +550,8 @@ class TradeController extends ValueNotifier<TradeState> {
     required String stockCode,
     required String side,
     required int quantity,
-    required num limitPriceUsd,
+    String orderType = 'LIMIT',
+    num? limitPriceUsd,
     required String pin,
   }) async {
     if (!_isValid(accountId, stockCode, quantity, limitPriceUsd, pin)) {
@@ -563,6 +564,7 @@ class TradeController extends ValueNotifier<TradeState> {
         stockCode: stockCode,
         side: side,
         quantity: quantity,
+        orderType: orderType,
         limitPriceUsd: limitPriceUsd,
         pin: pin,
       );

@@ -522,17 +522,18 @@ class ExchangeApiClient {
     required String stockCode,
     required String side,
     required int quantity,
-    required num limitPriceUsd,
+    String orderType = 'LIMIT',
+    num? limitPriceUsd,
     required String pin,
   }) {
     return post<Map<String, dynamic>>(
       '/api/v1/accounts/$accountId/trades',
-      body: {
+      body: <String, dynamic>{
         'stockCode': stockCode,
         'side': side,
         'quantity': quantity,
-        'orderType': 'LIMIT',
-        'limitPriceUsd': limitPriceUsd,
+        'orderType': orderType,
+        if (limitPriceUsd != null) 'limitPriceUsd': limitPriceUsd,
         'pin': pin,
       },
     );
