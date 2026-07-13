@@ -541,6 +541,49 @@ void main() {
     ]);
   });
 
+  test('market order omits limit price and sends market contract', () async {
+    const session = AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'access-token',
+      refreshToken: 'refresh-token',
+    );
+    final requests = <Map<String, dynamic>>[];
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      httpClient: MockClient((request) async {
+        requests.add(jsonDecode(request.body) as Map<String, dynamic>);
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {'orderType': 'MARKET', 'status': 'FILLED'},
+          'timestamp': '2026-06-18T06:00:00Z',
+        });
+      }),
+    );
+
+    await client.executeTrade(
+      accountId: 'ACC-ABC123456789',
+      stockCode: '005930',
+      side: 'BUY',
+      quantity: 2,
+      orderType: 'MARKET',
+      pin: '135790',
+    );
+
+    expect(requests.single, {
+      'stockCode': '005930',
+      'side': 'BUY',
+      'quantity': 2,
+      'orderType': 'MARKET',
+      'pin': '135790',
+    });
+  });
+
   test('tax refund status sends account scoped bearer contract', () async {
     const session = AuthSession(
       username: 'hana',

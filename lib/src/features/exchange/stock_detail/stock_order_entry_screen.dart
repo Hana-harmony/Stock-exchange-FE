@@ -1,5 +1,7 @@
 part of '../exchange_pages.dart';
 
+enum _StockOrderType { limit, market }
+
 class _StockOrderEntryScreen extends StatefulWidget {
   const _StockOrderEntryScreen({
     required this.sessionController,
@@ -33,10 +35,16 @@ class _StockOrderEntryScreen extends StatefulWidget {
 
 class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
   late bool _isFavorite;
+  late String _side;
+  late _StockOrderType _orderType;
+  late final ValueListenable<MarketQuote?> _liveQuoteListenable;
   late final TextEditingController _quantityController;
   late final TextEditingController _priceController;
   late int _quantity;
-  late int _price;
+  late double _priceUsd;
+  Timer? _orderBookRefreshTimer;
+  DateTime? _lastOrderBookRefreshAt;
+  bool _isRefreshingOrderBook = false;
   bool _isSyncingQuantity = false;
   bool _isSyncingPrice = false;
 
@@ -44,22 +52,37 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
   void initState() {
     super.initState();
     _isFavorite = widget.initialIsFavorite;
+    _side = widget.side;
+    _orderType = _StockOrderType.limit;
+    _liveQuoteListenable =
+        widget.marketQuoteController.acquireQuoteListenable(widget.stockCode);
+    _liveQuoteListenable.addListener(_handleLiveQuoteChanged);
     _quantity = 3;
-    _price = _parseEditableInt(widget.snapshot.currentPriceKrwRaw) ?? 0;
+    _priceUsd = _parseUsdAmount(widget.snapshot.currentPrice) ?? 0;
     _quantityController = TextEditingController(text: '3')
       ..addListener(_handleQuantityChanged);
-    _priceController = TextEditingController(text: '$_price')
+    _priceController = TextEditingController(text: _editableUsd(_priceUsd))
       ..addListener(_handlePriceChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         widget.tradeController.clearOrderability();
         unawaited(_checkOrderability(showWarningDialog: false));
+        unawaited(_refreshOrderBook());
       }
     });
+    if (widget.marketQuoteController.canSubscribeLive) {
+      _orderBookRefreshTimer = Timer.periodic(
+        const Duration(seconds: 2),
+        (_) => unawaited(_refreshOrderBook()),
+      );
+    }
   }
 
   @override
   void dispose() {
+    _orderBookRefreshTimer?.cancel();
+    _liveQuoteListenable.removeListener(_handleLiveQuoteChanged);
+    widget.marketQuoteController.releaseQuoteListenable(widget.stockCode);
     _quantityController
       ..removeListener(_handleQuantityChanged)
       ..dispose();
@@ -71,59 +94,72 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return AppScaffold(
-      bodySafeAreaBottom: false,
-      body: SafeArea(
-        bottom: false,
-        child: Column(
-          key: const ValueKey('stock-order-entry-screen'),
-          children: [
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: AppColors.white,
-                border: Border.all(color: AppColors.gray100),
-              ),
-              child: Column(
-                children: [
-                  _StockDetailHeader(
-                    snapshot: widget.snapshot,
-                    showCompactTitle: true,
-                    showCompactChange: false,
-                    showBottomBorder: false,
-                    compactTitleFontSize: 22,
-                    compactTitleLineHeight: 1.4,
-                    leadingTitleSpacing: 4,
-                    isFavorite: _isFavorite,
-                    onBack: () => Navigator.of(context).pop(),
-                    onSearch: _openSearch,
-                    onFavorite: _toggleFavorite,
+    return AnimatedBuilder(
+      animation: Listenable.merge([
+        widget.marketDetailController,
+        widget.tradeController,
+        _liveQuoteListenable,
+      ]),
+      builder: (context, _) {
+        final snapshot = _buildLiveSnapshot();
+        final tradeState = widget.tradeController.value;
+        final currentPriceUsd = _currentPriceUsd(snapshot);
+        final orderPriceUsd =
+            _orderType == _StockOrderType.market ? currentPriceUsd : _priceUsd;
+        return AppScaffold(
+          bodySafeAreaBottom: false,
+          body: SafeArea(
+            bottom: false,
+            child: Column(
+              key: const ValueKey('stock-order-entry-screen'),
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    border: Border.all(color: AppColors.gray100),
                   ),
-                  _StockOrderTopSection(snapshot: widget.snapshot),
-                  _StockOrderEntryTabs(side: widget.side),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    width: 152,
-                    child: _StockOrderQuoteList(
-                      snapshot: widget.snapshot,
-                      orderBook: widget.marketDetailController.value.orderBook,
-                      onPriceTap: _applyPriceFromQuote,
-                    ),
+                  child: Column(
+                    children: [
+                      _StockDetailHeader(
+                        snapshot: snapshot,
+                        showCompactTitle: true,
+                        showCompactChange: false,
+                        showBottomBorder: false,
+                        compactTitleFontSize: 22,
+                        compactTitleLineHeight: 1.4,
+                        leadingTitleSpacing: 4,
+                        isFavorite: _isFavorite,
+                        onBack: () => Navigator.of(context).pop(),
+                        onSearch: _openSearch,
+                        onFavorite: _toggleFavorite,
+                      ),
+                      _StockOrderTopSection(snapshot: snapshot),
+                      _StockOrderEntryTabs(
+                        side: _side,
+                        onSideChanged: _setSide,
+                      ),
+                    ],
                   ),
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: widget.tradeController,
-                      builder: (context, _) {
-                        final tradeState = widget.tradeController.value;
-                        return _StockOrderFormPanel(
+                ),
+                Expanded(
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        width: 152,
+                        child: _StockOrderQuoteList(
+                          snapshot: snapshot,
+                          orderBook:
+                              widget.marketDetailController.value.orderBook,
+                          onPriceTap: _applyPriceFromQuote,
+                        ),
+                      ),
+                      Expanded(
+                        child: _StockOrderFormPanel(
                           quantityController: _quantityController,
                           priceController: _priceController,
-                          orderAmount: _quantity * _price,
+                          orderAmount: _quantity * orderPriceUsd,
+                          orderType: _orderType,
                           orderability: tradeState.orderability,
                           isCheckingOrderability:
                               tradeState.status == TradeStatus.loading,
@@ -131,20 +167,60 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
                           onIncreaseQuantity: _increaseQuantity,
                           onDecreasePrice: _decreasePrice,
                           onIncreasePrice: _increasePrice,
+                          onOrderTypeChanged: _setOrderType,
                           onSubmit: _showAccountPinBottomSheet,
-                          side: widget.side,
-                        );
-                      },
-                    ),
+                          side: _side,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
-          ],
-        ),
-      ),
-      bottomNavigationBar: const _StockHomeBar(),
+          ),
+          bottomNavigationBar: const _StockHomeBar(),
+        );
+      },
     );
+  }
+
+  _StockDetailSnapshot _buildLiveSnapshot() {
+    final detail = widget.marketDetailController.value.detail;
+    return _StockDetailSnapshot.fromControllers(
+      stockCode: widget.stockCode,
+      fallbackTitle: widget.snapshot.stockName,
+      fallbackMarket: detail?.market ?? 'KOSPI',
+      fallbackSector: detail?.sector ?? '',
+      detailState: widget.marketDetailController.value,
+      liveQuote: _liveQuoteListenable.value,
+      useQuoteChangeRate: true,
+      tradeState: widget.tradeController.value,
+    );
+  }
+
+  void _handleLiveQuoteChanged() {
+    unawaited(_refreshOrderBook());
+  }
+
+  Future<void> _refreshOrderBook() async {
+    final now = DateTime.now();
+    final lastRefresh = _lastOrderBookRefreshAt;
+    if (_isRefreshingOrderBook ||
+        !mounted ||
+        (lastRefresh != null &&
+            now.difference(lastRefresh) < const Duration(seconds: 2))) {
+      return;
+    }
+    _isRefreshingOrderBook = true;
+    _lastOrderBookRefreshAt = now;
+    try {
+      await widget.marketDetailController.refreshOrderBook(
+        stockCode: widget.stockCode,
+        currency: 'USD',
+      );
+    } finally {
+      _isRefreshingOrderBook = false;
+    }
   }
 
   void _toggleFavorite() {
@@ -195,12 +271,12 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
       return;
     }
 
-    final nextValue = _parseEditableInt(_priceController.text) ?? 0;
-    if (nextValue == _price) {
+    final nextValue = _parseEditableDouble(_priceController.text) ?? 0;
+    if (nextValue == _priceUsd) {
       return;
     }
     setState(() {
-      _price = nextValue;
+      _priceUsd = nextValue;
     });
   }
 
@@ -214,24 +290,17 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
   }
 
   void _decreasePrice() {
-    final step = _krxTickSize(
-      _price > 0
-          ? _price
-          : _parseEditableInt(widget.snapshot.currentPriceKrwRaw) ?? 0,
-    );
-    final next = _price <= step ? 0 : _price - step;
+    const step = 0.01;
+    final next = _priceUsd <= step ? 0.0 : _priceUsd - step;
     _setPrice(next);
   }
 
   void _increasePrice() {
-    final baseline = _price > 0
-        ? _price
-        : _parseEditableInt(widget.snapshot.currentPriceKrwRaw) ?? 0;
-    _setPrice(_price + _krxTickSize(baseline));
+    _setPrice(_priceUsd + 0.01);
   }
 
   void _applyPriceFromQuote(String price) {
-    final next = _parseEditableInt(price);
+    final next = _parseEditableDouble(price);
     if (next == null) {
       return;
     }
@@ -254,19 +323,36 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     unawaited(_checkOrderability(showWarningDialog: false));
   }
 
-  void _setPrice(int value) {
-    final sanitized = value < 0 ? 0 : value;
+  void _setPrice(double value) {
+    final sanitized = value < 0 ? 0.0 : value;
+    final text = sanitized == 0 ? '' : _editableUsd(sanitized);
     _isSyncingPrice = true;
     _priceController.value = TextEditingValue(
-      text: sanitized == 0 ? '' : '$sanitized',
+      text: text,
       selection: TextSelection.collapsed(
-        offset: sanitized == 0 ? 0 : '$sanitized'.length,
+        offset: text.length,
       ),
     );
     _isSyncingPrice = false;
     setState(() {
-      _price = sanitized;
+      _priceUsd = sanitized;
     });
+  }
+
+  void _setSide(String side) {
+    if (_side == side) {
+      return;
+    }
+    setState(() => _side = side);
+    widget.tradeController.clearOrderability();
+    unawaited(_checkOrderability(showWarningDialog: false));
+  }
+
+  void _setOrderType(_StockOrderType orderType) {
+    if (_orderType == orderType) {
+      return;
+    }
+    setState(() => _orderType = orderType);
   }
 
   Future<void> _showAccountPinBottomSheet() async {
@@ -283,10 +369,17 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
 
     final isOrderConfirmed = await _showOrderConfirmationDialog(
       confirmation: _OrderConfirmationDetails(
-        stockName: widget.snapshot.stockName,
-        orderPrice: _formatDialogOrderAmount(_price),
+        stockName: _buildLiveSnapshot().stockName,
+        orderPrice: _orderType == _StockOrderType.market
+            ? 'Market Price'
+            : _formatUsd(_priceUsd),
         quantity: _formatOrderQuantity(_quantity),
-        totalAmount: _formatDialogOrderAmount(_quantity * _price),
+        totalAmount: _formatUsd(
+          _quantity *
+              (_orderType == _StockOrderType.market
+                  ? _currentPriceUsd(_buildLiveSnapshot())
+                  : _priceUsd),
+        ),
       ),
     );
 
@@ -312,7 +405,7 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     await widget.tradeController.checkOrderability(
       accountId: widget.sessionController.session?.accountId,
       stockCode: widget.stockCode,
-      side: widget.side,
+      side: _side,
       quantity: _quantity,
     );
     if (!mounted) {
@@ -338,21 +431,12 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     return widget.tradeController.executeTrade(
       accountId: widget.sessionController.session?.accountId,
       stockCode: widget.stockCode,
-      side: widget.side,
+      side: _side,
       quantity: _quantity,
-      limitPriceUsd: _estimateLimitPriceUsd(),
+      orderType: _orderType.name.toUpperCase(),
+      limitPriceUsd: _orderType == _StockOrderType.limit ? _priceUsd : null,
       pin: pin,
     );
-  }
-
-  num _estimateLimitPriceUsd() {
-    final detail = widget.marketDetailController.value.detail;
-    final krw = _parseAmount(detail?.currentPriceKrw ?? '');
-    final usd = _parseAmount(detail?.localCurrencyPrice ?? '');
-    if (krw != null && krw > 0 && usd != null && usd > 0) {
-      return _price * usd / krw;
-    }
-    return _price;
   }
 
   Future<bool?> _showOrderabilityDialog(TradeOrderability orderability) {
@@ -378,13 +462,13 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
     return showGeneralDialog<bool>(
       context: context,
       barrierDismissible: false,
-      barrierLabel: 'Confirm ${widget.side.toLowerCase()} order',
+      barrierLabel: 'Confirm ${_side.toLowerCase()} order',
       barrierColor: const Color.fromRGBO(0, 0, 0, 0.5),
       transitionDuration: const Duration(milliseconds: 180),
       pageBuilder: (context, animation, secondaryAnimation) {
         return _OrderConfirmationDialog(
           confirmation: confirmation,
-          side: widget.side,
+          side: _side,
         );
       },
       transitionBuilder: (context, animation, secondaryAnimation, child) {
@@ -444,73 +528,49 @@ class _StockOrderTopSection extends StatelessWidget {
                         SizedBox(
                           height: 49,
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                            crossAxisAlignment: CrossAxisAlignment.center,
                             children: [
                               Flexible(
-                                child: Text(
-                                  snapshot.currentPrice,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: Theme.of(context)
-                                      .textTheme
-                                      .headlineLarge
-                                      ?.copyWith(
-                                        fontSize: 38,
-                                        fontWeight: FontWeight.w600,
-                                        height: 1.4,
-                                        color: priceColor,
-                                      ),
+                                child: FittedBox(
+                                  fit: BoxFit.scaleDown,
+                                  alignment: Alignment.centerLeft,
+                                  child: _StockDetailCurrentPriceText(
+                                    price: snapshot.currentPrice,
+                                    color: priceColor,
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 2),
                               Padding(
-                                padding: const EdgeInsets.only(top: 7),
+                                padding: const EdgeInsets.only(top: 9.5),
                                 child: Image.asset(
                                   snapshot.isPositive
                                       ? AppAssets.arrowUpBig
                                       : AppAssets.arrowDownBig,
-                                  width: 32,
-                                  height: 32,
+                                  width: 30,
+                                  height: 30,
                                   fit: BoxFit.contain,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        Text.rich(
-                          TextSpan(
-                            children: [
-                              TextSpan(
-                                text: snapshot.changeAmount,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w400,
-                                      height: 1.4,
-                                      color: priceColor,
-                                    ),
-                              ),
-                              TextSpan(
-                                text: ' ${snapshot.changeRate}',
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.w400,
-                                      height: 1.4,
-                                      color: priceColor,
-                                    ),
-                              ),
-                            ],
-                          ),
+                        Text(
+                          '${_changeAmountWithoutCurrency(snapshot.changeAmount)} ${snapshot.changeRate}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style:
+                              Theme.of(context).textTheme.titleLarge?.copyWith(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.w400,
+                                    height: 1.4,
+                                    color: priceColor,
+                                  ),
                         ),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 20),
+                  const SizedBox(width: 12),
                   Padding(
                     padding: const EdgeInsets.only(top: 3),
                     child: SizedBox(
@@ -576,9 +636,13 @@ class _StockOrderTopSection extends StatelessWidget {
 }
 
 class _StockOrderEntryTabs extends StatelessWidget {
-  const _StockOrderEntryTabs({required this.side});
+  const _StockOrderEntryTabs({
+    required this.side,
+    required this.onSideChanged,
+  });
 
   final String side;
+  final ValueChanged<String> onSideChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -596,12 +660,14 @@ class _StockOrderEntryTabs extends StatelessWidget {
                 label: 'Buy',
                 width: 32,
                 isSelected: side == 'BUY',
+                onTap: () => onSideChanged('BUY'),
               ),
               const SizedBox(width: 18),
               _StockOrderTopTab(
                 label: 'Sell',
                 width: 30,
                 isSelected: side == 'SELL',
+                onTap: () => onSideChanged('SELL'),
               ),
               const SizedBox(width: 18),
               const _StockOrderTopTab(label: 'Modify/Cancel', width: 119),
@@ -622,11 +688,13 @@ class _StockOrderTopTab extends StatelessWidget {
     required this.label,
     required this.width,
     this.isSelected = false,
+    this.onTap,
   });
 
   final String label;
   final double width;
   final bool isSelected;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -634,7 +702,7 @@ class _StockOrderTopTab extends StatelessWidget {
       label: label,
       width: width,
       isSelected: isSelected,
-      onTap: () {},
+      onTap: onTap ?? () {},
       fontSize: 18,
       lineHeight: 1.4,
       fontWeightSelected: FontWeight.w600,
@@ -707,14 +775,16 @@ class _StockOrderQuoteList extends StatelessWidget {
       return const [];
     }
 
-    final referencePrice = _parseAmount(snapshot.previousCloseKrwRaw) ??
-        _parseAmount(snapshot.currentPriceKrwRaw);
+    final referencePrice = _parseUsdAmount(snapshot.previousClose) ??
+        _parseUsdAmount(snapshot.currentPrice);
 
     return List<_OrderQuoteData>.generate(levels.length, (index) {
       final level = levels[index];
-      final price = _formatWholeAmount(level.priceKrw);
+      final numericPrice = _parseAmount(level.localCurrencyPrice);
+      final price = numericPrice == null
+          ? level.localCurrencyPrice
+          : _formatUsd(numericPrice);
       final quantity = _formatWholeAmount(level.quantity.toString());
-      final numericPrice = _parseAmount(level.priceKrw);
       final isPositive = referencePrice == null || numericPrice == null
           ? index < (orderBook?.asks.length ?? 0)
           : numericPrice >= referencePrice;
@@ -822,25 +892,29 @@ class _StockOrderFormPanel extends StatelessWidget {
     required this.quantityController,
     required this.priceController,
     required this.orderAmount,
+    required this.orderType,
     required this.orderability,
     required this.isCheckingOrderability,
     required this.onDecreaseQuantity,
     required this.onIncreaseQuantity,
     required this.onDecreasePrice,
     required this.onIncreasePrice,
+    required this.onOrderTypeChanged,
     required this.onSubmit,
     required this.side,
   });
 
   final TextEditingController quantityController;
   final TextEditingController priceController;
-  final int orderAmount;
+  final double orderAmount;
+  final _StockOrderType orderType;
   final TradeOrderability? orderability;
   final bool isCheckingOrderability;
   final VoidCallback onDecreaseQuantity;
   final VoidCallback onIncreaseQuantity;
   final VoidCallback onDecreasePrice;
   final VoidCallback onIncreasePrice;
+  final ValueChanged<_StockOrderType> onOrderTypeChanged;
   final VoidCallback onSubmit;
   final String side;
 
@@ -854,9 +928,21 @@ class _StockOrderFormPanel extends StatelessWidget {
         children: [
           const _OrderSettlementTabs(),
           const SizedBox(height: 20),
-          const _OrderSelectField(label: 'Limit Order'),
+          _OrderSelectField(
+            label: orderType == _StockOrderType.limit
+                ? 'Limit Order'
+                : 'Market Order',
+            onTap: () => onOrderTypeChanged(
+              orderType == _StockOrderType.limit
+                  ? _StockOrderType.market
+                  : _StockOrderType.limit,
+            ),
+          ),
           const SizedBox(height: 20),
-          const _OrderCheckboxRow(),
+          _OrderCheckboxRow(
+            orderType: orderType,
+            onChanged: onOrderTypeChanged,
+          ),
           const SizedBox(height: 20),
           _OrderStepperField(
             label: 'Quantity',
@@ -865,14 +951,20 @@ class _StockOrderFormPanel extends StatelessWidget {
             onDecrease: onDecreaseQuantity,
             onIncrease: onIncreaseQuantity,
           ),
-          const SizedBox(height: 20),
-          _OrderStepperField(
-            label: 'Price',
-            controller: priceController,
-            fieldKey: const ValueKey('stock-order-price-input'),
-            onDecrease: onDecreasePrice,
-            onIncrease: onIncreasePrice,
-          ),
+          if (orderType == _StockOrderType.limit) ...[
+            const SizedBox(height: 20),
+            _OrderStepperField(
+              label: 'Price (USD)',
+              controller: priceController,
+              fieldKey: const ValueKey('stock-order-price-input'),
+              onDecrease: onDecreasePrice,
+              onIncrease: onIncreasePrice,
+              allowDecimal: true,
+            ),
+          ] else ...[
+            const SizedBox(height: 20),
+            const _MarketPriceNotice(),
+          ],
           if (isCheckingOrderability) ...[
             const SizedBox(height: 12),
             const _OrderabilityInlineCard(
@@ -972,40 +1064,45 @@ class _OrderSettlementTabs extends StatelessWidget {
 }
 
 class _OrderSelectField extends StatelessWidget {
-  const _OrderSelectField({required this.label});
+  const _OrderSelectField({required this.label, required this.onTap});
 
   final String label;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      key: const ValueKey('stock-order-select-field'),
-      decoration: BoxDecoration(
-        color: AppColors.white,
-        border: Border.all(color: AppColors.gray300),
+    return Material(
+      color: AppColors.white,
+      child: InkWell(
+        key: const ValueKey('stock-order-select-field'),
+        onTap: onTap,
         borderRadius: BorderRadius.circular(8),
-      ),
-      child: SizedBox(
-        height: 40,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  label,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        height: 1.4,
-                        letterSpacing: -0.28,
-                        color: AppColors.gray1000,
-                      ),
+        child: Ink(
+          height: 40,
+          decoration: BoxDecoration(
+            border: Border.all(color: AppColors.gray300),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    label,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                          height: 1.4,
+                          letterSpacing: -0.28,
+                          color: AppColors.gray1000,
+                        ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 4),
-              const _OrderChevronDownIcon(),
-            ],
+                const SizedBox(width: 4),
+                const _OrderChevronDownIcon(),
+              ],
+            ),
           ),
         ),
       ),
@@ -1014,45 +1111,33 @@ class _OrderSelectField extends StatelessWidget {
 }
 
 class _OrderCheckboxRow extends StatelessWidget {
-  const _OrderCheckboxRow();
+  const _OrderCheckboxRow({required this.orderType, required this.onChanged});
+
+  final _StockOrderType orderType;
+  final ValueChanged<_StockOrderType> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       key: const ValueKey('stock-order-checkbox-row'),
-      children: const [
-        SizedBox(width: 58, child: _OrderCheckboxLabel(label: 'Market')),
-        SizedBox(width: 16),
-        SizedBox(width: 69, child: _OrderCheckboxLabel(label: 'Mid Price')),
-      ],
-    );
-  }
-}
-
-class _OrderCheckboxLabel extends StatelessWidget {
-  const _OrderCheckboxLabel({required this.label});
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
       children: [
-        const _OrderCheckbox(),
-        const SizedBox(width: 4),
-        Expanded(
-          child: Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  height: 1.4,
-                  letterSpacing: -0.24,
-                  color: AppColors.gray700,
-                ),
+        SizedBox(
+          width: 68,
+          child: _OrderCheckboxLabel(
+            key: const ValueKey('stock-order-type-limit'),
+            label: 'Limit',
+            isSelected: orderType == _StockOrderType.limit,
+            onTap: () => onChanged(_StockOrderType.limit),
+          ),
+        ),
+        SizedBox(width: 16),
+        SizedBox(
+          width: 76,
+          child: _OrderCheckboxLabel(
+            key: const ValueKey('stock-order-type-market'),
+            label: 'Market',
+            isSelected: orderType == _StockOrderType.market,
+            onTap: () => onChanged(_StockOrderType.market),
           ),
         ),
       ],
@@ -1060,25 +1145,100 @@ class _OrderCheckboxLabel extends StatelessWidget {
   }
 }
 
+class _OrderCheckboxLabel extends StatelessWidget {
+  const _OrderCheckboxLabel({
+    super.key,
+    required this.label,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _OrderCheckbox(isSelected: isSelected),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    height: 1.4,
+                    letterSpacing: -0.24,
+                    color: AppColors.gray700,
+                  ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OrderCheckbox extends StatelessWidget {
-  const _OrderCheckbox();
+  const _OrderCheckbox({required this.isSelected});
+
+  final bool isSelected;
 
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.gray300,
+        color: isSelected ? AppColors.green500 : AppColors.white,
+        border: Border.all(
+          color: isSelected ? AppColors.green500 : AppColors.gray400,
+        ),
         borderRadius: BorderRadius.circular(3),
       ),
-      child: const SizedBox(
+      child: SizedBox(
         width: 16,
         height: 16,
-        child: Center(
-          child: SizedBox(
-            width: 12.5,
-            height: 8.38,
-            child: CustomPaint(painter: _OrderCheckPainter()),
-          ),
+        child: isSelected
+            ? Center(
+                child: SizedBox(
+                  width: 12.5,
+                  height: 8.38,
+                  child: const CustomPaint(painter: _OrderCheckPainter()),
+                ),
+              )
+            : null,
+      ),
+    );
+  }
+}
+
+class _MarketPriceNotice extends StatelessWidget {
+  const _MarketPriceNotice();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      key: const ValueKey('stock-order-market-price-notice'),
+      decoration: BoxDecoration(
+        color: AppColors.gray50,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(
+          'Market orders execute at the best available real-time price. The final amount may change.',
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                fontSize: 12,
+                height: 1.4,
+                color: AppColors.gray700,
+              ),
         ),
       ),
     );
@@ -1092,6 +1252,7 @@ class _OrderStepperField extends StatelessWidget {
     required this.fieldKey,
     required this.onDecrease,
     required this.onIncrease,
+    this.allowDecimal = false,
   });
 
   final String label;
@@ -1099,11 +1260,16 @@ class _OrderStepperField extends StatelessWidget {
   final Key fieldKey;
   final VoidCallback onDecrease;
   final VoidCallback onIncrease;
+  final bool allowDecimal;
 
   @override
   Widget build(BuildContext context) {
     return Column(
-      key: ValueKey('stock-order-stepper-$label'),
+      key: ValueKey(
+        label.startsWith('Price')
+            ? 'stock-order-stepper-Price'
+            : 'stock-order-stepper-$label',
+      ),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
@@ -1133,9 +1299,18 @@ class _OrderStepperField extends StatelessWidget {
                     child: TextField(
                       key: fieldKey,
                       controller: controller,
-                      keyboardType: TextInputType.number,
+                      keyboardType: TextInputType.numberWithOptions(
+                        decimal: allowDecimal,
+                      ),
                       textInputAction: TextInputAction.done,
-                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      inputFormatters: [
+                        if (allowDecimal)
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'^\d*\.?\d{0,2}'),
+                          )
+                        else
+                          FilteringTextInputFormatter.digitsOnly,
+                      ],
                       cursorColor: AppColors.gray1000,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontSize: 14,
@@ -1262,7 +1437,7 @@ class _OrderSubmitSection extends StatelessWidget {
     required this.side,
   });
 
-  final int orderAmount;
+  final double orderAmount;
   final VoidCallback onSubmit;
   final String side;
 
@@ -1289,7 +1464,7 @@ class _OrderSubmitSection extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                _formatOrderAmount(orderAmount),
+                _formatUsd(orderAmount),
                 key: const ValueKey('stock-order-amount'),
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontSize: 22,
@@ -2519,64 +2694,32 @@ String _formatSignedPercent({
   return '$sign${delta.toStringAsFixed(2)}%';
 }
 
-String _formatOrderAmount(int value) {
-  return '\$${_formatWholeAmount('$value')}';
+double? _parseEditableDouble(String value) {
+  final normalized = value
+      .replaceAll(',', '')
+      .replaceAll('\$', '')
+      .replaceAll(RegExp(r'USD\s*', caseSensitive: false), '')
+      .trim();
+  if (normalized.isEmpty) {
+    return null;
+  }
+  return double.tryParse(normalized);
 }
+
+String _editableUsd(double value) => value.toStringAsFixed(2);
+
+String _formatUsd(num value) {
+  final normalized = value.toDouble();
+  final parts = normalized.toStringAsFixed(2).split('.');
+  return '\$${_formatWholeAmount(parts.first)}.${parts.last}';
+}
+
+double _currentPriceUsd(_StockDetailSnapshot snapshot) {
+  return _parseUsdAmount(snapshot.currentPrice) ?? 0;
+}
+
+double? _parseUsdAmount(String value) => _parseEditableDouble(value);
 
 String _formatOrderQuantity(int quantity) {
   return '$quantity ${quantity == 1 ? 'Share' : 'Shares'}';
-}
-
-String _formatDialogOrderAmount(int value) {
-  return '\$${_formatDialogGroupedAmount('$value')}';
-}
-
-String _formatDialogGroupedAmount(String raw) {
-  final digits = raw.replaceAll(',', '').trim();
-  if (digits.isEmpty) {
-    return raw;
-  }
-
-  final number = int.tryParse(digits);
-  if (number == null) {
-    return raw;
-  }
-
-  final sign = number < 0 ? '-' : '';
-  final absoluteDigits = number.abs().toString();
-  final groups = <String>[];
-
-  for (var end = absoluteDigits.length; end > 0; end -= 3) {
-    final start = (end - 3).clamp(0, absoluteDigits.length);
-    groups.insert(0, absoluteDigits.substring(start, end));
-  }
-
-  if (groups.length <= 1) {
-    return '$sign${groups.first}';
-  }
-
-  final lastGroup = groups.removeLast();
-  return '$sign${groups.join(',')}.$lastGroup';
-}
-
-int _krxTickSize(int price) {
-  if (price < 2_000) {
-    return 1;
-  }
-  if (price < 5_000) {
-    return 5;
-  }
-  if (price < 20_000) {
-    return 10;
-  }
-  if (price < 50_000) {
-    return 50;
-  }
-  if (price < 200_000) {
-    return 100;
-  }
-  if (price < 500_000) {
-    return 500;
-  }
-  return 1000;
 }

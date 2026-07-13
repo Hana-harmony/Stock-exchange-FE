@@ -742,13 +742,33 @@ void main() {
     expect(find.text('Limit Order'), findsOneWidget);
     expect(find.text('Modify/Cancel'), findsOneWidget);
     expect(find.text('Market'), findsOneWidget);
-    expect(find.text('Mid Price'), findsOneWidget);
+    expect(find.text('Limit'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('stock-order-submit-button')),
       findsOneWidget,
     );
     expect(find.text('3'), findsOneWidget);
     expect(find.textContaining('\$'), findsWidgets);
+    expect(find.text(r'$54.10'), findsOneWidget);
+    expect(find.text('75,200'), findsNothing);
+
+    await tester.tap(
+      find.byKey(const ValueKey('stock-order-type-market')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Market Order'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('stock-order-market-price-notice')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('stock-order-price-input')),
+      findsNothing,
+    );
+
+    await tester.tap(find.text('Sell').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Sell'), findsWidgets);
   });
 
   testWidgets('opens global peer sheet from stock detail name help icon',
@@ -931,13 +951,13 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('\$8,400'), findsOneWidget);
+    expect(find.text('\$8,400.00'), findsOneWidget);
 
     await tester
         .tap(find.byKey(const ValueKey('stock-order-step-minus')).first);
     await tester.pumpAndSettle();
 
-    expect(find.text('\$7,200'), findsOneWidget);
+    expect(find.text('\$7,200.00'), findsOneWidget);
   });
 
   testWidgets('shows account pin bottom sheet from order entry buy button',
@@ -1034,9 +1054,9 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text(r'$1,000.000'), findsOneWidget);
+    expect(find.text(r'$1,000,000.00'), findsOneWidget);
     expect(find.text('100 Shares'), findsOneWidget);
-    expect(find.text(r'$100,000.000'), findsOneWidget);
+    expect(find.text(r'$100,000,000.00'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('stock-order-confirm-submit')));
     await tester.pumpAndSettle();
@@ -2615,8 +2635,22 @@ MarketDetailController _marketDetailController({
             'market': 'KOSPI',
             'baseCurrency': 'KRW',
             'displayCurrency': 'USD',
-            'asks': <Object?>[],
-            'bids': <Object?>[],
+            'asks': [
+              {
+                'priceKrw': '75200',
+                'localCurrencyPrice': '54.10',
+                'quantity': 1200,
+                'orderCount': 8,
+              },
+            ],
+            'bids': [
+              {
+                'priceKrw': '75100',
+                'localCurrencyPrice': '54.03',
+                'quantity': 900,
+                'orderCount': 6,
+              },
+            ],
             'marketDataTime': stockMarketDataTime,
             'servedAt': stockMarketDataTime,
           });
