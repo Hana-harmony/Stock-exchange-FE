@@ -417,7 +417,7 @@ class _AlertRestrictionDialog extends StatelessWidget {
           child: Container(
             key: dialogKey,
             width: _dialogWidth,
-            height: _dialogHeight,
+            constraints: const BoxConstraints(minHeight: _dialogHeight),
             decoration: BoxDecoration(
               color: AppColors.white,
               borderRadius: BorderRadius.circular(12),
@@ -430,63 +430,61 @@ class _AlertRestrictionDialog extends StatelessWidget {
               ],
             ),
             padding: const EdgeInsets.fromLTRB(18, 24, 18, 24),
-            child: SizedBox(
-              height: _dialogHeight - 48,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                          fontSize: 18,
-                          height: 1.4,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.gray1000,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    description,
-                    maxLines: 3,
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          fontSize: 14,
-                          height: 1.4,
-                          letterSpacing: -0.28,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.gray600,
-                        ),
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: double.infinity,
-                    height: _buttonHeight,
-                    child: FilledButton(
-                      key: confirmKey,
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: FilledButton.styleFrom(
-                        backgroundColor: const Color(0xFFFF1550),
-                        foregroundColor: AppColors.white,
-                        padding: EdgeInsets.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(8),
-                        ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                        fontSize: 18,
+                        height: 1.4,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.gray1000,
                       ),
-                      child: Text(
-                        'Confirm',
-                        style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                              color: AppColors.white,
-                              fontSize: 18,
-                              height: 1.4,
-                              fontWeight: FontWeight.w600,
-                            ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  maxLines: 3,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        fontSize: 14,
+                        height: 1.4,
+                        letterSpacing: -0.28,
+                        fontWeight: FontWeight.w500,
+                        color: AppColors.gray600,
+                      ),
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  height: _buttonHeight,
+                  child: FilledButton(
+                    key: confirmKey,
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: const Color(0xFFFF1550),
+                      foregroundColor: AppColors.white,
+                      padding: EdgeInsets.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
                       ),
                     ),
+                    child: Text(
+                      'Confirm',
+                      style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                            color: AppColors.white,
+                            fontSize: 18,
+                            height: 1.4,
+                            fontWeight: FontWeight.w600,
+                          ),
+                    ),
                   ),
-                ],
-              ),
+                ),
+              ],
             ),
           ),
         ),
@@ -520,9 +518,9 @@ class _ForeignLimitBuyWarningDialog extends StatelessWidget {
       dialogKey: ValueKey('foreign-limit-buy-warning-dialog'),
       confirmKey: ValueKey('foreign-limit-buy-warning-confirm'),
       title: 'Foreign Ownership Limit Warning!',
-      description: 'Foreign ownership is expected to reach its limit today.\n'
-          'Your buy order may fail to execute because the\n'
-          'remaining foreign ownership quota is limited.',
+      description: 'Foreign ownership may reach today\'s limit.\n'
+          'Your buy order may fail to execute if the\n'
+          'remaining foreign quota is exhausted.',
     );
   }
 }

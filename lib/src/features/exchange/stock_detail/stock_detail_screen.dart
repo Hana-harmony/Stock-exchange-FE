@@ -519,7 +519,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     );
   }
 
-  void _handleTradeAction(String side, [_StockDetailSnapshot? snapshot]) {
+  Future<void> _handleTradeAction(
+    String side, [
+    _StockDetailSnapshot? snapshot,
+  ]) async {
     if (!_buildSnapshot(liveQuote: _liveQuoteListenable.value).isTradeEnabled) {
       return;
     }
@@ -536,8 +539,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       return;
     }
     if (side == 'Buy' && snapshot?.foreignLimitBuyWarning == true) {
-      _showForeignLimitBuyWarningDialog();
-      return;
+      await _showForeignLimitBuyWarningDialog();
+      if (!mounted) {
+        return;
+      }
     }
     if (snapshot != null) {
       Navigator.of(context).push(

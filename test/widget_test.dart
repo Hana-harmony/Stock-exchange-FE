@@ -2099,6 +2099,10 @@ void main() {
       find.byKey(const ValueKey('foreign-limit-buy-warning-dialog')),
       findsNothing,
     );
+    expect(
+      find.byKey(const ValueKey('stock-order-entry-screen')),
+      findsOneWidget,
+    );
   });
 
   testWidgets('shows a circuit breaker banner from realtime quote state',
