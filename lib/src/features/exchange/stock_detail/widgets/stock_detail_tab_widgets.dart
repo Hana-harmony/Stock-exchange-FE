@@ -304,11 +304,13 @@ class _StockChartCard extends StatelessWidget {
             SizedBox(
               height: 280,
               width: double.infinity,
-              child: CustomPaint(
-                painter: _StockDetailChartPainter(
-                  points: points,
-                  lineColor: _chartTrendColor(points),
-                  progress: chartProgress,
+              child: RepaintBoundary(
+                child: CustomPaint(
+                  painter: _StockDetailChartPainter(
+                    points: points,
+                    lineColor: _chartTrendColor(points),
+                    progress: chartProgress,
+                  ),
                 ),
               ),
             ),

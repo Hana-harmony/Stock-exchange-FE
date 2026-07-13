@@ -59,6 +59,7 @@
 - `MarketQuoteLiveClient`는 Stock-exchange-BE `/ws/market` STOMP WebSocket에 연결하고 `/topic/market/quotes`, market, stock, account-scoped quote topic을 구독할 수 있다. 연결 후 10초 heartbeat를 송신한다.
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket onDone/onError를 한 번만 처리하고 기존 stream을 취소한 뒤 backoff 지연 후 동일 topic을 재구독한다. 마지막 tick 이후 끊긴 live feed는 stale로 표시해 REST snapshot refresh를 유도한다.
+- `MarketQuoteController`는 종목별 `ValueListenable`을 제공한다. 종목 상세는 선택한 종목의 tick만 부분 반영하고, 다른 인기 종목 tick으로 `NestedScrollView` 전체를 다시 빌드하지 않는다. 차트는 분봉 projection을 한 번만 계산하고 `RepaintBoundary` 안에서 다시 그린다.
 - 인기 종목은 OmniLens 고정 universe이므로 FE가 원천 구독을 중복 요청하지 않는다. 상세 화면의 `MarketDetailController`만 진입 시 원천 구독 POST, 이탈 시 DELETE를 호출하고 `MarketQuoteController`는 FE가 받을 STOMP 종목 topic만 관리한다.
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic tick을 quote list에 병합한다.
 - Tax 화면은 bearer auth session의 accountId로 tax document multipart upload, refund case 생성, Hana status sync, refund status 조회를 실행하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.

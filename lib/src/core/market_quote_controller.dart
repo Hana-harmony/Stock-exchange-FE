@@ -372,6 +372,8 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   Set<String> _marketLiveStockCodes = <String>{};
   Set<String> _demandLiveStockCodes = <String>{};
   final Map<String, MarketQuote> _pendingLiveTicks = <String, MarketQuote>{};
+  final Map<String, _MarketQuoteListenableEntry> _quoteListenables =
+      <String, _MarketQuoteListenableEntry>{};
   DateTime? _lastLiveTickPublishedAt;
   int _liveReconnectAttempt = 0;
   bool _liveReconnectScheduled = false;
@@ -411,6 +413,31 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       }
     }
     return null;
+  }
+
+  ValueListenable<MarketQuote?> acquireQuoteListenable(String stockCode) {
+    final normalized = stockCode.trim();
+    final entry = _quoteListenables.putIfAbsent(
+      normalized,
+      () => _MarketQuoteListenableEntry(
+        notifier: ValueNotifier<MarketQuote?>(quoteFor(normalized)),
+      ),
+    );
+    entry.references += 1;
+    return entry.notifier;
+  }
+
+  void releaseQuoteListenable(String stockCode) {
+    final normalized = stockCode.trim();
+    final entry = _quoteListenables[normalized];
+    if (entry == null) {
+      return;
+    }
+    entry.references -= 1;
+    if (entry.references <= 0) {
+      _quoteListenables.remove(normalized);
+      entry.notifier.dispose();
+    }
   }
 
   Future<StockSearchResponse> searchStocks({
@@ -538,6 +565,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         lastTickAt: value.lastTickAt,
         liveStale: value.liveStale,
       );
+      _syncQuoteListenables();
     } on ExchangeApiException catch (error) {
       value = MarketQuoteState.failure(
         errorMessage: error.message,
@@ -548,6 +576,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         lastTickAt: value.lastTickAt,
         liveStale: value.liveStale,
       );
+      _syncQuoteListenables();
     } on Object {
       value = MarketQuoteState.failure(
         errorMessage: 'Unable to load market quotes.',
@@ -558,6 +587,7 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
         lastTickAt: value.lastTickAt,
         liveStale: value.liveStale,
       );
+      _syncQuoteListenables();
     }
   }
 
@@ -821,6 +851,19 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
       liveStale: false,
       clearErrorMessage: true,
     );
+    _syncQuoteListenables(ticks.map((tick) => tick.stockCode));
+  }
+
+  void _syncQuoteListenables([Iterable<String>? stockCodes]) {
+    final targets = stockCodes == null
+        ? _quoteListenables.keys
+        : stockCodes.map((stockCode) => stockCode.trim()).toSet();
+    for (final stockCode in targets) {
+      final entry = _quoteListenables[stockCode];
+      if (entry != null) {
+        entry.notifier.value = quoteFor(stockCode);
+      }
+    }
   }
 
   MarketQuoteSnapshot _snapshotWithVisibleLiveQuotes(
@@ -857,8 +900,19 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     _liveReconnectTimer?.cancel();
     _liveTickFlushTimer?.cancel();
     _liveSubscription?.cancel();
+    for (final entry in _quoteListenables.values) {
+      entry.notifier.dispose();
+    }
+    _quoteListenables.clear();
     super.dispose();
   }
+}
+
+class _MarketQuoteListenableEntry {
+  _MarketQuoteListenableEntry({required this.notifier});
+
+  final ValueNotifier<MarketQuote?> notifier;
+  int references = 0;
 }
 
 class StockSearchResponse {

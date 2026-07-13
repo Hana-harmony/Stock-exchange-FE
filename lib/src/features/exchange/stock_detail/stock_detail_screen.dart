@@ -42,6 +42,7 @@ class StockDetailScreen extends StatefulWidget {
 class _StockDetailScreenState extends State<StockDetailScreen> {
   late bool _isFavorite;
   late final ScrollController _detailScrollController;
+  late ValueListenable<MarketQuote?> _liveQuoteListenable;
   bool _tabsPinned = false;
   bool _hasDemandQuoteLiveSubscription = false;
   _StockChartPeriod _chartPeriod = _StockChartPeriod.oneDay;
@@ -75,6 +76,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     super.initState();
     _isFavorite = widget.isFavorite;
     _detailScrollController = ScrollController()..addListener(_handleScroll);
+    _liveQuoteListenable =
+        widget.marketQuoteController.acquireQuoteListenable(widget.stockCode);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         unawaited(_loadStockDetail());
@@ -85,18 +88,27 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   @override
   void didUpdateWidget(covariant StockDetailScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.stockCode != widget.stockCode) {
-      widget.marketDetailController.unsubscribeRealtimeSource(
+    final stockChanged = oldWidget.stockCode != widget.stockCode;
+    final quoteControllerChanged =
+        oldWidget.marketQuoteController != widget.marketQuoteController;
+    if (stockChanged || quoteControllerChanged) {
+      _releaseQuoteListenableAfterFrame(
+        oldWidget.marketQuoteController,
+        oldWidget.stockCode,
+      );
+      oldWidget.marketDetailController.unsubscribeRealtimeSource(
         stockCode: oldWidget.stockCode,
       );
       if (_hasDemandQuoteLiveSubscription) {
         unawaited(
-          widget.marketQuoteController.removeDemandLiveStock(
+          oldWidget.marketQuoteController.removeDemandLiveStock(
             oldWidget.stockCode,
           ),
         );
         _hasDemandQuoteLiveSubscription = false;
       }
+      _liveQuoteListenable =
+          widget.marketQuoteController.acquireQuoteListenable(widget.stockCode);
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
           unawaited(_loadStockDetail());
@@ -107,6 +119,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   @override
   void dispose() {
+    _releaseQuoteListenableAfterFrame(
+      widget.marketQuoteController,
+      widget.stockCode,
+    );
     widget.marketDetailController.unsubscribeRealtimeSource(
       stockCode: widget.stockCode,
     );
@@ -123,6 +139,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       ..removeListener(_handleScroll)
       ..dispose();
     super.dispose();
+  }
+
+  void _releaseQuoteListenableAfterFrame(
+    MarketQuoteController controller,
+    String stockCode,
+  ) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!controller.isDisposed) {
+        controller.releaseQuoteListenable(stockCode);
+      }
+    });
   }
 
   Future<void> _loadStockDetail() async {
@@ -188,14 +215,11 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
         body: AnimatedBuilder(
           animation: Listenable.merge([
             widget.marketDetailController,
-            widget.marketQuoteController,
             widget.tradeController,
           ]),
           builder: (context, _) {
             final detailState = widget.marketDetailController.value;
-            final liveQuote =
-                widget.marketQuoteController.quoteFor(widget.stockCode);
-            final snapshot = _buildSnapshot();
+            final liveQuote = _liveQuoteListenable.value;
             final hasRenderableMarketData = _hasRenderableMarketData(
               detailState: detailState,
               liveQuote: liveQuote,
@@ -208,166 +232,199 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                 detailState.status == MarketDetailStatus.failure &&
                     !hasRenderableMarketData;
 
-            return SafeArea(
-              bottom: false,
-              child: Column(
-                children: [
-                  _StockDetailHeader(
-                    snapshot: snapshot,
-                    showCompactTitle: _tabsPinned,
-                    isFavorite: _isFavorite,
-                    onBack: () => Navigator.of(context).pop(),
-                    onSearch: _openSearch,
-                    onFavorite: _toggleFavorite,
-                  ),
-                  Expanded(
-                    child: isInitialLoading
-                        ? const Center(
-                            key: ValueKey('stock-detail-initial-loading'),
-                            child: CircularProgressIndicator(
-                              color: AppColors.orange500,
-                            ),
-                          )
-                        : isInitialFailure
-                            ? Center(
-                                key: const ValueKey(
-                                  'stock-detail-initial-error',
-                                ),
-                                child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 16,
-                                  ),
-                                  child: _MutedInfoCard(
-                                    title: 'Detail unavailable',
-                                    body: detailState.errorMessage ??
-                                        'Stock detail is temporarily unavailable.',
-                                  ),
-                                ),
-                              )
-                            : NestedScrollView(
-                                controller: _detailScrollController,
-                                headerSliverBuilder:
-                                    (context, innerBoxIsScrolled) {
-                                  return [
-                                    if (detailState.status ==
-                                        MarketDetailStatus.loading)
-                                      const SliverToBoxAdapter(
-                                        child: LinearProgressIndicator(
-                                          key: ValueKey(
-                                            'stock-detail-partial-loading',
-                                          ),
-                                          minHeight: 2,
-                                          color: AppColors.orange500,
-                                          backgroundColor: AppColors.gray100,
-                                        ),
-                                      ),
-                                    if (_activeAlertBannerCount > 0)
-                                      SliverToBoxAdapter(
-                                        child: Padding(
-                                          padding: const EdgeInsets.fromLTRB(
-                                            16,
-                                            8,
-                                            16,
-                                            12,
-                                          ),
-                                          child: Column(
-                                            children: [
-                                              if (_showViBanner)
-                                                _ViTriggeredBanner(
-                                                  onInfoTap: _showViInfoPanel,
-                                                ),
-                                              if (_showViBanner &&
-                                                  _isLowLimitTriggered)
-                                                const SizedBox(height: 12),
-                                              if (_isLowLimitTriggered)
-                                                _LowLimitReachedBanner(
-                                                  onInfoTap:
-                                                      _showLowLimitInfoPanel,
-                                                ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    SliverToBoxAdapter(
-                                      child: _StockOverviewSection(
-                                        snapshot: snapshot,
-                                        onQuestionTap: _showGlobalPeers,
-                                      ),
-                                    ),
-                                    SliverPersistentHeader(
-                                      pinned: true,
-                                      delegate:
-                                          _StockDetailTabsHeaderDelegate(),
-                                    ),
-                                  ];
-                                },
-                                body: TabBarView(
-                                  children: [
-                                    _StockOrderTab(snapshot: snapshot),
-                                    _StockChartTab(
-                                      chart: detailState.chart,
-                                      chartPoints: _chartPointsForSnapshot(
-                                        chart: detailState.chart,
-                                        liveQuote: liveQuote,
-                                        marketDataTime:
-                                            liveQuote?.marketDataTime ??
-                                                _currentDetail?.marketDataTime,
-                                      ),
-                                      status: detailState.status,
-                                      errorMessage: detailState.errorMessage,
-                                      marketDataTime:
-                                          liveQuote?.marketDataTime ??
-                                              _currentDetail?.marketDataTime,
-                                      liveQuote: liveQuote,
-                                      selectedPeriod: _chartPeriod,
-                                      onPeriodChanged:
-                                          _handleChartPeriodChanged,
-                                    ),
-                                    _StockNewsTab(
-                                      notificationController:
-                                          widget.notificationController,
-                                      stockCode: widget.stockCode,
-                                      stockName: snapshot.stockName,
-                                      sourceType: 'NEWS',
-                                      emptyTitle: 'No K-News',
-                                      emptyBody:
-                                          'There are no related stock news items yet.',
-                                    ),
-                                    _StockNewsTab(
-                                      notificationController:
-                                          widget.notificationController,
-                                      stockCode: widget.stockCode,
-                                      stockName: snapshot.stockName,
-                                      sourceType: 'DISCLOSURE',
-                                      emptyTitle: 'No disclosures',
-                                      emptyBody:
-                                          'There are no related disclosure items yet.',
-                                    ),
-                                  ],
-                                ),
-                              ),
-                  ),
-                ],
-              ),
+            return _buildDetailLayout(
+              detailState: detailState,
+              isInitialLoading: isInitialLoading,
+              isInitialFailure: isInitialFailure,
             );
           },
         ),
         bottomNavigationBar: AnimatedBuilder(
           animation: Listenable.merge([
             widget.marketDetailController,
-            widget.marketQuoteController,
             widget.tradeController,
           ]),
           builder: (context, _) {
-            final snapshot = _buildSnapshot();
+            final snapshot = _buildSnapshot(liveQuote: null);
             return _StockBottomActionBar(
-              onSell: () => _handleTradeAction('Sell', snapshot),
-              onBuy: () => _handleTradeAction('Buy', snapshot),
+              onSell: () => _handleTradeAction(
+                'Sell',
+                _buildSnapshot(liveQuote: _liveQuoteListenable.value),
+              ),
+              onBuy: () => _handleTradeAction(
+                'Buy',
+                _buildSnapshot(liveQuote: _liveQuoteListenable.value),
+              ),
               isTradeEnabled: snapshot.isTradeEnabled,
             );
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildDetailLayout({
+    required MarketDetailState detailState,
+    required bool isInitialLoading,
+    required bool isInitialFailure,
+  }) {
+    final stableSnapshot = _buildSnapshot(liveQuote: null);
+    return SafeArea(
+      bottom: false,
+      child: Column(
+        children: [
+          _buildQuoteSnapshot(
+            builder: (context, snapshot, _) => _StockDetailHeader(
+              snapshot: snapshot,
+              showCompactTitle: _tabsPinned,
+              isFavorite: _isFavorite,
+              onBack: () => Navigator.of(context).pop(),
+              onSearch: _openSearch,
+              onFavorite: _toggleFavorite,
+            ),
+          ),
+          Expanded(
+            child: isInitialLoading
+                ? const Center(
+                    key: ValueKey('stock-detail-initial-loading'),
+                    child: CircularProgressIndicator(
+                      color: AppColors.orange500,
+                    ),
+                  )
+                : isInitialFailure
+                    ? Center(
+                        key: const ValueKey('stock-detail-initial-error'),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: _MutedInfoCard(
+                            title: 'Detail unavailable',
+                            body: detailState.errorMessage ??
+                                'Stock detail is temporarily unavailable.',
+                          ),
+                        ),
+                      )
+                    : NestedScrollView(
+                        controller: _detailScrollController,
+                        headerSliverBuilder: (context, innerBoxIsScrolled) {
+                          return [
+                            if (detailState.status ==
+                                MarketDetailStatus.loading)
+                              const SliverToBoxAdapter(
+                                child: LinearProgressIndicator(
+                                  key: ValueKey(
+                                    'stock-detail-partial-loading',
+                                  ),
+                                  minHeight: 2,
+                                  color: AppColors.orange500,
+                                  backgroundColor: AppColors.gray100,
+                                ),
+                              ),
+                            if (_activeAlertBannerCount > 0)
+                              SliverToBoxAdapter(
+                                child: Padding(
+                                  padding: const EdgeInsets.fromLTRB(
+                                    16,
+                                    8,
+                                    16,
+                                    12,
+                                  ),
+                                  child: Column(
+                                    children: [
+                                      if (_showViBanner)
+                                        _ViTriggeredBanner(
+                                          onInfoTap: _showViInfoPanel,
+                                        ),
+                                      if (_showViBanner && _isLowLimitTriggered)
+                                        const SizedBox(height: 12),
+                                      if (_isLowLimitTriggered)
+                                        _LowLimitReachedBanner(
+                                          onInfoTap: _showLowLimitInfoPanel,
+                                        ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            SliverToBoxAdapter(
+                              child: _buildQuoteSnapshot(
+                                builder: (context, snapshot, _) =>
+                                    _StockOverviewSection(
+                                  snapshot: snapshot,
+                                  onQuestionTap: _showGlobalPeers,
+                                ),
+                              ),
+                            ),
+                            SliverPersistentHeader(
+                              pinned: true,
+                              delegate: _StockDetailTabsHeaderDelegate(),
+                            ),
+                          ];
+                        },
+                        body: TabBarView(
+                          children: [
+                            _buildQuoteSnapshot(
+                              builder: (context, snapshot, _) =>
+                                  _StockOrderTab(snapshot: snapshot),
+                            ),
+                            ValueListenableBuilder<MarketQuote?>(
+                              valueListenable: _liveQuoteListenable,
+                              builder: (context, liveQuote, _) =>
+                                  _StockChartTab(
+                                chart: detailState.chart,
+                                chartPoints: detailState.chart?.points,
+                                status: detailState.status,
+                                errorMessage: detailState.errorMessage,
+                                marketDataTime: liveQuote?.marketDataTime ??
+                                    _currentDetail?.marketDataTime,
+                                liveQuote: liveQuote,
+                                selectedPeriod: _chartPeriod,
+                                onPeriodChanged: _handleChartPeriodChanged,
+                              ),
+                            ),
+                            _StockNewsTab(
+                              notificationController:
+                                  widget.notificationController,
+                              stockCode: widget.stockCode,
+                              stockName: stableSnapshot.stockName,
+                              sourceType: 'NEWS',
+                              emptyTitle: 'No K-News',
+                              emptyBody:
+                                  'There are no related stock news items yet.',
+                            ),
+                            _StockNewsTab(
+                              notificationController:
+                                  widget.notificationController,
+                              stockCode: widget.stockCode,
+                              stockName: stableSnapshot.stockName,
+                              sourceType: 'DISCLOSURE',
+                              emptyTitle: 'No disclosures',
+                              emptyBody:
+                                  'There are no related disclosure items yet.',
+                            ),
+                          ],
+                        ),
+                      ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuoteSnapshot({
+    required Widget Function(
+      BuildContext context,
+      _StockDetailSnapshot snapshot,
+      MarketQuote? liveQuote,
+    ) builder,
+  }) {
+    return ValueListenableBuilder<MarketQuote?>(
+      valueListenable: _liveQuoteListenable,
+      builder: (context, liveQuote, _) {
+        return builder(
+          context,
+          _buildSnapshot(liveQuote: liveQuote),
+          liveQuote,
+        );
+      },
     );
   }
 
@@ -381,9 +438,8 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
     unawaited(_loadStockDetail());
   }
 
-  _StockDetailSnapshot _buildSnapshot() {
+  _StockDetailSnapshot _buildSnapshot({required MarketQuote? liveQuote}) {
     final detailState = widget.marketDetailController.value;
-    final liveQuote = widget.marketQuoteController.quoteFor(widget.stockCode);
     final now = _now();
     return _StockDetailSnapshot.fromControllers(
       stockCode: widget.stockCode,
@@ -392,12 +448,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       fallbackSector: widget.sector,
       detailState: detailState,
       liveQuote: liveQuote,
-      chartPoints: _chartPointsForSnapshot(
-        chart: detailState.chart,
-        liveQuote: liveQuote,
-        marketDataTime:
-            liveQuote?.marketDataTime ?? _currentDetail?.marketDataTime,
-      ),
+      chartPoints: detailState.chart?.points,
       useQuoteChangeRate: _chartPeriod == _StockChartPeriod.oneDay,
       nowUtc: now.toUtc(),
       tradeState: widget.tradeController.value,
@@ -405,31 +456,6 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   DateTime _now() => widget.nowProvider?.call() ?? DateTime.now();
-
-  List<MarketChartPoint>? _chartPointsForSnapshot({
-    required MarketChart? chart,
-    required MarketQuote? liveQuote,
-    required DateTime? marketDataTime,
-  }) {
-    final points = chart?.points;
-    if (points == null || points.isEmpty) {
-      if (_chartPeriod == _StockChartPeriod.oneDay) {
-        final livePoints = _oneDayChartPointsWithLiveQuote(
-          const <MarketChartPoint>[],
-          liveQuote,
-        );
-        return livePoints.isEmpty ? null : livePoints;
-      }
-      return null;
-    }
-    if (_chartPeriod == _StockChartPeriod.oneDay) {
-      return _visibleOneDayChartPoints(
-        _oneDayChartPointsWithLiveQuote(points, liveQuote),
-        marketDataTime,
-      );
-    }
-    return points;
-  }
 
   bool _hasRenderableMarketData({
     required MarketDetailState detailState,
@@ -472,7 +498,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   }
 
   void _handleTradeAction(String side, [_StockDetailSnapshot? snapshot]) {
-    if (!_buildSnapshot().isTradeEnabled) {
+    if (!_buildSnapshot(liveQuote: _liveQuoteListenable.value).isTradeEnabled) {
       return;
     }
     if (_isLowLimitTriggered) {
