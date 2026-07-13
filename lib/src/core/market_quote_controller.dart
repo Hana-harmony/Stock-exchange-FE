@@ -166,6 +166,11 @@ class MarketQuote {
     required this.fxStale,
     this.marketDataTime,
     this.publishedAt,
+    this.viActive = false,
+    this.singlePriceTrading = false,
+    this.tradingHalted = false,
+    this.circuitBreakerActive = false,
+    this.tradingHaltReason = '',
     this.badge = 'Live',
   });
 
@@ -189,6 +194,11 @@ class MarketQuote {
   final bool fxStale;
   final DateTime? marketDataTime;
   final DateTime? publishedAt;
+  final bool viActive;
+  final bool singlePriceTrading;
+  final bool tradingHalted;
+  final bool circuitBreakerActive;
+  final String tradingHaltReason;
   final String badge;
 
   String get krwDisplay => formatCurrencyDisplay('KRW', currentPriceKrw);
@@ -261,6 +271,11 @@ class MarketQuote {
       fxStale: tick.fxStale,
       marketDataTime: tick.marketDataTime,
       publishedAt: tick.publishedAt,
+      viActive: tick.viActive,
+      singlePriceTrading: tick.singlePriceTrading,
+      tradingHalted: tick.tradingHalted,
+      circuitBreakerActive: tick.circuitBreakerActive,
+      tradingHaltReason: tick.tradingHaltReason,
       badge: tick.badge,
     );
   }
@@ -303,6 +318,11 @@ class MarketQuote {
       fxStale: json['fxStale'] as bool? ?? false,
       marketDataTime: _dateTime(json['marketDataTime']),
       publishedAt: _dateTime(json['publishedAt']),
+      viActive: json['viActive'] as bool? ?? false,
+      singlePriceTrading: json['singlePriceTrading'] as bool? ?? false,
+      tradingHalted: json['tradingHalted'] as bool? ?? false,
+      circuitBreakerActive: json['circuitBreakerActive'] as bool? ?? false,
+      tradingHaltReason: _string(json['tradingHaltReason'], fallback: ''),
       badge: _string(json['market'], fallback: 'Live'),
     );
   }
@@ -331,6 +351,11 @@ class MarketQuote {
       fxStale: tick.fxStale,
       marketDataTime: marketDataTime,
       publishedAt: tick.publishedAt,
+      viActive: tick.viActive,
+      singlePriceTrading: tick.singlePriceTrading,
+      tradingHalted: tick.tradingHalted,
+      circuitBreakerActive: tick.circuitBreakerActive,
+      tradingHaltReason: tick.tradingHaltReason,
       badge: badge,
     );
   }

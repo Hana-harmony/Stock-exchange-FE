@@ -51,12 +51,17 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
 
   bool get _showViBanner => _currentDetail?.viActive ?? false;
 
+  bool get _showCircuitBreakerBanner =>
+      _liveQuoteListenable.value?.circuitBreakerActive ?? false;
+
   bool get _isLowLimitTriggered =>
       _currentDetail?.normalizedPriceLimitState == 'LOWER';
 
   int get _activeAlertBannerCount {
     var count = 0;
-    if (_showViBanner) {
+    if (_showCircuitBreakerBanner) {
+      count += 1;
+    } else if (_showViBanner) {
       count += 1;
     }
     if (_isLowLimitTriggered) {
@@ -243,9 +248,12 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
           animation: Listenable.merge([
             widget.marketDetailController,
             widget.tradeController,
+            _liveQuoteListenable,
           ]),
           builder: (context, _) {
-            final snapshot = _buildSnapshot(liveQuote: null);
+            final snapshot = _buildSnapshot(
+              liveQuote: _liveQuoteListenable.value,
+            );
             return _StockBottomActionBar(
               onSell: () => _handleTradeAction(
                 'Sell',
@@ -319,31 +327,45 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                                   backgroundColor: AppColors.gray100,
                                 ),
                               ),
-                            if (_activeAlertBannerCount > 0)
-                              SliverToBoxAdapter(
-                                child: Padding(
-                                  padding: const EdgeInsets.fromLTRB(
-                                    16,
-                                    8,
-                                    16,
-                                    12,
-                                  ),
-                                  child: Column(
-                                    children: [
-                                      if (_showViBanner)
-                                        _ViTriggeredBanner(
-                                          onInfoTap: _showViInfoPanel,
-                                        ),
-                                      if (_showViBanner && _isLowLimitTriggered)
-                                        const SizedBox(height: 12),
-                                      if (_isLowLimitTriggered)
-                                        _LowLimitReachedBanner(
-                                          onInfoTap: _showLowLimitInfoPanel,
-                                        ),
-                                    ],
-                                  ),
-                                ),
+                            SliverToBoxAdapter(
+                              child: ValueListenableBuilder<MarketQuote?>(
+                                valueListenable: _liveQuoteListenable,
+                                builder: (context, liveQuote, _) {
+                                  if (_activeAlertBannerCount == 0) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  return Padding(
+                                    padding: const EdgeInsets.fromLTRB(
+                                      16,
+                                      8,
+                                      16,
+                                      12,
+                                    ),
+                                    child: Column(
+                                      children: [
+                                        if (_showCircuitBreakerBanner)
+                                          _CircuitBreakerTriggeredBanner(
+                                            onInfoTap:
+                                                _showCircuitBreakerInfoPanel,
+                                          )
+                                        else if (_showViBanner)
+                                          _ViTriggeredBanner(
+                                            onInfoTap: _showViInfoPanel,
+                                          ),
+                                        if ((_showCircuitBreakerBanner ||
+                                                _showViBanner) &&
+                                            _isLowLimitTriggered)
+                                          const SizedBox(height: 12),
+                                        if (_isLowLimitTriggered)
+                                          _LowLimitReachedBanner(
+                                            onInfoTap: _showLowLimitInfoPanel,
+                                          ),
+                                      ],
+                                    ),
+                                  );
+                                },
                               ),
+                            ),
                             SliverToBoxAdapter(
                               child: _buildQuoteSnapshot(
                                 builder: (context, snapshot, _) =>
@@ -505,6 +527,10 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       _showPriceLimitRestrictionDialog();
       return;
     }
+    if (_showCircuitBreakerBanner) {
+      _showCircuitBreakerInfoPanel();
+      return;
+    }
     if (_showViBanner) {
       _showViRestrictionDialog();
       return;
@@ -537,6 +563,16 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
       backgroundColor: Colors.transparent,
       builder: (context) {
         return const _ViInfoPanel();
+      },
+    );
+  }
+
+  void _showCircuitBreakerInfoPanel() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return const _CircuitBreakerInfoPanel();
       },
     );
   }

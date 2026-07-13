@@ -5,7 +5,7 @@ Flutter iOS/Android 기반 MTS 프론트엔드다. Flutter Web은 내부 QA·데
 ## 핵심 기능
 - Markets: KOSPI/KOSDAQ/KOSPI 200 지수, 인기 종목, 검색, 시장별 시세
 - 실시간 시세: Stock-exchange-BE WebSocket 구독, 재연결, stale 상태 표시
-- 종목 상세: 1D/1W/1M 차트, KRW/USD 가격, 외국인 보유 제한, VI/상·하한가, 호가, K-News, 공시
+- 종목 상세: 1D/1W/1M 차트, KRW/USD 가격, 외국인 보유 제한, VI/서킷브레이커/상·하한가, 호가, K-News, 공시
 - 글로벌 피어: AI가 종목별 사업요약에서 생성한 3개 comparison과 4개 Key Strength를 생략 없이 2×2로 표시
 - Watchlist/Portfolio: 관심종목, 보유종목, 계좌별 quote snapshot과 WebSocket tick 반영
 - 인증·계좌: secure storage 세션, access token 검증·자동 갱신, 비밀번호 확인과 6자리 거래 PIN을 포함한 단계형 가입, 거래 PIN 확인 USD 모의 원장 충전
