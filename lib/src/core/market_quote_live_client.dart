@@ -63,10 +63,7 @@ class MarketQuoteLiveSubscription {
   }
 }
 
-enum MarketQuoteAccountScope {
-  watchlist,
-  portfolio,
-}
+enum MarketQuoteAccountScope { watchlist, portfolio }
 
 class MarketQuoteLiveClient {
   MarketQuoteLiveClient({
@@ -98,9 +95,13 @@ class MarketQuoteLiveClient {
     final connection = _socketConnector(webSocketUri);
     late final StreamSubscription<dynamic> socketSubscription;
     late final StreamController<Map<String, dynamic>> controller;
+    Timer? heartbeatTimer;
 
-    void sendFrame(String command, Map<String, String> headers,
-        [String? body]) {
+    void sendFrame(
+      String command,
+      Map<String, String> headers, [
+      String? body,
+    ]) {
       final buffer = StringBuffer(command)..write('\n');
       headers.forEach((key, value) {
         buffer.write('$key:$value\n');
@@ -122,8 +123,18 @@ class MarketQuoteLiveClient {
       }
     }
 
+    void startHeartbeat() {
+      heartbeatTimer?.cancel();
+      heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+        if (!controller.isClosed) {
+          connection.add('\n');
+        }
+      });
+    }
+
     void handleFrame(String frame) {
       if (frame.startsWith('CONNECTED')) {
+        startHeartbeat();
         subscribeTopics();
         return;
       }
@@ -157,8 +168,14 @@ class MarketQuoteLiveClient {
               }
             }
           },
-          onError: controller.addError,
-          onDone: controller.close,
+          onError: (Object error, StackTrace stackTrace) {
+            heartbeatTimer?.cancel();
+            controller.addError(error, stackTrace);
+          },
+          onDone: () {
+            heartbeatTimer?.cancel();
+            controller.close();
+          },
         );
         sendFrame('CONNECT', {
           'accept-version': '1.2',
@@ -166,6 +183,7 @@ class MarketQuoteLiveClient {
         });
       },
       onCancel: () async {
+        heartbeatTimer?.cancel();
         await socketSubscription.cancel();
         await connection.close();
       },

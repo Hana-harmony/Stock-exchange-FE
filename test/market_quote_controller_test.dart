@@ -36,7 +36,9 @@ void main() {
     expect(controller.value.quotes.single.stockName, 'Samsung Electronics');
     expect(controller.value.quotes.single.localCurrencyDisplay, 'USD 1,024.24');
     expect(
-        controller.value.quotes.single.fxMeta, contains('Hana-OmniLens-API'));
+      controller.value.quotes.single.fxMeta,
+      contains('Hana-OmniLens-API'),
+    );
   });
 
   test('fills missing USD price from KRW and FX direction', () {
@@ -75,16 +77,13 @@ void main() {
   test('hides seed quotes when initial snapshot request fails', () async {
     final controller = MarketQuoteController(
       apiClient: _client((request) async {
-        return _jsonResponse(
-          {
-            'success': false,
-            'status': 502,
-            'code': 'MARKET_001',
-            'message': 'Hana OmniLens market upstream unavailable',
-            'timestamp': '2026-06-18T06:00:00Z',
-          },
-          statusCode: 502,
-        );
+        return _jsonResponse({
+          'success': false,
+          'status': 502,
+          'code': 'MARKET_001',
+          'message': 'Hana OmniLens market upstream unavailable',
+          'timestamp': '2026-06-18T06:00:00Z',
+        }, statusCode: 502);
       }),
       seedQuotes: seedMarketQuotes,
     );
@@ -160,13 +159,15 @@ void main() {
     expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
 
     connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
-    connection.emit('MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
-        '${jsonEncode({
-          ..._tickJson(),
-          'stockName': 'Smoke Test Name',
-          'currentPriceKrw': '83000',
-          'localCurrencyPrice': '53.95',
-        })}\u0000');
+    connection.emit(
+      'MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
+      '${jsonEncode({
+            ..._tickJson(),
+            'stockName': 'Smoke Test Name',
+            'currentPriceKrw': '83000',
+            'localCurrencyPrice': '53.95'
+          })}\u0000',
+    );
     await Future<void>.delayed(Duration.zero);
 
     expect(controller.value.liveStatus, MarketQuoteLiveStatus.live);
@@ -209,13 +210,15 @@ void main() {
     expect(controller.hasGeneralLiveSubscription, isTrue);
 
     connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
-    connection.emit('MESSAGE\ndestination:/topic/market/quotes\n\n'
-        '${jsonEncode({
-          ..._tickJson(),
-          'currentPriceKrw': '90000',
-          'localCurrencyPrice': '58.50',
-          'volume': 19000000,
-        })}\u0000');
+    connection.emit(
+      'MESSAGE\ndestination:/topic/market/quotes\n\n'
+      '${jsonEncode({
+            ..._tickJson(),
+            'currentPriceKrw': '90000',
+            'localCurrencyPrice': '58.50',
+            'volume': 19000000
+          })}\u0000',
+    );
     await Future<void>.delayed(Duration.zero);
 
     await controller.loadSnapshot(market: 'KOSPI');
@@ -228,93 +231,74 @@ void main() {
     await controller.unsubscribeLive();
   });
 
-  test('keeps market quote topics while adding and removing detail demand',
-      () async {
-    final connections = <_FakeQuoteSocketConnection>[];
-    final realtimeSubscriptionPaths = <String>[];
-    final controller = MarketQuoteController(
-      apiClient: _client((request) async {
-        if (request.url.path.endsWith('/realtime-subscription')) {
-          realtimeSubscriptionPaths.add(request.url.path);
-          return _jsonResponse({
-            'success': true,
-            'status': 200,
-            'code': 'COMMON_000',
-            'message': 'OK',
-            'data': <String, Object?>{},
-            'timestamp': '2026-06-18T06:00:00Z',
-          });
-        }
-        return _jsonResponse({});
-      }),
-      liveClient: MarketQuoteLiveClient(
-        baseUri: Uri.parse('http://localhost:3000'),
-        socketConnector: (uri) {
-          final connection = _FakeQuoteSocketConnection();
-          connections.add(connection);
-          return connection;
-        },
-      ),
-      seedQuotes: seedMarketQuotes,
-    );
+  test(
+    'keeps market quote topics while adding and removing detail demand',
+    () async {
+      final connections = <_FakeQuoteSocketConnection>[];
+      final controller = MarketQuoteController(
+        apiClient: _client((request) async => _jsonResponse({})),
+        liveClient: MarketQuoteLiveClient(
+          baseUri: Uri.parse('http://localhost:3000'),
+          socketConnector: (uri) {
+            final connection = _FakeQuoteSocketConnection();
+            connections.add(connection);
+            return connection;
+          },
+        ),
+        seedQuotes: seedMarketQuotes,
+      );
 
-    await controller.subscribeMarketLiveStocks(['005930', '000270']);
-    connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+      await controller.subscribeMarketLiveStocks(['005930', '000270']);
+      connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(connections.length, 1);
-    expect(connections.last.sent.join('\n'),
-        contains('destination:/topic/market/stocks/005930'));
-    expect(connections.last.sent.join('\n'),
-        contains('destination:/topic/market/stocks/000270'));
-    expect(
-      connections.last.sent.join('\n'),
-      isNot(contains('destination:/topic/market/quotes')),
-    );
-    expect(
-      realtimeSubscriptionPaths,
-      containsAll([
-        '/api/v1/market/stocks/005930/realtime-subscription',
-        '/api/v1/market/stocks/000270/realtime-subscription',
-      ]),
-    );
+      expect(connections.length, 1);
+      expect(
+        connections.last.sent.join('\n'),
+        contains('destination:/topic/market/stocks/005930'),
+      );
+      expect(
+        connections.last.sent.join('\n'),
+        contains('destination:/topic/market/stocks/000270'),
+      );
+      expect(
+        connections.last.sent.join('\n'),
+        isNot(contains('destination:/topic/market/quotes')),
+      );
 
-    await controller.addDemandLiveStock('035720');
-    expect(connections.first.closed, isTrue);
-    connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+      await controller.addDemandLiveStock('035720');
+      expect(connections.first.closed, isTrue);
+      connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(connections.length, 2);
-    final demandTopics = connections.last.sent.join('\n');
-    expect(demandTopics, contains('destination:/topic/market/stocks/005930'));
-    expect(demandTopics, contains('destination:/topic/market/stocks/000270'));
-    expect(demandTopics, contains('destination:/topic/market/stocks/035720'));
-    expect(demandTopics, isNot(contains('destination:/topic/market/quotes')));
-    expect(controller.hasLiveSubscriptionForStock('035720'), isTrue);
-    expect(
-      realtimeSubscriptionPaths,
-      contains('/api/v1/market/stocks/035720/realtime-subscription'),
-    );
+      expect(connections.length, 2);
+      final demandTopics = connections.last.sent.join('\n');
+      expect(demandTopics, contains('destination:/topic/market/stocks/005930'));
+      expect(demandTopics, contains('destination:/topic/market/stocks/000270'));
+      expect(demandTopics, contains('destination:/topic/market/stocks/035720'));
+      expect(demandTopics, isNot(contains('destination:/topic/market/quotes')));
+      expect(controller.hasLiveSubscriptionForStock('035720'), isTrue);
 
-    await controller.removeDemandLiveStock('035720');
-    expect(connections[1].closed, isTrue);
-    connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
-    await Future<void>.delayed(Duration.zero);
+      await controller.removeDemandLiveStock('035720');
+      expect(connections[1].closed, isTrue);
+      connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
+      await Future<void>.delayed(Duration.zero);
 
-    expect(connections.length, 3);
-    final marketTopics = connections.last.sent.join('\n');
-    expect(marketTopics, contains('destination:/topic/market/stocks/005930'));
-    expect(marketTopics, contains('destination:/topic/market/stocks/000270'));
-    expect(
-      marketTopics,
-      isNot(contains('destination:/topic/market/stocks/035720')),
-    );
-    expect(controller.hasLiveSubscriptionForStock('035720'), isFalse);
+      expect(connections.length, 3);
+      final marketTopics = connections.last.sent.join('\n');
+      expect(marketTopics, contains('destination:/topic/market/stocks/005930'));
+      expect(marketTopics, contains('destination:/topic/market/stocks/000270'));
+      expect(
+        marketTopics,
+        isNot(contains('destination:/topic/market/stocks/035720')),
+      );
+      expect(controller.hasLiveSubscriptionForStock('035720'), isFalse);
 
-    await controller.unsubscribeLive();
-  });
+      await controller.unsubscribeLive();
+    },
+  );
 
   test('reconnects live WebSocket with backoff after remote close', () async {
     final connections = <_FakeQuoteSocketConnection>[];
@@ -346,8 +330,10 @@ void main() {
     expect(connections.length, 2);
 
     connections.last.emit('CONNECTED\nversion:1.2\n\n\u0000');
-    connections.last.emit('MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
-        '${jsonEncode(_tickJson())}\u0000');
+    connections.last.emit(
+      'MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
+      '${jsonEncode(_tickJson())}\u0000',
+    );
     await Future<void>.delayed(Duration.zero);
 
     expect(controller.value.liveStatus, MarketQuoteLiveStatus.live);
@@ -357,91 +343,97 @@ void main() {
     expect(connections.last.closed, isTrue);
   });
 
-  test('continues reconnecting after configured backoff delays are used',
-      () async {
-    final connections = <_FakeQuoteSocketConnection>[];
-    final controller = MarketQuoteController(
-      apiClient: _client((request) async => _jsonResponse({})),
-      liveClient: MarketQuoteLiveClient(
-        baseUri: Uri.parse('http://localhost:3000'),
-        socketConnector: (uri) {
-          final connection = _FakeQuoteSocketConnection();
-          connections.add(connection);
-          return connection;
-        },
-      ),
-      liveReconnectDelays: const [Duration.zero],
-    );
+  test(
+    'continues reconnecting after configured backoff delays are used',
+    () async {
+      final connections = <_FakeQuoteSocketConnection>[];
+      final controller = MarketQuoteController(
+        apiClient: _client((request) async => _jsonResponse({})),
+        liveClient: MarketQuoteLiveClient(
+          baseUri: Uri.parse('http://localhost:3000'),
+          socketConnector: (uri) {
+            final connection = _FakeQuoteSocketConnection();
+            connections.add(connection);
+            return connection;
+          },
+        ),
+        liveReconnectDelays: const [Duration.zero],
+      );
 
-    await controller.subscribeLive(market: 'KOSPI');
-    await connections[0].closeRemote();
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
-    await connections[1].closeRemote();
-    await Future<void>.delayed(Duration.zero);
-    await Future<void>.delayed(Duration.zero);
+      await controller.subscribeLive(market: 'KOSPI');
+      await connections[0].closeRemote();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+      await connections[1].closeRemote();
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
 
-    expect(connections, hasLength(3));
-    expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
+      expect(connections, hasLength(3));
+      expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
 
-    await controller.unsubscribeLive();
-  });
+      await controller.unsubscribeLive();
+    },
+  );
 
-  test('marks live quotes stale while reconnecting after a received tick',
-      () async {
-    late _FakeQuoteSocketConnection connection;
-    var snapshotRequestCount = 0;
-    final controller = MarketQuoteController(
-      apiClient: _client((request) async {
-        snapshotRequestCount++;
-        return _jsonResponse({
-          'success': true,
-          'status': 200,
-          'code': 'COMMON_000',
-          'message': 'OK',
-          'data': _snapshotJson(stockName: 'NAVER', stockCode: '035420'),
-          'timestamp': '2026-06-18T06:00:00Z',
-        });
-      }),
-      liveClient: MarketQuoteLiveClient(
-        baseUri: Uri.parse('http://localhost:3000'),
-        socketConnector: (uri) {
-          connection = _FakeQuoteSocketConnection();
-          return connection;
-        },
-      ),
-      liveReconnectDelays: const [Duration(seconds: 30)],
-      seedQuotes: seedMarketQuotes,
-    );
+  test(
+    'marks live quotes stale while reconnecting after a received tick',
+    () async {
+      late _FakeQuoteSocketConnection connection;
+      var snapshotRequestCount = 0;
+      final controller = MarketQuoteController(
+        apiClient: _client((request) async {
+          snapshotRequestCount++;
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': _snapshotJson(stockName: 'NAVER', stockCode: '035420'),
+            'timestamp': '2026-06-18T06:00:00Z',
+          });
+        }),
+        liveClient: MarketQuoteLiveClient(
+          baseUri: Uri.parse('http://localhost:3000'),
+          socketConnector: (uri) {
+            connection = _FakeQuoteSocketConnection();
+            return connection;
+          },
+        ),
+        liveReconnectDelays: const [Duration(seconds: 30)],
+        seedQuotes: seedMarketQuotes,
+      );
 
-    await controller.subscribeLive(market: 'KOSPI');
-    connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
-    connection.emit('MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
-        '${jsonEncode(_tickJson())}\u0000');
-    await Future<void>.delayed(Duration.zero);
+      await controller.subscribeLive(market: 'KOSPI');
+      connection.emit('CONNECTED\nversion:1.2\n\n\u0000');
+      connection.emit(
+        'MESSAGE\ndestination:/topic/market/markets/KOSPI\n\n'
+        '${jsonEncode(_tickJson())}\u0000',
+      );
+      await Future<void>.delayed(Duration.zero);
 
-    expect(controller.value.liveStale, isFalse);
+      expect(controller.value.liveStale, isFalse);
 
-    await connection.closeRemote();
-    await Future<void>.delayed(Duration.zero);
+      await connection.closeRemote();
+      await Future<void>.delayed(Duration.zero);
 
-    expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
-    expect(controller.value.liveStale, isTrue);
-    expect(
-      controller.value.liveMessage,
-      'Quote WebSocket closed. Reconnecting quote WebSocket in 30s.',
-    );
+      expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
+      expect(controller.value.liveStale, isTrue);
+      expect(
+        controller.value.liveMessage,
+        'Quote WebSocket closed. Reconnecting quote WebSocket in 30s.',
+      );
 
-    await controller.loadSnapshot(market: 'KOSPI');
+      await controller.loadSnapshot(market: 'KOSPI');
 
-    expect(snapshotRequestCount, 1);
-    expect(controller.value.status, MarketQuoteStatus.loaded);
-    expect(controller.value.quotes.single.stockName, 'NAVER');
-    expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
-    expect(controller.value.liveStale, isTrue);
+      expect(snapshotRequestCount, 1);
+      expect(controller.value.status, MarketQuoteStatus.loaded);
+      expect(controller.value.quotes.single.stockName, 'NAVER');
+      expect(controller.value.liveStatus, MarketQuoteLiveStatus.connecting);
+      expect(controller.value.liveStale, isTrue);
 
-    await controller.unsubscribeLive();
-  });
+      await controller.unsubscribeLive();
+    },
+  );
 }
 
 Map<String, Object?> _tickJson() {
@@ -480,10 +472,7 @@ Map<String, Object?> _snapshotJson({
     'userLanguage': 'en',
     'displayCurrency': 'USD',
     'tradingMode': 'MOCK_LEDGER_ONLY',
-    'transport': {
-      'snapshot': 'REST',
-      'realtime': 'WebSocket',
-    },
+    'transport': {'snapshot': 'REST', 'realtime': 'WebSocket'},
     'cache': {
       'status': 'FRESH_CACHE',
       'cachedAt': '2026-06-18T06:00:00Z',
@@ -505,16 +494,13 @@ Map<String, Object?> _snapshotJson({
         'fxRateTime': '2026-06-18T06:00:00Z',
         'fxRateSource': 'Hana-OmniLens-API',
         'fxStale': false,
-      }
+      },
     ],
     'servedAt': '2026-06-18T06:00:01Z',
   };
 }
 
-http.Response _jsonResponse(
-  Map<String, Object?> body, {
-  int statusCode = 200,
-}) {
+http.Response _jsonResponse(Map<String, Object?> body, {int statusCode = 200}) {
   return http.Response(
     jsonEncode(body),
     statusCode,

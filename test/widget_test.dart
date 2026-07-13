@@ -46,6 +46,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-tab-0')), findsOneWidget);
     expect(find.bySemanticsLabel('AI Assistant'), findsNothing);
     expect(find.bySemanticsLabel('Search'), findsOneWidget);
     expect(find.bySemanticsLabel('Notifications'), findsOneWidget);
@@ -216,6 +217,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('bottom-nav-Markets')));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
+    expect(find.byKey(const ValueKey('market-tab-1')), findsOneWidget);
     expect(notificationAsset().assetName, AppAssets.headerNotificationsNew);
 
     await tester.tap(find.bySemanticsLabel('Notifications'));
@@ -2362,6 +2364,7 @@ TradeController _tradeController() {
 }
 
 WatchlistController _watchlistController() {
+  String? addedStockCode;
   return WatchlistController(
     apiClient: ExchangeApiClient(
       baseUri: Uri.parse('http://localhost:3000'),
@@ -2370,13 +2373,16 @@ WatchlistController _watchlistController() {
         if (path == '/api/v1/accounts/${_testSession.accountId}/watchlist') {
           if (request.method == 'POST') {
             final body = jsonDecode(request.body) as Map<String, dynamic>;
+            addedStockCode = body['stockCode'] as String?;
             return _jsonEnvelope(
               _watchlistJson(
-                extraStockCode: body['stockCode'] as String?,
+                extraStockCode: addedStockCode,
               ),
             );
           }
-          return _jsonEnvelope(_watchlistJson());
+          return _jsonEnvelope(
+            _watchlistJson(extraStockCode: addedStockCode),
+          );
         }
         if (path.startsWith(
           '/api/v1/accounts/${_testSession.accountId}/watchlist/',

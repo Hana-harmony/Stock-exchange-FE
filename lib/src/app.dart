@@ -122,10 +122,7 @@ class _WebViewportFrame extends StatelessWidget {
               decoration: const BoxDecoration(
                 color: Colors.white,
                 boxShadow: [
-                  BoxShadow(
-                    color: Color(0x1A000000),
-                    blurRadius: 24,
-                  ),
+                  BoxShadow(color: Color(0x1A000000), blurRadius: 24),
                 ],
               ),
               child: child,
@@ -181,6 +178,10 @@ class _ExchangeShellState extends State<ExchangeShell> {
   static const _initialRecentSearches = <String>[];
 
   int _selectedIndex = 1;
+  final List<int> _tabRefreshEpoch = List<int>.filled(
+    appShellNavigationItems.length,
+    0,
+  );
   http.Client? _ownedHttpClient;
   late final ExchangeEnvironment _environment;
   late final ExchangeApiClient _apiClient;
@@ -524,9 +525,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
         }
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(errorMessage)),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(errorMessage)));
       }
       return false;
     }
@@ -561,9 +562,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
               onClose: () => Navigator.of(context).pop(),
               onNavigationSelected: (index) {
                 Navigator.of(context).pop();
-                setState(() {
-                  _selectedIndex = index;
-                });
+                _selectNavigation(index);
               },
             ),
           );
@@ -596,15 +595,18 @@ class _ExchangeShellState extends State<ExchangeShell> {
 
   void _openAccountsTabFromNestedFlow() {
     Navigator.of(context).popUntil((route) => route.isFirst);
-    setState(() {
-      _selectedIndex = 2;
-    });
+    _selectNavigation(2);
   }
 
   void _openMyTabFromNestedFlow() {
     Navigator.of(context).popUntil((route) => route.isFirst);
+    _selectNavigation(4);
+  }
+
+  void _selectNavigation(int index) {
     setState(() {
-      _selectedIndex = 4;
+      _selectedIndex = index;
+      _tabRefreshEpoch[index] += 1;
     });
   }
 
@@ -650,6 +652,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
       index: _selectedIndex,
       children: [
         WatchlistScreen(
+          key: ValueKey('watchlist-tab-${_tabRefreshEpoch[0]}'),
           sessionController: _sessionController,
           watchlistController: _watchlistController,
           marketDetailController: _marketDetailController,
@@ -662,6 +665,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           nowProvider: widget.nowProvider,
         ),
         MarketScreen(
+          key: ValueKey('market-tab-${_tabRefreshEpoch[1]}'),
           sessionController: _sessionController,
           tradeController: _tradeController,
           marketCalendarController: _marketCalendarController,
@@ -675,6 +679,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
           nowProvider: widget.nowProvider,
         ),
         AccountsScreen(
+          key: ValueKey('accounts-tab-${_tabRefreshEpoch[2]}'),
           sessionController: _sessionController,
           accountController: _accountController,
           tradeController: _tradeController,
@@ -682,17 +687,17 @@ class _ExchangeShellState extends State<ExchangeShell> {
           onSignInTap: _openMyTabFromNestedFlow,
         ),
         MarketNewsScreen(
+          key: ValueKey('news-tab-${_tabRefreshEpoch[3]}'),
           marketNewsController: _marketNewsController,
         ),
         MyScreen(
+          key: ValueKey('my-tab-${_tabRefreshEpoch[4]}'),
           sessionController: _sessionController,
           accountController: _accountController,
           tradeController: _tradeController,
           watchlistController: _watchlistController,
           onSignedOut: () {
-            setState(() {
-              _selectedIndex = 1;
-            });
+            _selectNavigation(1);
           },
         ),
       ],
@@ -708,11 +713,7 @@ class _ExchangeShellState extends State<ExchangeShell> {
       body: _buildIndexedBody(),
       bottomNavigationBar: AppBottomNavigation(
         selectedIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
-        },
+        onTap: _selectNavigation,
         items: appShellNavigationItems,
       ),
     );
