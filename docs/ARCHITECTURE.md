@@ -23,7 +23,7 @@
 
 ## 데이터 흐름
 1. FE는 Stock-exchange-BE에서 전체/시장별/watchlist/보유종목 실시간 시세 snapshot을 REST로 먼저 조회하고 KRW 가격과 USD 가격을 함께 표시한다.
-2. FE는 Stock-exchange-BE quote WebSocket의 장중 가격, 호가, 등락률, VI/단일가/상·하한가/서킷브레이커와 USD 환산 가격을 실시간 반영한다. 서킷브레이커가 활성화되면 종목 상세에 VI 배너와 같은 디자인의 전용 문구를 표시하고 주문 액션을 비활성화한다. 외국인 보유수량·보유율·한도소진율은 Stock-exchange-BE REST의 Hana KIS snapshot/cache와 orderability 결과로 표시한다.
+2. FE는 Stock-exchange-BE quote WebSocket의 장중 가격, 호가, 등락률, VI/단일가/상·하한가/서킷브레이커와 USD 환산 가격을 실시간 반영한다. 서킷브레이커가 활성화되면 종목 상세에 VI 배너와 같은 디자인의 전용 문구를 표시하고 주문 액션을 비활성화한다. 외국인 보유수량·보유율·한도소진율은 Stock-exchange-BE REST의 Hana KIS snapshot/cache와 orderability 결과로 표시하고, `foreignLimitBuyWarning=true`인 종목의 Buy 선택 시 VI 경고와 동일한 디자인으로 체결 실패 가능성을 고지한다.
 3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
 4. 종목상세의 시장 상태 라벨은 시세 timestamp의 존재만으로 종가 상태를 만들지 않고 현재 KST 평일 09:00~15:30 여부를 기준으로 장중 `Live quote updating`과 장외 `Market Closed`를 구분한다.
 5. 하단 탭을 선택하거나 현재 탭을 다시 누르면 해당 화면 상태를 새로 만들고 REST snapshot을 다시 조회한다.

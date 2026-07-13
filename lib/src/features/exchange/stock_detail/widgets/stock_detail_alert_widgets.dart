@@ -511,6 +511,22 @@ class _ViRestrictionDialog extends StatelessWidget {
   }
 }
 
+class _ForeignLimitBuyWarningDialog extends StatelessWidget {
+  const _ForeignLimitBuyWarningDialog();
+
+  @override
+  Widget build(BuildContext context) {
+    return const _AlertRestrictionDialog(
+      dialogKey: ValueKey('foreign-limit-buy-warning-dialog'),
+      confirmKey: ValueKey('foreign-limit-buy-warning-confirm'),
+      title: 'Foreign Ownership Limit Warning!',
+      description: 'Foreign ownership is expected to reach its limit today.\n'
+          'Your buy order may fail to execute because the\n'
+          'remaining foreign ownership quota is limited.',
+    );
+  }
+}
+
 class _PriceLimitRestrictionDialog extends StatelessWidget {
   const _PriceLimitRestrictionDialog();
 
