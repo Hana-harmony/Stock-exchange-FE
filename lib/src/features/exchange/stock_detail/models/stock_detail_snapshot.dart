@@ -33,6 +33,7 @@ class _StockDetailSnapshot {
     required this.foreignLimitCardDescription,
     required this.foreignLimitCardMessage,
     required this.isForeignLimitAlert,
+    required this.foreignLimitBuyWarning,
     required this.accountDisplay,
     required this.orderAccountDisplay,
     required this.averagePrice,
@@ -76,6 +77,7 @@ class _StockDetailSnapshot {
   final String foreignLimitCardDescription;
   final String foreignLimitCardMessage;
   final bool isForeignLimitAlert;
+  final bool foreignLimitBuyWarning;
   final String accountDisplay;
   final String orderAccountDisplay;
   final String averagePrice;
@@ -259,6 +261,7 @@ class _StockDetailSnapshot {
         limitForeignRatio: limitForeignRatio,
       ),
       isForeignLimitAlert: isForeignLimitAlert,
+      foreignLimitBuyWarning: detail?.foreignLimitBuyWarning ?? false,
       accountDisplay: portfolio != null && portfolio.accountId.isNotEmpty
           ? 'Account ${portfolio.accountId}'
           : fallback.accountDisplay,

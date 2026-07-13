@@ -40,6 +40,7 @@ void main() {
     expect(controller.value.detail?.stockName, 'Samsung Electronics');
     expect(controller.value.detail?.localCurrencyDisplay, 'USD 1,024.24');
     expect(controller.value.detail?.riskBadge, 'VI active');
+    expect(controller.value.detail?.foreignLimitBuyWarning, isTrue);
     expect(controller.value.detail?.singlePriceTrading, isTrue);
     expect(
       controller.value.detail?.predictedOwnershipRangeDisplay,
@@ -386,6 +387,7 @@ Map<String, Object?> _detailJson() {
     'foreignOwnershipPredictionModelVersion':
         'hannah-foreign-ownership-timeseries-v1',
     'foreignOwnershipBaseDate': '2026-06-18',
+    'foreignLimitBuyWarning': true,
     'viActive': true,
     'singlePriceTrading': true,
     'priceLimitState': 'NORMAL',
