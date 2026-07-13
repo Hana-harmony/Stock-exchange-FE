@@ -306,8 +306,10 @@ class MarketIndexController extends ValueNotifier<MarketIndexState> {
   void _openLiveSubscription(MarketIndexLiveClient liveClient) {
     _liveSubscription = liveClient.subscribe().listen(
           (tick) => _applyLiveIndex(MarketIndex.fromJson(tick)),
-          onError: (_) => _scheduleLiveReconnect(liveClient,
-              reason: 'Index WebSocket disconnected.'),
+          onError: (_) => _scheduleLiveReconnect(
+            liveClient,
+            reason: 'Index WebSocket disconnected.',
+          ),
           onDone: () => _scheduleLiveReconnect(liveClient,
               reason: 'Index WebSocket closed.'),
         );
@@ -517,6 +519,7 @@ class MarketIndexLiveClient {
     final connection = _socketConnector(webSocketUri);
     late final StreamSubscription<dynamic> socketSubscription;
     late final StreamController<Map<String, dynamic>> controller;
+    Timer? heartbeatTimer;
 
     void sendFrame(
       String command,
@@ -536,6 +539,12 @@ class MarketIndexLiveClient {
 
     void handleFrame(String frame) {
       if (frame.startsWith('CONNECTED')) {
+        heartbeatTimer?.cancel();
+        heartbeatTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+          if (!controller.isClosed) {
+            connection.add('\n');
+          }
+        });
         sendFrame('SUBSCRIBE', {
           'id': 'market-index',
           'destination': '/topic/market/indices',
@@ -573,8 +582,14 @@ class MarketIndexLiveClient {
               }
             }
           },
-          onError: controller.addError,
-          onDone: controller.close,
+          onError: (Object error, StackTrace stackTrace) {
+            heartbeatTimer?.cancel();
+            controller.addError(error, stackTrace);
+          },
+          onDone: () {
+            heartbeatTimer?.cancel();
+            controller.close();
+          },
         );
         sendFrame('CONNECT', {
           'accept-version': '1.2',
@@ -582,6 +597,7 @@ class MarketIndexLiveClient {
         });
       },
       onCancel: () async {
+        heartbeatTimer?.cancel();
         await socketSubscription.cancel();
         await connection.close();
       },

@@ -6,19 +6,9 @@ import 'currency_format.dart';
 import 'exchange_api_client.dart';
 import 'market_quote_live_client.dart';
 
-enum MarketQuoteStatus {
-  idle,
-  loading,
-  loaded,
-  failure,
-}
+enum MarketQuoteStatus { idle, loading, loaded, failure }
 
-enum MarketQuoteLiveStatus {
-  disconnected,
-  connecting,
-  live,
-  failure,
-}
+enum MarketQuoteLiveStatus { disconnected, connecting, live, failure }
 
 class MarketQuoteState {
   const MarketQuoteState({
@@ -297,8 +287,9 @@ class MarketQuote {
       volume: json['volume'] is int ? json['volume'] as int : 0,
       marketSession: _string(json['marketSession'], fallback: 'REGULAR'),
       afterHoursPriceKrw: _nullableString(json['afterHoursPriceKrw']),
-      afterHoursLocalCurrencyPrice:
-          _nullableString(json['afterHoursLocalCurrencyPrice']),
+      afterHoursLocalCurrencyPrice: _nullableString(
+        json['afterHoursLocalCurrencyPrice'],
+      ),
       afterHoursChangeRate: _nullableString(json['afterHoursChangeRate']),
       afterHoursVolume: json['afterHoursVolume'] is int
           ? json['afterHoursVolume'] as int
@@ -380,12 +371,13 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   bool _isDisposed = false;
   Set<String> _marketLiveStockCodes = <String>{};
   Set<String> _demandLiveStockCodes = <String>{};
-  final Set<String> _requestedRealtimeSourceStockCodes = <String>{};
   final Map<String, MarketQuote> _pendingLiveTicks = <String, MarketQuote>{};
   DateTime? _lastLiveTickPublishedAt;
   int _liveReconnectAttempt = 0;
-  static const Duration _detailTickPublishInterval =
-      Duration(milliseconds: 250);
+  bool _liveReconnectScheduled = false;
+  static const Duration _detailTickPublishInterval = Duration(
+    milliseconds: 250,
+  );
 
   bool get canSubscribeLive => _liveClient != null;
 
@@ -609,7 +601,6 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
 
   Future<void> subscribeMarketLiveStocks(List<String> stockCodes) async {
     _marketLiveStockCodes = _normalizeStockCodes(stockCodes);
-    unawaited(_ensureRealtimeSourcesFor(_marketLiveStockCodes));
     await _refreshStockCodeLiveSubscription();
   }
 
@@ -620,7 +611,6 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     }
     final changed = _demandLiveStockCodes.add(normalized);
     if (changed || !_activeRequestContainsStock(normalized)) {
-      unawaited(_ensureRealtimeSourcesFor([normalized]));
       await _refreshStockCodeLiveSubscription();
     }
   }
@@ -693,13 +683,13 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   Future<void> unsubscribeLive() async {
     _marketLiveStockCodes = <String>{};
     _demandLiveStockCodes = <String>{};
-    _requestedRealtimeSourceStockCodes.clear();
     await _disconnectLiveSubscription();
   }
 
   Future<void> _disconnectLiveSubscription({bool updateState = true}) async {
     _activeLiveRequest = null;
     _liveReconnectAttempt = 0;
+    _liveReconnectScheduled = false;
     _liveReconnectTimer?.cancel();
     _liveReconnectTimer = null;
     _liveTickFlushTimer?.cancel();
@@ -743,36 +733,6 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     return request != null && request.stockCodes.contains(stockCode);
   }
 
-  Future<void> _ensureRealtimeSourcesFor(Iterable<String> stockCodes) async {
-    await _ensureRealtimeSourcesForStockCodes(stockCodes);
-  }
-
-  Future<void> _ensureRealtimeSourcesForStockCodes(
-    Iterable<String> stockCodes, {
-    bool force = false,
-  }) async {
-    final pending = <Future<void>>[];
-    for (final stockCode in stockCodes) {
-      if (!_isKoreanStockCode(stockCode) ||
-          (!force && !_requestedRealtimeSourceStockCodes.add(stockCode))) {
-        continue;
-      }
-      _requestedRealtimeSourceStockCodes.add(stockCode);
-      pending.add(_subscribeRealtimeSource(stockCode));
-    }
-    if (pending.isNotEmpty) {
-      await Future.wait(pending);
-    }
-  }
-
-  Future<void> _subscribeRealtimeSource(String stockCode) async {
-    try {
-      await _apiClient.subscribeRealtimeSource(stockCode: stockCode);
-    } on Object {
-      _requestedRealtimeSourceStockCodes.remove(stockCode);
-    }
-  }
-
   void _scheduleLiveReconnect(
     MarketQuoteLiveClient liveClient,
     MarketQuoteLiveSubscription liveRequest, {
@@ -781,6 +741,10 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     if (_activeLiveRequest != liveRequest) {
       return;
     }
+    if (_liveReconnectScheduled) {
+      return;
+    }
+    _liveReconnectScheduled = true;
     final delays = _liveReconnectDelays;
     final delay = delays.isEmpty
         ? const Duration(seconds: 5)
@@ -794,14 +758,12 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
     );
 
     _liveReconnectTimer?.cancel();
-    _liveReconnectTimer = Timer(delay, () {
-      if (_activeLiveRequest == liveRequest) {
-        unawaited(
-          _ensureRealtimeSourcesForStockCodes(
-            liveRequest.stockCodes,
-            force: true,
-          ),
-        );
+    _liveReconnectTimer = Timer(delay, () async {
+      final previousSubscription = _liveSubscription;
+      _liveSubscription = null;
+      await previousSubscription?.cancel();
+      _liveReconnectScheduled = false;
+      if (_activeLiveRequest == liveRequest && !_isDisposed) {
         _openLiveSubscription(liveClient, liveRequest);
       }
     });
@@ -837,8 +799,9 @@ class MarketQuoteController extends ValueNotifier<MarketQuoteState> {
   void _publishLiveTicks(List<MarketQuote> ticks, DateTime receivedAt) {
     final nextQuotes = List<MarketQuote>.of(value.quotes);
     for (final tick in ticks) {
-      final index =
-          nextQuotes.indexWhere((quote) => quote.stockCode == tick.stockCode);
+      final index = nextQuotes.indexWhere(
+        (quote) => quote.stockCode == tick.stockCode,
+      );
       if (index >= 0) {
         nextQuotes[index] = tick.isAfterHours
             ? nextQuotes[index].mergeAfterHoursTick(tick)
@@ -1112,10 +1075,6 @@ bool _sameStockCodeList(List<String> left, List<String> right) {
     }
   }
   return true;
-}
-
-bool _isKoreanStockCode(String stockCode) {
-  return RegExp(r'^\d{6}$').hasMatch(stockCode);
 }
 
 Map<String, dynamic> _map(Object? value) {
