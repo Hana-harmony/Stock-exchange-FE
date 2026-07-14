@@ -8,6 +8,7 @@ flutter_*.log
 .pub/
 build/
 coverage/
+.vercel/
 android/.gradle/
 android/local.properties
 ios/.symlinks/
