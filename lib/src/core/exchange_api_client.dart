@@ -9,13 +9,17 @@ class ExchangeEnvironment {
   const ExchangeEnvironment({
     this.apiBaseUrl = const String.fromEnvironment(
       'EXCHANGE_API_BASE_URL',
-      defaultValue: 'http://localhost:3000',
     ),
   });
 
   final String apiBaseUrl;
 
-  Uri get apiBaseUri => Uri.parse(apiBaseUrl);
+  Uri get apiBaseUri {
+    if (apiBaseUrl.isEmpty) {
+      throw StateError('EXCHANGE_API_BASE_URL is required');
+    }
+    return Uri.parse(apiBaseUrl);
+  }
 }
 
 class AuthSession {
