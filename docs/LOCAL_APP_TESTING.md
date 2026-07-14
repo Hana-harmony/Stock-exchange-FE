@@ -8,7 +8,7 @@
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test
+flutter test --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 ```
 
 한 번만 아래 명령으로 Git hook을 설치하면 커밋 시 변경된 Dart 파일 formatter가 자동 적용되고, 푸시 시 analyze/test가 실행된다.

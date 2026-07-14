@@ -19,6 +19,7 @@ import 'package:stock_exchange_fe/src/core/notification_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 import 'package:stock_exchange_fe/src/core/watchlist_controller.dart';
 import 'package:stock_exchange_fe/src/ui/assets/app_assets.dart';
+import 'package:stock_exchange_fe/src/ui/components/app_bottom_navigation.dart';
 import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
@@ -518,7 +519,7 @@ void main() {
     expect(find.text('No stocks'), findsNothing);
   });
 
-  testWidgets('searches stocks and opens the placeholder detail tabs',
+  testWidgets('searches stocks and opens the implemented detail tabs',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -602,6 +603,47 @@ void main() {
       PreferredLaunchMode.externalApplication,
     );
     expect(launcher.lastOptions?.webOnlyWindowName, '_blank');
+  });
+
+  testWidgets('keeps navigation labels and news badges readable at 320px',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(320, 568));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        nowProvider: () => DateTime.parse('2026-07-06T00:15:00Z'),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    for (final label in appShellNavigationItems.map((item) => item.label)) {
+      final text = tester.widget<Text>(
+        find.descendant(
+          of: find.byKey(ValueKey('bottom-nav-$label')),
+          matching: find.text(label),
+        ),
+      );
+      expect(text.overflow, isNot(TextOverflow.ellipsis));
+    }
+
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-Discover')));
+    await tester.pumpAndSettle();
+
+    final discoverRow = find.byKey(
+      const ValueKey('market-news-card-MKT-NEWS-001'),
+    );
+    final targetBadge = find.descendant(
+      of: discoverRow,
+      matching: find.text('Korea market'),
+    );
+    expect(tester.getSize(discoverRow).height, greaterThanOrEqualTo(124));
+    expect(tester.getSize(targetBadge).width, greaterThan(60));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('adds a stock to backend watchlist from detail heart',

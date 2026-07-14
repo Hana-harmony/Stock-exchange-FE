@@ -133,7 +133,7 @@ class _BottomNavigationButton extends StatelessWidget {
           splashColor: Colors.transparent,
           hoverColor: Colors.transparent,
           child: Padding(
-            padding: const EdgeInsets.all(6),
+            padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -147,15 +147,18 @@ class _BottomNavigationButton extends StatelessWidget {
                 ),
                 SizedBox(
                   width: double.infinity,
-                  child: Text(
-                    item.label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                          color: labelColor,
-                          letterSpacing: -0.24,
-                        ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      item.label,
+                      maxLines: 1,
+                      softWrap: false,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                            color: labelColor,
+                            letterSpacing: -0.24,
+                          ),
+                    ),
                   ),
                 ),
               ],

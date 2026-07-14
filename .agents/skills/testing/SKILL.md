@@ -11,7 +11,7 @@ description: Stock-exchange-FE의 Dart 단위·Widget 테스트와 iOS Simulator
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test
+flutter test --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 ```
 
 네트워크 계약, controller 상태 전이, parsing, token 저장, glossary 단어 경계는 단위 테스트로 검증한다. 화면 이동, 로딩·빈 상태·오류·stale 표시, 주요 CTA와 세무 파일 선택 흐름은 widget test로 검증한다.
