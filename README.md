@@ -16,7 +16,7 @@ Flutter iOS/Android 기반 MTS 프론트엔드다. Flutter Web은 내부 QA·데
 ## 실행
 ```bash
 flutter pub get
-flutter test
+flutter test --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 flutter run -d chrome \
   --web-port=15100 \
   --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000 \
@@ -29,7 +29,7 @@ flutter run -d chrome \
 ```bash
 dart format --output=none --set-exit-if-changed lib test
 flutter analyze
-flutter test
+flutter test --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
 flutter build web --release \
   --dart-define=EXCHANGE_API_BASE_URL=https://api.example.com \
   --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=<VAPID_PUBLIC_KEY>
