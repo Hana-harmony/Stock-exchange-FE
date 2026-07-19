@@ -220,7 +220,7 @@ class TradeOrderability {
       warnings: _list(json['warnings']).map((v) => '$v').toList(),
       orderabilitySource: _string(
         json['orderabilitySource'],
-        fallback: 'Hana-OmniLens-API',
+        fallback: 'Hana-Omni-Connect-API',
       ),
       tradingMode: _string(
         json['tradingMode'],

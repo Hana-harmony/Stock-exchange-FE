@@ -1325,7 +1325,7 @@ class _TaxSubmittedStep extends StatelessWidget {
               _isApproved
                   ? 'Your application has been approved and submitted to the National Tax Service.'
                   : refundCase?.status == 'COMPLETED'
-                      ? 'Your correction request has been processed by Hana OmniLens.'
+                      ? 'Your correction request has been processed by Hana Omni-Connect.'
                       : 'All required documents have been submitted successfully. We’ll review them and notify you of the next steps.',
               textAlign: TextAlign.center,
               style: _taxBodyStyle(context),
@@ -1664,7 +1664,7 @@ class _TaxVerificationPanel extends StatelessWidget {
         ((verification?.progressPercent ?? 0) / 100).clamp(0.0, 1.0).toDouble();
     final text = verifying
         ? verification == null
-            ? 'Uploading to OmniLens · Verifying with Hana Montana OCR'
+            ? 'Uploading to OmniConnect · Verifying with Hana Montana OCR'
             : '${verification!.stageDisplay} · ${verification!.progressPercent}%'
         : verification == null
             ? 'Waiting for OCR verification'

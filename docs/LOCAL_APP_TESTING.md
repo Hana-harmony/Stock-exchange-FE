@@ -45,14 +45,14 @@ flutter run -d <SIMULATOR_ID> \
 
 ## 백엔드 연결
 
-로컬 백엔드는 Docker로 띄울 수 있다. 앱은 `Stock-exchange-BE`만 호출하지만, 뉴스·공시 AI 분석과 종목 상세 계약까지 함께 확인하려면 `Hannah-Montana-AI -> Hana-OmniLens-API -> Stock-exchange-BE` 순서로 실행한다.
+로컬 백엔드는 Docker로 띄울 수 있다. 앱은 `Stock-exchange-BE`만 호출하지만, 뉴스·공시 AI 분석과 종목 상세 계약까지 함께 확인하려면 `Hannah-Montana-AI -> Hana-Omni-Connect-API -> Stock-exchange-BE` 순서로 실행한다.
 
 ```bash
 cd ../Hannah-Montana-AI
 docker compose -f compose.local.yml up -d --build
 curl -fsS http://localhost:8000/health
 
-cd ../Hana-OmniLens-API
+cd ../Hana-Omni-Connect-API
 docker compose -f compose.local.yml up -d --build
 curl -fsS http://localhost:8080/actuator/health
 
@@ -61,7 +61,7 @@ docker compose -f compose.local.yml up -d --build
 curl -fsS http://localhost:3000/actuator/health
 ```
 
-기본 포트는 Hannah `8000`, OmniLens API `8080`, Stock-exchange-BE `3000`이다. 두 Spring 백엔드를 동시에 띄울 때 OmniLens PostgreSQL host port는 `5432`, Stock-exchange-BE PostgreSQL host port는 `25434`를 사용한다. 앱은 `Stock-exchange-BE` API만 호출한다.
+기본 포트는 Hannah `8000`, OmniConnect API `8080`, Stock-exchange-BE `3000`이다. 두 Spring 백엔드를 동시에 띄울 때 OmniConnect PostgreSQL host port는 `5432`, Stock-exchange-BE PostgreSQL host port는 `25434`를 사용한다. 앱은 `Stock-exchange-BE` API만 호출한다.
 
 API base URL은 Flutter compile-time 환경값으로 지정한다.
 

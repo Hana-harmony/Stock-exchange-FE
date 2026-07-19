@@ -344,7 +344,7 @@ Map<String, dynamic> _globalPeerInsightJson() {
     'confidenceScore': '0.9',
     'confidenceLevel': 'HIGH',
     'modelVersion': 'test',
-    'dataSource': 'Hana-OmniLens-API',
+    'dataSource': 'Hana-Omni-Connect-API',
   };
 }
 
@@ -393,14 +393,14 @@ Map<String, Object?> _detailJson() {
     'priceLimitState': 'NORMAL',
     'tradingHalted': false,
     'orderable': true,
-    'dataSource': 'Hana-OmniLens-API',
+    'dataSource': 'Hana-Omni-Connect-API',
     'servedAt': '2026-06-18T06:00:01Z',
   };
 }
 
 Map<String, Object?> _chartJson() {
   return {
-    'dataSource': 'Hana-OmniLens-API',
+    'dataSource': 'Hana-Omni-Connect-API',
     'stockCode': '005930',
     'interval': '1d',
     'from': '2026-06-01',
@@ -430,7 +430,7 @@ Map<String, Object?> _orderBookJson({
   int bidQuantity = 1200,
 }) {
   return {
-    'dataSource': 'Hana-OmniLens-API',
+    'dataSource': 'Hana-Omni-Connect-API',
     'stockCode': '005930',
     'market': 'KOSPI',
     'baseCurrency': 'KRW',

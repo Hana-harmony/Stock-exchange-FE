@@ -76,7 +76,7 @@ Map<String, Object?> _tickJson() {
     'localCurrencyPrice': '54.00',
     'fxRate': '1525.93',
     'fxRateTime': '2026-06-18T06:00:00Z',
-    'fxRateSource': 'Hana-OmniLens-API',
+    'fxRateSource': 'Hana-Omni-Connect-API',
     'fxStale': false,
   };
 }

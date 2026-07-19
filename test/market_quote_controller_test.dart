@@ -37,7 +37,7 @@ void main() {
     expect(controller.value.quotes.single.localCurrencyDisplay, 'USD 1,024.24');
     expect(
       controller.value.quotes.single.fxMeta,
-      contains('Hana-OmniLens-API'),
+      contains('Hana-Omni-Connect-API'),
     );
   });
 
@@ -97,7 +97,7 @@ void main() {
           'success': false,
           'status': 502,
           'code': 'MARKET_001',
-          'message': 'Hana OmniLens market upstream unavailable',
+          'message': 'Hana Omni-Connect market upstream unavailable',
           'timestamp': '2026-06-18T06:00:00Z',
         }, statusCode: 502);
       }),
@@ -109,7 +109,7 @@ void main() {
     expect(controller.value.status, MarketQuoteStatus.failure);
     expect(
       controller.value.errorMessage,
-      'Hana OmniLens market upstream unavailable',
+      'Hana Omni-Connect market upstream unavailable',
     );
     expect(controller.value.quotes, isEmpty);
   });
@@ -544,7 +544,7 @@ Map<String, Object?> _tickJson() {
     'localCurrencyPrice': '1024.24',
     'fxRate': '1525.93',
     'fxRateTime': '2026-06-18T06:00:00Z',
-    'fxRateSource': 'Hana-OmniLens-API',
+    'fxRateSource': 'Hana-Omni-Connect-API',
     'fxStale': false,
   };
 }
@@ -563,7 +563,7 @@ Map<String, Object?> _snapshotJson({
   String stockCode = '005930',
 }) {
   return {
-    'dataSource': 'Hana-OmniLens-API',
+    'dataSource': 'Hana-Omni-Connect-API',
     'marketCoverage': 'KOSPI',
     'userLanguage': 'en',
     'displayCurrency': 'USD',
@@ -588,7 +588,7 @@ Map<String, Object?> _snapshotJson({
         'localCurrencyPrice': '1024.24',
         'fxRate': '1525.93',
         'fxRateTime': '2026-06-18T06:00:00Z',
-        'fxRateSource': 'Hana-OmniLens-API',
+        'fxRateSource': 'Hana-Omni-Connect-API',
         'fxStale': false,
       },
     ],

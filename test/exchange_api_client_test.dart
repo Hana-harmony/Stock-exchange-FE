@@ -148,7 +148,7 @@ void main() {
                 'priceUsd': 54.00,
               }
             ],
-            'fxRateSource': 'Hana-OmniLens-API',
+            'fxRateSource': 'Hana-Omni-Connect-API',
           },
           'timestamp': '2026-06-18T06:00:00Z',
         });
@@ -161,7 +161,7 @@ void main() {
     );
 
     expect(response.status, 200);
-    expect(response.data?['fxRateSource'], 'Hana-OmniLens-API');
+    expect(response.data?['fxRateSource'], 'Hana-Omni-Connect-API');
   });
 
   test('market quote snapshot sends repeated stock code parameters', () async {
