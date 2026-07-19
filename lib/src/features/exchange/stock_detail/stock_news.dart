@@ -186,7 +186,7 @@ class _StockNewsTabState extends State<_StockNewsTab> {
             glossaryTerms: sourceItem.glossaryTerms,
             translationQualityFlags: sourceItem.translationQualityFlags,
             deliveryStatus: 'DELIVERED',
-            deliveryProvider: 'OMNILENS',
+            deliveryProvider: 'OMNI_CONNECT',
             deliveryAttemptCount: 1,
             read: true,
             createdAt: sourceItem.receivedAt ?? sourceItem.publishedAt,
@@ -240,7 +240,8 @@ class _StockNewsContent extends StatelessWidget {
         padding: EdgeInsets.fromLTRB(16, 12, 16, 0),
         child: _MutedInfoCard(
           title: 'Loading intelligence',
-          body: 'The latest OmniLens stock intelligence feed is unavailable.',
+          body:
+              'The latest OmniConnect stock intelligence feed is unavailable.',
         ),
       );
     }

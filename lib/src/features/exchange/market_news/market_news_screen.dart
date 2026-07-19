@@ -56,7 +56,7 @@ class _MarketNewsScreenState extends State<MarketNewsScreen> {
               _MutedInfoCard(
                 title: 'Loading Korea market news',
                 body:
-                    'OmniLens is preparing the latest translated market news.',
+                    'OmniConnect is preparing the latest translated market news.',
               ),
             ],
           );

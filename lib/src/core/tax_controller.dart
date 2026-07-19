@@ -148,8 +148,8 @@ class TaxDocumentVerification {
     switch (stage) {
       case 'UPLOADED_TO_EXCHANGE':
         return 'Uploaded to Exchange';
-      case 'SENT_TO_OMNILENS':
-        return 'Sent to OmniLens';
+      case 'SENT_TO_OMNI_CONNECT':
+        return 'Sent to OmniConnect';
       case 'HANNAH_MONTANA_OCR':
         return 'Hana Montana OCR';
       case 'VERIFICATION_COMPLETE':
@@ -181,7 +181,7 @@ class TaxDocumentVerification {
           .toList(growable: false),
       documentModelVersion:
           _string(json['documentModelVersion'], fallback: 'unavailable'),
-      source: _string(json['source'], fallback: 'HANA_OMNILENS_API'),
+      source: _string(json['source'], fallback: 'HANA_OMNI_CONNECT_API'),
       progressPercent: _int(json['progressPercent']).clamp(0, 100).toInt(),
       stage: _string(json['stage'], fallback: 'QUEUED'),
       updatedAt: _dateTime(json['updatedAt']),
