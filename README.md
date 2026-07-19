@@ -23,7 +23,7 @@ flutter run -d chrome \
   --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=<VAPID_PUBLIC_KEY>
 ```
 
-로컬 앱 검증 절차는 [docs/LOCAL_APP_TESTING.md](docs/LOCAL_APP_TESTING.md)를 따른다. 웹 포트 `15100`은 Stock-exchange-BE의 로컬 CORS·WebSocket 허용 Origin과 동일하게 유지한다. 백엔드는 `Hannah-Montana-AI -> Hana-OmniLens-API -> Stock-exchange-BE` 순서로 먼저 띄운다.
+로컬 앱 검증 절차는 [docs/LOCAL_APP_TESTING.md](docs/LOCAL_APP_TESTING.md)를 따른다. 웹 포트 `15100`은 Stock-exchange-BE의 로컬 CORS·WebSocket 허용 Origin과 동일하게 유지한다. 백엔드는 `Hannah-Montana-AI -> Hana-Omni-Connect-API -> Stock-exchange-BE` 순서로 먼저 띄운다.
 
 ## 검증
 ```bash
@@ -37,7 +37,7 @@ flutter build web --release \
 
 ## 책임 경계
 - FE는 Stock-exchange-BE만 호출한다.
-- Hana-OmniLens-API, Hannah-Montana-AI, 외부 provider key는 앱에 노출하지 않는다.
+- Hana-Omni-Connect-API, Hannah-Montana-AI, 외부 provider key는 앱에 노출하지 않는다.
 - 브라우저에는 공개 VAPID 키만 주입한다. 비공개 VAPID 키와 push gateway 자격증명은 Stock-exchange-BE에서 관리한다.
 - 실제 주문 체결, 정산, 환전, 세무 지급/환수 실행은 FE 책임이 아니다.
 

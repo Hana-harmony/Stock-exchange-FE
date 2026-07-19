@@ -171,9 +171,8 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is RichText &&
-            widget.text
-                .toPlainText()
-                .contains('Detailed translated market article from OmniLens.'),
+            widget.text.toPlainText().contains(
+                'Detailed translated market article from OmniConnect.'),
       ),
       findsOneWidget,
     );
@@ -1716,7 +1715,7 @@ void main() {
           localCurrencyPrice: '36.70',
           fxRate: '1525.93',
           fxRateTime: null,
-          fxRateSource: 'Hana-OmniLens-API',
+          fxRateSource: 'Hana-Omni-Connect-API',
           fxStale: false,
           marketDataTime: DateTime.utc(2026, 7, 3, 5, 1, 30),
           badge: 'Live',
@@ -2186,7 +2185,7 @@ void main() {
           localCurrencyPrice: '35.50',
           fxRate: '1525.93',
           fxRateTime: null,
-          fxRateSource: 'Hana-OmniLens-API',
+          fxRateSource: 'Hana-Omni-Connect-API',
           fxStale: false,
           tradingHalted: true,
           circuitBreakerActive: true,
@@ -2533,7 +2532,7 @@ TradeController _tradeController() {
             'canPlaceMockOrder': true,
             'blockingReasons': <Object?>[],
             'warnings': <Object?>[],
-            'orderabilitySource': 'Hana-OmniLens-API',
+            'orderabilitySource': 'Hana-Omni-Connect-API',
             'tradingMode': 'EXCHANGE_MOCK_LEDGER_NOT_KIS_MOCK_TRADING',
           });
         }
@@ -2889,7 +2888,7 @@ MarketDetailController _marketDetailController({
             'confidenceScore': '0.88',
             'confidenceLevel': 'HIGH',
             'modelVersion': 'test',
-            'dataSource': 'Hana-OmniLens-API',
+            'dataSource': 'Hana-Omni-Connect-API',
             'servedAt': '2026-06-18T06:00:00Z',
           });
         }
@@ -3324,7 +3323,7 @@ MarketQuote _marketQuoteForCode(String stockCode, int index) {
     localCurrencyPrice: '${54 + index}.00',
     fxRate: '1525.93',
     fxRateTime: null,
-    fxRateSource: 'Hana-OmniLens-API',
+    fxRateSource: 'Hana-Omni-Connect-API',
     fxStale: false,
     badge: 'Live',
   );
@@ -3412,7 +3411,7 @@ Map<String, Object?> _notificationInboxJson() {
         'subjectId': '005930',
         'sourceType': 'DISCLOSURE',
         'title': 'Daejangju: Dividend Payout Confirmed for FY2025',
-        'summary': 'Dividend payout translated by OmniLens.',
+        'summary': 'Dividend payout translated by OmniConnect.',
         'originalUrl': 'https://dart.fss.or.kr/report',
         'primaryStockCode': '005930',
         'imageUrls': ['https://news.example.com/samsung-notification.jpg'],
@@ -3447,20 +3446,20 @@ Map<String, Object?> _notificationInboxJson() {
 Map<String, Object?> _samsungIntelligenceJson() {
   return {
     'stockCode': '005930',
-    'dataSource': 'HANA_OMNILENS_AI_ANALYZED_EVENT',
+    'dataSource': 'HANA_OMNI_CONNECT_AI_ANALYZED_EVENT',
     'itemCount': 1,
     'items': [
       {
         'eventId': 'ALERT-SAMSUNG-1',
         'sourceType': 'DISCLOSURE',
         'title': 'Daejangju: Dividend Payout Confirmed for FY2025',
-        'summary': 'Dividend payout translated by OmniLens.',
+        'summary': 'Dividend payout translated by OmniConnect.',
         'summaryLines': {
           'what': 'Samsung Electronics confirmed its dividend payout.',
           'why': 'Shareholder returns influence foreign investor interest.',
           'impact': 'Investors may compare the payout with large-cap peers.',
         },
-        'translatedSummary': 'Dividend payout translated by OmniLens.',
+        'translatedSummary': 'Dividend payout translated by OmniConnect.',
         'originalContent': '삼성전자 공시 전문',
         'translatedContent':
             'SAMSUNG ELEC: Daejangju for FY2025 disclosure text.',
@@ -3497,7 +3496,7 @@ Map<String, Object?> _samsungIntelligenceJson() {
 Map<String, Object?> _stockIntelligenceJson() {
   return {
     'stockCode': '035720',
-    'dataSource': 'HANA_OMNILENS_AI_ANALYZED_EVENT',
+    'dataSource': 'HANA_OMNI_CONNECT_AI_ANALYZED_EVENT',
     'itemCount': 2,
     'items': [
       {
@@ -3673,9 +3672,10 @@ Map<String, Object?> _marketNewsDetailJson() {
   return {
     ...(_marketNewsJson()['news']! as List<Object?>).first!
         as Map<String, Object?>,
-    'translatedContent': 'Detailed translated market article from OmniLens.\n\n'
-        'Daejangju stocks led the recovery while foreign investors '
-        'returned to large-cap exporters.',
+    'translatedContent':
+        'Detailed translated market article from OmniConnect.\n\n'
+            'Daejangju stocks led the recovery while foreign investors '
+            'returned to large-cap exporters.',
     'glossaryTerms': [
       {
         'sourceTerm': 'Korea',

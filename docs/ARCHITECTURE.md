@@ -7,7 +7,7 @@
 ## 플랫폼 경계
 - 운영 앱은 Flutter Web이며 최대 430px 앱 viewport를 사용한다.
 - Stock-exchange-FE는 Stock-exchange-BE API와 WebSocket만 호출한다.
-- Hana-OmniLens-API, Hannah-Montana-AI, KIS/KRX/FX provider는 모바일 앱에서 직접 호출하지 않는다.
+- Hana-Omni-Connect-API, Hannah-Montana-AI, KIS/KRX/FX provider는 모바일 앱에서 직접 호출하지 않는다.
 - push는 service worker와 표준 Push API를 사용한다. 웹 전용 배포에서는 APNs를 사용하지 않는다.
 - 기본 사용자 언어는 English, 기본 표시·충전·모의 주문 화폐는 USD다.
 
@@ -27,14 +27,14 @@
 3. WebSocket 재연결 또는 누락 감지 시 REST snapshot으로 복구한 뒤 stream을 재구독한다.
 4. 종목상세의 시장 상태 라벨은 시세 timestamp의 존재만으로 종가 상태를 만들지 않고 현재 KST 평일 09:00~15:30 여부를 기준으로 장중 `Live quote updating`과 장외 `Market Closed`를 구분한다.
 5. 하단 탭을 선택하거나 현재 탭을 다시 누르면 해당 화면 상태를 새로 만들고 REST snapshot을 다시 조회한다.
-6. FE는 Stock-exchange-BE에서 Hana-OmniLens-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
+6. FE는 Stock-exchange-BE에서 Hana-Omni-Connect-API의 KRX 기반 과거 시세 DB를 재가공한 차트 데이터를 REST로 조회한다.
 7. FE는 Stock-exchange-BE에서 종목 상세와 orderability 데이터를 조회한다.
 8. 종목 상세 화면은 현재가 KRW, USD 환산 가격, 적용 환율 기준시각/출처, KIS REST snapshot/cache 기반 외국인 보유율, 종목별 walk-forward 검증 오차 상한과 최신 60개 관측의 변화분포 90분위수로 보정한 당일 예측 범위, VI/단일가/상·하한가 상태를 표시한다.
 9. 회원가입은 아이디/비밀번호 확인 후 6자리 거래 PIN을 생성·재확인하고, 가입 완료 후 mock USD 계좌와 충전 화면을 제공한다.
 10. 주문 패드는 BE의 주문 가능 여부 결과를 바탕으로 제한 안내 팝업을 표시하고, 거래 PIN 확인 후 실제 주문이 아닌 자체 mock 거래를 실행한다.
 11. 매도 내역과 실현손익은 포트폴리오와 세무 환급/선지급 화면에서 이어서 조회한다.
-12. 알림함과 K-News 피드는 BE가 저장한 Hana-OmniLens-API 이벤트를 조회하거나 실시간 스트림으로 받는다. Notifications와 Discover 리스트는 target·감성·중요도 라벨, 제목, 출처·상대시간, 썸네일 순으로 동일하게 표시한다. Notifications 화면의 사용자 동작으로 Web Push 권한을 요청하고 전체 subscription을 계좌에 등록한다.
-13. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-OmniLens-API 세무 상태 동기화 결과를 표시한다.
+12. 알림함과 K-News 피드는 BE가 저장한 Hana-Omni-Connect-API 이벤트를 조회하거나 실시간 스트림으로 받는다. Notifications와 Discover 리스트는 target·감성·중요도 라벨, 제목, 출처·상대시간, 썸네일 순으로 동일하게 표시한다. Notifications 화면의 사용자 동작으로 Web Push 권한을 요청하고 전체 subscription을 계좌에 등록한다.
+13. 세무 화면은 BE가 관리하는 서류 업로드 상태와 Hana-Omni-Connect-API 세무 상태 동기화 결과를 표시한다.
 
 ## 현재 구현 상태
 - Flutter 앱 하네스, Material 3 기반 앱 shell, 하단 탭 navigation, widget test, GitHub Actions CI가 존재한다.
@@ -62,7 +62,7 @@
 - Market 화면은 `Start live` 액션으로 quote WebSocket을 시작하고 수신 tick을 기존 quote list와 live status에 병합한다.
 - `MarketQuoteController`는 WebSocket onDone/onError를 한 번만 처리하고 기존 stream을 취소한 뒤 backoff 지연 후 동일 topic을 재구독한다. 마지막 tick 이후 끊긴 live feed는 stale로 표시해 REST snapshot refresh를 유도한다.
 - `MarketQuoteController`는 종목별 `ValueListenable`을 제공한다. 종목 상세는 선택한 종목의 tick만 부분 반영하고, 다른 인기 종목 tick으로 `NestedScrollView` 전체를 다시 빌드하지 않는다. 차트는 분봉 projection을 한 번만 계산하고 `RepaintBoundary` 안에서 다시 그린다.
-- 인기 종목은 OmniLens 고정 universe이므로 FE가 원천 구독을 중복 요청하지 않는다. 상세 화면의 `MarketDetailController`만 진입 시 원천 구독 POST, 이탈 시 DELETE를 호출하고 `MarketQuoteController`는 FE가 받을 STOMP 종목 topic만 관리한다.
+- 인기 종목은 OmniConnect 고정 universe이므로 FE가 원천 구독을 중복 요청하지 않는다. 상세 화면의 `MarketDetailController`만 진입 시 원천 구독 POST, 이탈 시 DELETE를 호출하고 `MarketQuoteController`는 FE가 받을 STOMP 종목 topic만 관리한다.
 - Portfolio 화면은 Stock-exchange-BE account-scoped watchlist/portfolio quote REST snapshot을 bearer auth session의 accountId로 조회하고 account-scoped WebSocket topic tick을 quote list에 병합한다.
 - Tax 화면은 bearer auth session의 accountId로 tax document multipart upload, refund case 생성, Hana status sync, refund status 조회를 실행하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.

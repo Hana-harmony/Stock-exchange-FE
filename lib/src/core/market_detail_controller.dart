@@ -574,7 +574,8 @@ class GlobalPeerMatch {
       confidenceScore: _string(json['confidenceScore'], fallback: '0'),
       confidenceLevel: _string(json['confidenceLevel'], fallback: 'UNKNOWN'),
       modelVersion: _string(json['modelVersion'], fallback: 'unknown'),
-      dataSource: _string(json['dataSource'], fallback: 'Hana-OmniLens-API'),
+      dataSource:
+          _string(json['dataSource'], fallback: 'Hana-Omni-Connect-API'),
       servedAt: _dateTime(json['servedAt']),
     );
   }

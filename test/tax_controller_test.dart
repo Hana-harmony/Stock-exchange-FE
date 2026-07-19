@@ -292,7 +292,7 @@ Map<String, Object?> _pendingVerificationJson(String documentType) {
     'documentModelVersion': 'pending',
     'source': 'HANA_EXCHANGE_BE',
     'progressPercent': 45,
-    'stage': 'SENT_TO_OMNILENS',
+    'stage': 'SENT_TO_OMNI_CONNECT',
     'updatedAt': '2026-06-18T06:00:00Z',
   };
 }
