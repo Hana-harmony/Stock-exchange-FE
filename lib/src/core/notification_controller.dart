@@ -130,6 +130,23 @@ class NotificationController extends ValueNotifier<NotificationState> {
     }
   }
 
+  Future<StockIntelligenceItem> loadStockIntelligenceDetail({
+    required String stockCode,
+    required String eventId,
+  }) async {
+    final normalizedStockCode = stockCode.trim();
+    final normalizedEventId = eventId.trim();
+    if (!RegExp(r'^\d{6}$').hasMatch(normalizedStockCode) ||
+        normalizedEventId.isEmpty) {
+      throw ArgumentError('A stock code and event id are required.');
+    }
+    final response = await _apiClient.getStockIntelligenceDetail(
+      stockCode: normalizedStockCode,
+      eventId: normalizedEventId,
+    );
+    return StockIntelligenceItem.fromJson(response.data ?? {});
+  }
+
   Future<void> loadMoreStockIntelligenceFeed({
     required String stockCode,
     int limit = 20,
