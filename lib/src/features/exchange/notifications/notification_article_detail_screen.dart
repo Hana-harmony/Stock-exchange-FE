@@ -234,71 +234,61 @@ class _NotificationArticleBottomActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final safeAreaHeight = bottomInset > 0 ? bottomInset : 34.0;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        DecoratedBox(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                Color(0x00FFFFFF),
-                Color(0xCCFFFFFF),
-                AppColors.white,
-                AppColors.white,
-              ],
-              stops: [0, 0.36, 0.68, 1],
-            ),
+    return SafeArea(
+      top: false,
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Color(0x00FFFFFF),
+              Color(0xCCFFFFFF),
+              AppColors.white,
+              AppColors.white,
+            ],
+            stops: [0, 0.36, 0.68, 1],
           ),
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-            child: SizedBox(
-              width: double.infinity,
-              height: 45,
-              child: FilledButton(
-                key: const ValueKey('notification-article-view-original'),
-                onPressed: onPressed,
-                style: _exchangePrimaryButtonStyle(
-                  backgroundColor: AppColors.orange500,
-                  padding: EdgeInsets.zero,
-                  radius: 8,
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Image.asset(
-                      AppAssets.externalLinkIcon,
-                      width: 24,
-                      height: 24,
-                      fit: BoxFit.contain,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      'View Original',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontSize: 18,
-                            height: 1.4,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.white,
-                          ),
-                    ),
-                  ],
-                ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+          child: SizedBox(
+            width: double.infinity,
+            height: 45,
+            child: FilledButton(
+              key: const ValueKey('notification-article-view-original'),
+              onPressed: onPressed,
+              style: _exchangePrimaryButtonStyle(
+                backgroundColor: AppColors.orange500,
+                padding: EdgeInsets.zero,
+                radius: 8,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Image.asset(
+                    AppAssets.externalLinkIcon,
+                    width: 24,
+                    height: 24,
+                    fit: BoxFit.contain,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'View Original',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontSize: 18,
+                          height: 1.4,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.white,
+                        ),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        SizedBox(
-          height: safeAreaHeight,
-          width: double.infinity,
-          child: const ColoredBox(color: AppColors.white),
-        ),
-      ],
+      ),
     );
   }
 }

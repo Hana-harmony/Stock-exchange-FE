@@ -84,6 +84,10 @@ void main() {
       _findAssetImage(AppAssets.marketDataContainer),
       findsNothing,
     );
+    expect(
+      _findAssetImage('assets/icons/bottom_nav/home_bar.png'),
+      findsNothing,
+    );
 
     await tester.tap(find.byKey(const ValueKey('trending-stock-005930')));
     await tester.pumpAndSettle();
