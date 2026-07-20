@@ -23,6 +23,57 @@ class _NotificationArticleDetailScreenState
   final GlobalKey _glossaryTooltipKey = GlobalKey();
   Timer? _glossaryTooltipTimer;
   _VisibleNotificationArticleGlossaryTooltip? _visibleGlossaryTooltip;
+  StockIntelligenceItem? _resolvedIntelligenceItem;
+  bool _detailLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _resolvedIntelligenceItem = widget.intelligenceItem;
+    if (widget.intelligenceItem != null) {
+      _detailLoading = true;
+      unawaited(_loadIntelligenceDetail());
+    }
+  }
+
+  Future<void> _loadIntelligenceDetail() async {
+    final intelligenceItem = widget.intelligenceItem;
+    if (intelligenceItem == null) {
+      return;
+    }
+    final stockCode = [
+      widget.item.subjectId,
+      widget.item.primaryStockCode,
+      intelligenceItem.primaryStockCode,
+      ...intelligenceItem.relatedStocks,
+    ].firstWhere(
+      (value) => RegExp(r'^\d{6}$').hasMatch(value),
+      orElse: () => '',
+    );
+    if (stockCode.isEmpty) {
+      if (mounted) {
+        setState(() => _detailLoading = false);
+      }
+      return;
+    }
+    try {
+      final detail =
+          await widget.notificationController.loadStockIntelligenceDetail(
+        stockCode: stockCode,
+        eventId: intelligenceItem.eventId,
+      );
+      if (mounted) {
+        setState(() {
+          _resolvedIntelligenceItem = detail;
+          _detailLoading = false;
+        });
+      }
+    } on Object {
+      if (mounted) {
+        setState(() => _detailLoading = false);
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -34,7 +85,7 @@ class _NotificationArticleDetailScreenState
   Widget build(BuildContext context) {
     final detail = _NotificationArticleDetailData.fromNotification(
       widget.item,
-      intelligenceItem: widget.intelligenceItem,
+      intelligenceItem: _resolvedIntelligenceItem,
     );
 
     return Scaffold(
@@ -99,12 +150,18 @@ class _NotificationArticleDetailScreenState
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                       ),
-                                      child: _NotificationArticleBody(
-                                        detail: detail,
-                                        articleContentStackKey:
-                                            _articleContentStackKey,
-                                        onGlossaryTap: _showGlossaryTooltip,
-                                      ),
+                                      child: _detailLoading
+                                          ? const Center(
+                                              child:
+                                                  CircularProgressIndicator(),
+                                            )
+                                          : _NotificationArticleBody(
+                                              detail: detail,
+                                              articleContentStackKey:
+                                                  _articleContentStackKey,
+                                              onGlossaryTap:
+                                                  _showGlossaryTooltip,
+                                            ),
                                     ),
                                     const SizedBox(height: 32),
                                   ],
@@ -633,6 +690,14 @@ class _NotificationArticleBody extends StatelessWidget {
           color: AppColors.gray900,
         );
 
+    if (detail.bodyParagraphs.isEmpty) {
+      return Text(
+        'The full English translation is currently unavailable. '
+        'Please use the original article link.',
+        style: textStyle.copyWith(color: AppColors.gray600),
+      );
+    }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -691,15 +756,7 @@ class _NotificationArticleDetailData {
     NotificationItem item, {
     StockIntelligenceItem? intelligenceItem,
   }) {
-    final resolvedBodyText = intelligenceItem != null
-        ? intelligenceItem.displayBody.isNotEmpty
-            ? intelligenceItem.displayBody
-            : item.summary.isNotEmpty
-                ? '${item.title}\n${item.summary}'
-                : item.title
-        : item.summary.isNotEmpty
-            ? '${item.title}\n${item.summary}'
-            : item.title;
+    final resolvedBodyText = intelligenceItem?.displayBody ?? '';
     final resolvedTitle = intelligenceItem?.title ?? item.title;
     final resolvedGlossaryEntries = _glossaryEntriesFromTerms(
       intelligenceItem?.glossaryTerms ?? item.glossaryTerms,

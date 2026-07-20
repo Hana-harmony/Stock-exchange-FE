@@ -610,6 +610,15 @@ class ExchangeApiClient {
     );
   }
 
+  Future<ApiEnvelope<Map<String, dynamic>>> getStockIntelligenceDetail({
+    required String stockCode,
+    required String eventId,
+  }) {
+    return get<Map<String, dynamic>>(
+      '/api/v1/stocks/$stockCode/intelligence/$eventId',
+    );
+  }
+
   Future<ApiEnvelope<Map<String, dynamic>>> getMarketNews({
     int limit = 20,
     String? cursor,
