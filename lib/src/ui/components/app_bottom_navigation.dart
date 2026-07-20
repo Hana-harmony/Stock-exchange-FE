@@ -57,46 +57,32 @@ class AppBottomNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.paddingOf(context).bottom;
-    final safeAreaHeight = bottomInset > 0 ? bottomInset : 34.0;
-
     return DecoratedBox(
       decoration: const BoxDecoration(
         color: AppColors.white,
         border: Border(top: BorderSide(color: AppColors.gray200)),
         boxShadow: AppShadows.navigation,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SizedBox(
-            height: 57,
-            child: Padding(
-              padding: const EdgeInsets.all(2),
-              child: Row(
-                children: [
-                  for (var index = 0; index < items.length; index++)
-                    Expanded(
-                      child: _BottomNavigationButton(
-                        item: items[index],
-                        isSelected: index == selectedIndex,
-                        onTap: () => onTap(index),
-                      ),
+      child: SafeArea(
+        top: false,
+        child: SizedBox(
+          height: 57,
+          child: Padding(
+            padding: const EdgeInsets.all(2),
+            child: Row(
+              children: [
+                for (var index = 0; index < items.length; index++)
+                  Expanded(
+                    child: _BottomNavigationButton(
+                      item: items[index],
+                      isSelected: index == selectedIndex,
+                      onTap: () => onTap(index),
                     ),
-                ],
-              ),
+                  ),
+              ],
             ),
           ),
-          SizedBox(
-            height: safeAreaHeight,
-            width: double.infinity,
-            child: Image.asset(
-              AppAssets.bottomHomeBar,
-              fit: BoxFit.fill,
-              alignment: Alignment.bottomCenter,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

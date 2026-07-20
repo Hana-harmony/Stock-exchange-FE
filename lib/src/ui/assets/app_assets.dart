@@ -67,7 +67,6 @@ abstract final class AppAssets {
       'assets/icons/bottom_nav/discover_selected.png';
   static const bottomMyDefault = 'assets/icons/bottom_nav/my_default.png';
   static const bottomMySelected = 'assets/icons/bottom_nav/my_selected.png';
-  static const bottomHomeBar = 'assets/icons/bottom_nav/home_bar.png';
 
   static const stockCardGreen = 'assets/illustrations/stock_card_green.png';
   static const stockCardRed = 'assets/illustrations/stock_card_red.png';
