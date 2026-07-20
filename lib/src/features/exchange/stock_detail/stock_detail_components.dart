@@ -355,63 +355,47 @@ class _StockBottomActionBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 119,
-      child: Column(
-        children: [
-          DecoratedBox(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: [
-                  AppColors.white.withValues(alpha: 0),
-                  AppColors.white,
-                ],
-                stops: const [0, 0.2],
-              ),
-            ),
-            child: SizedBox(
-              height: 85,
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _TradeActionButton(
-                        key: const ValueKey('stock-detail-sell-button'),
-                        label: 'Sell',
-                        backgroundColor: AppColors.red500,
-                        onTap: isTradeEnabled ? onSell : null,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: _TradeActionButton(
-                        key: const ValueKey('stock-detail-buy-button'),
-                        label: 'Buy',
-                        backgroundColor: AppColors.green500,
-                        onTap: isTradeEnabled ? onBuy : null,
-                      ),
-                    ),
-                  ],
+    return SafeArea(
+      top: false,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              AppColors.white.withValues(alpha: 0),
+              AppColors.white,
+            ],
+            stops: const [0, 0.2],
+          ),
+        ),
+        child: SizedBox(
+          height: 85,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _TradeActionButton(
+                    key: const ValueKey('stock-detail-sell-button'),
+                    label: 'Sell',
+                    backgroundColor: AppColors.red500,
+                    onTap: isTradeEnabled ? onSell : null,
+                  ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _TradeActionButton(
+                    key: const ValueKey('stock-detail-buy-button'),
+                    label: 'Buy',
+                    backgroundColor: AppColors.green500,
+                    onTap: isTradeEnabled ? onBuy : null,
+                  ),
+                ),
+              ],
             ),
           ),
-          Container(
-            height: 34,
-            color: AppColors.white,
-            child: Center(
-              child: Image.asset(
-                AppAssets.bottomHomeBar,
-                width: 402,
-                height: 34,
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

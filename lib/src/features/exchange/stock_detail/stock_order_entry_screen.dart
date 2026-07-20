@@ -107,7 +107,6 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
         final orderPriceUsd =
             _orderType == _StockOrderType.market ? currentPriceUsd : _priceUsd;
         return AppScaffold(
-          bodySafeAreaBottom: false,
           body: SafeArea(
             bottom: false,
             child: Column(
@@ -178,7 +177,6 @@ class _StockOrderEntryScreenState extends State<_StockOrderEntryScreen> {
               ],
             ),
           ),
-          bottomNavigationBar: const _StockHomeBar(),
         );
       },
     );
@@ -1595,7 +1593,7 @@ class _AccountPinBottomSheetDialogState
                 onConfirm: _confirm,
                 isConfirmEnabled: _isConfirmEnabled,
               ),
-              const _StockHomeBar(),
+              const SafeArea(top: false, child: SizedBox.shrink()),
             ],
           ),
         ),
@@ -2467,26 +2465,6 @@ class _AccountPinActionBar extends StatelessWidget {
               ),
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _StockHomeBar extends StatelessWidget {
-  const _StockHomeBar();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 34,
-      color: AppColors.white,
-      child: Center(
-        child: Image.asset(
-          AppAssets.bottomHomeBar,
-          width: 402,
-          height: 34,
-          fit: BoxFit.cover,
         ),
       ),
     );
