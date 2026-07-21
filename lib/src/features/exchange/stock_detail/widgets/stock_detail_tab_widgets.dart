@@ -53,27 +53,19 @@ class _StockDetailTabs extends StatelessWidget {
                       child: Row(
                         children: [
                           AppUnderlineTab(
-                            key: const ValueKey('stock-detail-tab-order'),
-                            label: 'Order',
-                            width: 48,
-                            isSelected: controller.index == 0,
-                            onTap: () => controller.animateTo(0),
-                          ),
-                          const SizedBox(width: 18),
-                          AppUnderlineTab(
                             key: const ValueKey('stock-detail-tab-chart'),
                             label: 'Chart',
                             width: 47,
-                            isSelected: controller.index == 1,
-                            onTap: () => controller.animateTo(1),
+                            isSelected: controller.index == 0,
+                            onTap: () => controller.animateTo(0),
                           ),
                           const SizedBox(width: 18),
                           AppUnderlineTab(
                             key: const ValueKey('stock-detail-tab-k-news'),
                             label: 'K-News',
                             width: 65,
-                            isSelected: controller.index == 2,
-                            onTap: () => controller.animateTo(2),
+                            isSelected: controller.index == 1,
+                            onTap: () => controller.animateTo(1),
                           ),
                           const SizedBox(width: 18),
                           AppUnderlineTab(
@@ -82,8 +74,8 @@ class _StockDetailTabs extends StatelessWidget {
                             ),
                             label: 'Disclosures',
                             width: 93,
-                            isSelected: controller.index == 3,
-                            onTap: () => controller.animateTo(3),
+                            isSelected: controller.index == 2,
+                            onTap: () => controller.animateTo(2),
                           ),
                         ],
                       ),
@@ -124,34 +116,9 @@ class _StockDetailTabsHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 }
 
-class _StockOrderTab extends StatelessWidget {
-  const _StockOrderTab({
-    required this.snapshot,
-  });
-
-  final _StockDetailSnapshot snapshot;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      key: const PageStorageKey<String>('stock-order-tab'),
-      padding: const EdgeInsets.fromLTRB(12, 20, 12, 140),
-      children: [
-        if (snapshot.isForeignOwnershipTradingUnavailable) ...[
-          const _ForeignOwnershipTradingUnavailableCard(),
-          const SizedBox(height: 24),
-        ] else if (snapshot.showsForeignOwnershipEstimate) ...[
-          _ForeignOwnershipAlertCard(snapshot: snapshot),
-          const SizedBox(height: 24),
-        ],
-        _InvestmentInfoSection(snapshot: snapshot),
-      ],
-    );
-  }
-}
-
 class _StockChartTab extends StatelessWidget {
   const _StockChartTab({
+    required this.snapshot,
     required this.chart,
     required this.chartPoints,
     required this.status,
@@ -162,6 +129,7 @@ class _StockChartTab extends StatelessWidget {
     required this.onPeriodChanged,
   });
 
+  final _StockDetailSnapshot snapshot;
   final MarketChart? chart;
   final List<MarketChartPoint>? chartPoints;
   final MarketDetailStatus status;
@@ -186,6 +154,7 @@ class _StockChartTab extends StatelessWidget {
         key: const PageStorageKey<String>('stock-chart-tab-loading'),
         padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
         children: [
+          ..._foreignOwnershipStatusWidgets(snapshot),
           _StockChartPeriodSelector(
             selectedPeriod: selectedPeriod,
             onPeriodChanged: onPeriodChanged,
@@ -201,6 +170,8 @@ class _StockChartTab extends StatelessWidget {
             key: ValueKey('stock-chart-loading'),
             child: CircularProgressIndicator(color: AppColors.orange500),
           ),
+          const SizedBox(height: 24),
+          _InvestmentInfoSection(snapshot: snapshot),
         ],
       );
     }
@@ -210,10 +181,13 @@ class _StockChartTab extends StatelessWidget {
         key: const PageStorageKey<String>('stock-chart-tab'),
         padding: const EdgeInsets.fromLTRB(16, 24, 16, 140),
         children: [
+          ..._foreignOwnershipStatusWidgets(snapshot),
           _MutedInfoCard(
             title: 'Chart unavailable',
             body: errorMessage ?? 'No chart data is available for this stock.',
           ),
+          const SizedBox(height: 24),
+          _InvestmentInfoSection(snapshot: snapshot),
         ],
       );
     }
@@ -222,6 +196,7 @@ class _StockChartTab extends StatelessWidget {
       key: const PageStorageKey<String>('stock-chart-tab'),
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 140),
       children: [
+        ..._foreignOwnershipStatusWidgets(snapshot),
         _StockChartPeriodSelector(
           selectedPeriod: selectedPeriod,
           onPeriodChanged: onPeriodChanged,
@@ -235,9 +210,27 @@ class _StockChartTab extends StatelessWidget {
         ),
         const SizedBox(height: 18),
         _StockChartSummary(points: points),
+        const SizedBox(height: 24),
+        _InvestmentInfoSection(snapshot: snapshot),
       ],
     );
   }
+}
+
+List<Widget> _foreignOwnershipStatusWidgets(_StockDetailSnapshot snapshot) {
+  if (snapshot.isForeignOwnershipTradingUnavailable) {
+    return const [
+      _ForeignOwnershipTradingUnavailableCard(),
+      SizedBox(height: 24),
+    ];
+  }
+  if (snapshot.showsForeignOwnershipEstimate) {
+    return [
+      _ForeignOwnershipAlertCard(snapshot: snapshot),
+      const SizedBox(height: 24),
+    ];
+  }
+  return const [];
 }
 
 class _StockChartCard extends StatelessWidget {
