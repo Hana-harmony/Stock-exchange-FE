@@ -16,6 +16,7 @@ class _InvestmentInfoSection extends StatelessWidget {
         );
 
     return Column(
+      key: const ValueKey('stock-investment-info'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
@@ -76,6 +77,7 @@ class _ForeignOwnershipAlertCard extends StatelessWidget {
     final accentColor =
         snapshot.isForeignLimitAlert ? _accentColor : _forecastColor;
     return DecoratedBox(
+      key: const ValueKey('foreign-ownership-forecast-card'),
       decoration: BoxDecoration(
         color: _outerBackgroundColor,
         borderRadius: BorderRadius.circular(8),
@@ -202,6 +204,7 @@ class _ForeignOwnershipTradingUnavailableCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
+      key: const ValueKey('foreign-ownership-unavailable-card'),
       decoration: BoxDecoration(
         color: const Color(0xFFFFF1F3),
         borderRadius: BorderRadius.circular(8),

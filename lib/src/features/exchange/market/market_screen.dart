@@ -788,15 +788,23 @@ class _TrendingStockTile extends StatelessWidget {
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: SizedBox(
-                    width: 12,
-                    child: Text(
-                      '$rank',
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontSize: 18,
-                            height: 25 / 18,
-                            fontWeight: FontWeight.w500,
-                            color: AppColors.gray1000,
-                          ),
+                    width: 16,
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        '$rank',
+                        key: ValueKey('trending-stock-rank-$rank'),
+                        maxLines: 1,
+                        softWrap: false,
+                        style:
+                            Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontSize: 18,
+                                  height: 25 / 18,
+                                  fontWeight: FontWeight.w500,
+                                  color: AppColors.gray1000,
+                                ),
+                      ),
                     ),
                   ),
                 ),
