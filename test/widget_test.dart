@@ -18,6 +18,7 @@ import 'package:stock_exchange_fe/src/core/market_quote_controller.dart';
 import 'package:stock_exchange_fe/src/core/notification_controller.dart';
 import 'package:stock_exchange_fe/src/core/trade_controller.dart';
 import 'package:stock_exchange_fe/src/core/watchlist_controller.dart';
+import 'package:stock_exchange_fe/src/features/exchange/exchange_pages.dart';
 import 'package:stock_exchange_fe/src/ui/assets/app_assets.dart';
 import 'package:stock_exchange_fe/src/ui/components/app_bottom_navigation.dart';
 import 'package:stock_exchange_fe/src/ui/theme/app_tokens.dart';
@@ -373,6 +374,98 @@ void main() {
 
     expect(find.widgetWithText(AppBar, 'Markets'), findsOneWidget);
     expect(notificationAsset().assetName, AppAssets.headerNotificationsNew);
+  });
+
+  testWidgets(
+      'shows an already translated market article while detail refresh is pending',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final marketQuoteController = _marketQuoteController();
+    addTearDown(marketQuoteController.dispose);
+    final detailResponse = Completer<http.Response>();
+
+    await tester.pumpWidget(
+      _stockExchangeTestApp(
+        marketQuoteController: marketQuoteController,
+        marketNewsController: _marketNewsController(
+          detailResponse: detailResponse.future,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('bottom-nav-Discover')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('market-news-card-MKT-NEWS-001')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('full-article-translation-loading')),
+      findsNothing,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains(
+                  'Full translated market news content.',
+                ),
+      ),
+      findsOneWidget,
+    );
+
+    detailResponse.complete(_jsonEnvelope(_marketNewsDetailJson()));
+    await tester.pumpAndSettle();
+  });
+
+  testWidgets(
+      'shows an already translated disclosure while detail refresh is pending',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final detailResponse = Completer<http.Response>();
+    final notificationController = _notificationController(
+      detailResponse: detailResponse.future,
+    );
+    addTearDown(notificationController.dispose);
+    final notification = NotificationItem.fromJson(
+      (_notificationInboxJson()['notifications'] as List<Object?>).first
+          as Map<String, Object?>,
+    );
+    final intelligence = StockIntelligenceItem.fromJson(
+      _samsungIntelligenceItemJson(),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NotificationArticleDetailScreen(
+          item: notification,
+          notificationController: notificationController,
+          intelligenceItem: intelligence,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(
+      find.byKey(const ValueKey('full-article-translation-loading')),
+      findsNothing,
+    );
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is RichText &&
+            widget.text.toPlainText().contains(
+                  'SAMSUNG ELEC: Daejangju for FY2025 disclosure text.',
+                ),
+      ),
+      findsOneWidget,
+    );
+
+    detailResponse.complete(_jsonEnvelope(_samsungIntelligenceItemJson()));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('markets requests fixed ten trending quotes without rankings',
@@ -2902,11 +2995,20 @@ MarketDetailController _marketDetailController({
   );
 }
 
-NotificationController _notificationController() {
+NotificationController _notificationController({
+  Future<http.Response>? detailResponse,
+}) {
   return NotificationController(
     apiClient: ExchangeApiClient(
       baseUri: Uri.parse('http://localhost:3000'),
       httpClient: MockClient((request) async {
+        if (request.url.path ==
+            '/api/v1/stocks/005930/intelligence/ALERT-SAMSUNG-1') {
+          if (detailResponse != null) {
+            return detailResponse;
+          }
+          return _jsonEnvelope(_samsungIntelligenceItemJson());
+        }
         if (request.url.path.endsWith('/intelligence')) {
           if (request.url.path.contains('/005930/')) {
             return _jsonEnvelope(_samsungIntelligenceJson());
@@ -2967,7 +3069,9 @@ class _LoadingMarketDetailController extends MarketDetailController {
   }) async {}
 }
 
-MarketNewsController _marketNewsController() {
+MarketNewsController _marketNewsController({
+  Future<http.Response>? detailResponse,
+}) {
   return MarketNewsController(
     apiClient: ExchangeApiClient(
       baseUri: Uri.parse('http://localhost:3000'),
@@ -2976,6 +3080,9 @@ MarketNewsController _marketNewsController() {
           return _jsonEnvelope(_marketNewsJson());
         }
         if (request.url.path == '/api/v1/market/news/MKT-NEWS-001') {
+          if (detailResponse != null) {
+            return detailResponse;
+          }
           return _jsonEnvelope(_marketNewsDetailJson());
         }
         return http.Response('{}', 404);
@@ -3452,48 +3559,49 @@ Map<String, Object?> _samsungIntelligenceJson() {
     'stockCode': '005930',
     'dataSource': 'HANA_OMNI_CONNECT_AI_ANALYZED_EVENT',
     'itemCount': 1,
-    'items': [
-      {
-        'eventId': 'ALERT-SAMSUNG-1',
-        'sourceType': 'DISCLOSURE',
-        'title': 'Daejangju: Dividend Payout Confirmed for FY2025',
-        'summary': 'Dividend payout translated by OmniConnect.',
-        'summaryLines': {
-          'what': 'Samsung Electronics confirmed its dividend payout.',
-          'why': 'Shareholder returns influence foreign investor interest.',
-          'impact': 'Investors may compare the payout with large-cap peers.',
-        },
-        'translatedSummary': 'Dividend payout translated by OmniConnect.',
-        'originalContent': '삼성전자 공시 전문',
-        'translatedContent':
-            'SAMSUNG ELEC: Daejangju for FY2025 disclosure text.',
-        'imageUrls': <Object?>[],
-        'contentAvailability': 'FULL_TEXT',
-        'originalUrl': 'https://dart.fss.or.kr/report',
-        'primaryStockCode': '005930',
-        'relatedStocks': ['005930'],
-        'sentiment': 'POSITIVE',
-        'importance': 'HIGH',
-        'riskLevel': 'LOW',
-        'clusterKey': 'samsung-disclosure',
-        'glossaryTerms': [
-          _glossaryTerm(
-            sourceTerm: 'Daejangju',
-            englishTerm: 'Market Leader',
-            category: 'MARKET',
-            description:
-                'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend and often becomes a benchmark for investor sentiment during volatile sessions.',
-          ),
-        ],
-        'translationQualityFlags': ['GLOSSARY_MATCHED'],
-        'watchlistTarget': true,
-        'holderTarget': false,
-        'publishedAt': '2026-06-18T05:55:00Z',
-        'receivedAt': '2026-06-18T06:00:00Z',
-        'targetCount': 1,
-      },
-    ],
+    'items': [_samsungIntelligenceItemJson()],
     'servedAt': '2026-06-18T06:01:00Z',
+  };
+}
+
+Map<String, Object?> _samsungIntelligenceItemJson() {
+  return {
+    'eventId': 'ALERT-SAMSUNG-1',
+    'sourceType': 'DISCLOSURE',
+    'title': 'Daejangju: Dividend Payout Confirmed for FY2025',
+    'summary': 'Dividend payout translated by OmniConnect.',
+    'summaryLines': {
+      'what': 'Samsung Electronics confirmed its dividend payout.',
+      'why': 'Shareholder returns influence foreign investor interest.',
+      'impact': 'Investors may compare the payout with large-cap peers.',
+    },
+    'translatedSummary': 'Dividend payout translated by OmniConnect.',
+    'originalContent': '삼성전자 공시 전문',
+    'translatedContent': 'SAMSUNG ELEC: Daejangju for FY2025 disclosure text.',
+    'imageUrls': <Object?>[],
+    'contentAvailability': 'FULL_TEXT',
+    'originalUrl': 'https://dart.fss.or.kr/report',
+    'primaryStockCode': '005930',
+    'relatedStocks': ['005930'],
+    'sentiment': 'POSITIVE',
+    'importance': 'HIGH',
+    'riskLevel': 'LOW',
+    'clusterKey': 'samsung-disclosure',
+    'glossaryTerms': [
+      _glossaryTerm(
+        sourceTerm: 'Daejangju',
+        englishTerm: 'Market Leader',
+        category: 'MARKET',
+        description:
+            'Refers to the leading stock in a particular sector or the entire market that dictates the overall trend and often becomes a benchmark for investor sentiment during volatile sessions.',
+      ),
+    ],
+    'translationQualityFlags': ['GLOSSARY_MATCHED'],
+    'watchlistTarget': true,
+    'holderTarget': false,
+    'publishedAt': '2026-06-18T05:55:00Z',
+    'receivedAt': '2026-06-18T06:00:00Z',
+    'targetCount': 1,
   };
 }
 

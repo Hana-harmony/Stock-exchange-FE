@@ -35,8 +35,35 @@ class _NotificationArticleDetailScreenState
     super.initState();
     _resolvedIntelligenceItem = widget.intelligenceItem;
     if (widget.intelligenceItem != null) {
-      _detailLoading = true;
-      unawaited(_loadIntelligenceDetail());
+      if (widget.intelligenceItem!.displayBody.isEmpty) {
+        _detailLoading = true;
+        unawaited(_loadIntelligenceDetail());
+      } else {
+        unawaited(_refreshIntelligenceDetailOnce());
+      }
+    }
+  }
+
+  Future<void> _refreshIntelligenceDetailOnce() async {
+    final intelligenceItem = widget.intelligenceItem;
+    if (intelligenceItem == null) {
+      return;
+    }
+    final stockCode = _resolveStockCode(intelligenceItem);
+    if (stockCode.isEmpty) {
+      return;
+    }
+    try {
+      final detail =
+          await widget.notificationController.loadStockIntelligenceDetail(
+        stockCode: stockCode,
+        eventId: intelligenceItem.eventId,
+      );
+      if (mounted && detail.displayBody.isNotEmpty) {
+        setState(() => _resolvedIntelligenceItem = detail);
+      }
+    } on Object {
+      // 목록의 번역 전문을 유지한다.
     }
   }
 
@@ -45,15 +72,7 @@ class _NotificationArticleDetailScreenState
     if (intelligenceItem == null) {
       return;
     }
-    final stockCode = [
-      widget.item.subjectId,
-      widget.item.primaryStockCode,
-      intelligenceItem.primaryStockCode,
-      ...intelligenceItem.relatedStocks,
-    ].firstWhere(
-      (value) => RegExp(r'^\d{6}$').hasMatch(value),
-      orElse: () => '',
-    );
+    final stockCode = _resolveStockCode(intelligenceItem);
     if (stockCode.isEmpty) {
       if (mounted) {
         setState(() => _detailLoading = false);
@@ -71,6 +90,13 @@ class _NotificationArticleDetailScreenState
           eventId: intelligenceItem.eventId,
         );
         consecutiveFailures = 0;
+        if ((_resolvedIntelligenceItem?.displayBody.isNotEmpty ?? false) &&
+            detail.displayBody.isEmpty) {
+          if (mounted) {
+            setState(() => _detailLoading = false);
+          }
+          return;
+        }
         if (mounted) {
           setState(() => _resolvedIntelligenceItem = detail);
         }
@@ -94,6 +120,18 @@ class _NotificationArticleDetailScreenState
     if (mounted) {
       setState(() => _detailLoading = false);
     }
+  }
+
+  String _resolveStockCode(StockIntelligenceItem intelligenceItem) {
+    return [
+      widget.item.subjectId,
+      widget.item.primaryStockCode,
+      intelligenceItem.primaryStockCode,
+      ...intelligenceItem.relatedStocks,
+    ].firstWhere(
+      (value) => RegExp(r'^\d{6}$').hasMatch(value),
+      orElse: () => '',
+    );
   }
 
   @override
@@ -172,7 +210,8 @@ class _NotificationArticleDetailScreenState
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                       ),
-                                      child: _detailLoading
+                                      child: _detailLoading &&
+                                              detail.bodyText.isEmpty
                                           ? const _FullArticleTranslationLoader()
                                           : _NotificationArticleBody(
                                               detail: detail,
