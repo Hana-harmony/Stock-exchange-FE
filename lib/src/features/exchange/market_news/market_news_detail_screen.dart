@@ -27,7 +27,12 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
   void initState() {
     super.initState();
     _resolvedItem = widget.item;
-    unawaited(_loadDetail());
+    _detailLoading = widget.item.displayBody.isEmpty;
+    if (_detailLoading) {
+      unawaited(_loadDetail());
+    } else {
+      unawaited(_refreshDetailOnce());
+    }
   }
 
   @override
@@ -35,6 +40,22 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
     _detailPollingCancelled = true;
     _glossaryTooltipTimer?.cancel();
     super.dispose();
+  }
+
+  Future<void> _refreshDetailOnce() async {
+    if (widget.item.newsId.isEmpty) {
+      return;
+    }
+    try {
+      final latest = await widget.marketNewsController.loadDetail(
+        widget.item.newsId,
+      );
+      if (mounted && latest.displayBody.isNotEmpty) {
+        setState(() => _resolvedItem = latest);
+      }
+    } on Object {
+      // 목록의 번역 전문을 유지한다.
+    }
   }
 
   Future<void> _loadDetail() async {
@@ -53,6 +74,13 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
           widget.item.newsId,
         );
         consecutiveFailures = 0;
+        if (_resolvedItem.displayBody.isNotEmpty &&
+            latest.displayBody.isEmpty) {
+          if (mounted) {
+            setState(() => _detailLoading = false);
+          }
+          return;
+        }
         if (mounted) {
           setState(() => _resolvedItem = latest);
         }
@@ -144,7 +172,8 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                       ),
-                                      child: _detailLoading
+                                      child: _detailLoading &&
+                                              detail.bodyText.isEmpty
                                           ? const _FullArticleTranslationLoader()
                                           : _NotificationArticleBody(
                                               detail: detail,
