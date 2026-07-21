@@ -19,33 +19,68 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
   final GlobalKey _glossaryTooltipKey = GlobalKey();
   Timer? _glossaryTooltipTimer;
   _VisibleNotificationArticleGlossaryTooltip? _visibleGlossaryTooltip;
-  late final Future<MarketNewsItem> _detailFuture;
+  late MarketNewsItem _resolvedItem;
+  bool _detailLoading = true;
+  bool _detailPollingCancelled = false;
 
   @override
   void initState() {
     super.initState();
-    _detailFuture = _loadDetail();
+    _resolvedItem = widget.item;
+    unawaited(_loadDetail());
   }
 
   @override
   void dispose() {
+    _detailPollingCancelled = true;
     _glossaryTooltipTimer?.cancel();
     super.dispose();
   }
 
-  Future<MarketNewsItem> _loadDetail() async {
+  Future<void> _loadDetail() async {
     if (widget.item.newsId.isEmpty) {
-      throw const ExchangeApiException(
-        status: 422,
-        code: 'NEWS_DETAIL_ID_MISSING',
-        message: 'The news detail identifier is missing.',
-      );
+      if (mounted) {
+        setState(() => _detailLoading = false);
+      }
+      return;
     }
-    return widget.marketNewsController.loadDetail(widget.item.newsId);
+    var consecutiveFailures = 0;
+    for (var attempt = 0;
+        attempt < _fullArticlePollAttempts && !_detailPollingCancelled;
+        attempt++) {
+      try {
+        final latest = await widget.marketNewsController.loadDetail(
+          widget.item.newsId,
+        );
+        consecutiveFailures = 0;
+        if (mounted) {
+          setState(() => _resolvedItem = latest);
+        }
+        if (latest.displayBody.isNotEmpty ||
+            latest.originalContent.trim().isEmpty) {
+          if (mounted) {
+            setState(() => _detailLoading = false);
+          }
+          return;
+        }
+      } on Object {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 3) {
+          break;
+        }
+      }
+      if (attempt + 1 < _fullArticlePollAttempts && !_detailPollingCancelled) {
+        await Future<void>.delayed(_fullArticlePollInterval);
+      }
+    }
+    if (mounted) {
+      setState(() => _detailLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final detail = _NotificationArticleDetailData.fromMarketNews(_resolvedItem);
     return Scaffold(
       key: const ValueKey('market-news-detail-screen'),
       backgroundColor: AppColors.white,
@@ -60,117 +95,93 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
                 onBack: () => Navigator.of(context).maybePop(),
               ),
               Expanded(
-                child: FutureBuilder<MarketNewsItem>(
-                  future: _detailFuture,
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Center(
-                        child: CircularProgressIndicator(
-                          color: AppColors.orange500,
-                        ),
-                      );
-                    }
-                    if (snapshot.hasError || snapshot.data == null) {
-                      return const Padding(
-                        padding: AppInsets.compactScreen,
-                        child: _MutedInfoCard(
-                          title: 'Unable to load article',
-                          body: 'The translated article could not be loaded.',
-                        ),
-                      );
-                    }
-                    final item = snapshot.data!;
-                    final detail =
-                        _NotificationArticleDetailData.fromMarketNews(item);
-                    return Stack(
-                      children: [
-                        NotificationListener<ScrollStartNotification>(
-                          onNotification: (notification) {
-                            _dismissGlossaryTooltip();
-                            return false;
-                          },
-                          child: SingleChildScrollView(
-                            key: const ValueKey('market-news-detail-scroll'),
-                            padding: const EdgeInsets.only(bottom: 140),
-                            child: LayoutBuilder(
-                              builder: (context, constraints) {
-                                return Stack(
-                                  key: _articleContentStackKey,
-                                  clipBehavior: Clip.none,
+                child: Stack(
+                  children: [
+                    NotificationListener<ScrollStartNotification>(
+                      onNotification: (notification) {
+                        _dismissGlossaryTooltip();
+                        return false;
+                      },
+                      child: SingleChildScrollView(
+                        key: const ValueKey('market-news-detail-scroll'),
+                        padding: const EdgeInsets.only(bottom: 140),
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
+                            return Stack(
+                              key: _articleContentStackKey,
+                              clipBehavior: Clip.none,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.stretch,
-                                      children: [
-                                        _NotificationArticleHeroImage(
-                                          imageUrl: detail.imageUrl,
-                                        ),
-                                        const SizedBox(height: 20),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                          ),
-                                          child:
-                                              _NotificationArticleSummarySection(
-                                            detail: detail,
-                                            articleContentStackKey:
-                                                _articleContentStackKey,
-                                            onGlossaryTap: _showGlossaryTooltip,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 20),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                          ),
-                                          child:
-                                              _NotificationArticleAnalysisCard(
-                                            detail: detail,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 20),
-                                        Padding(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                          ),
-                                          child: _NotificationArticleBody(
-                                            detail: detail,
-                                            articleContentStackKey:
-                                                _articleContentStackKey,
-                                            onGlossaryTap: _showGlossaryTooltip,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 32),
-                                      ],
+                                    _NotificationArticleHeroImage(
+                                      imageUrl: detail.imageUrl,
                                     ),
-                                    if (_visibleGlossaryTooltip != null)
-                                      _NotificationArticleGlossaryTooltipOverlay(
-                                        key: _glossaryTooltipKey,
-                                        glossary:
-                                            _visibleGlossaryTooltip!.glossary,
-                                        anchorRect:
-                                            _visibleGlossaryTooltip!.anchorRect,
-                                        maxWidth: constraints.maxWidth,
+                                    const SizedBox(height: 20),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
                                       ),
+                                      child: _NotificationArticleSummarySection(
+                                        detail: detail,
+                                        articleContentStackKey:
+                                            _articleContentStackKey,
+                                        onGlossaryTap: _showGlossaryTooltip,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      child: _NotificationArticleAnalysisCard(
+                                        detail: detail,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 20),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                      child: _detailLoading
+                                          ? const _FullArticleTranslationLoader()
+                                          : _NotificationArticleBody(
+                                              detail: detail,
+                                              articleContentStackKey:
+                                                  _articleContentStackKey,
+                                              onGlossaryTap:
+                                                  _showGlossaryTooltip,
+                                            ),
+                                    ),
+                                    const SizedBox(height: 32),
                                   ],
-                                );
-                              },
-                            ),
-                          ),
+                                ),
+                                if (_visibleGlossaryTooltip != null)
+                                  _NotificationArticleGlossaryTooltipOverlay(
+                                    key: _glossaryTooltipKey,
+                                    glossary: _visibleGlossaryTooltip!.glossary,
+                                    anchorRect:
+                                        _visibleGlossaryTooltip!.anchorRect,
+                                    maxWidth: constraints.maxWidth,
+                                  ),
+                              ],
+                            );
+                          },
                         ),
-                        Align(
-                          alignment: Alignment.bottomCenter,
-                          child: _NotificationArticleBottomActionBar(
-                            onPressed: () {
-                              unawaited(
-                                _openOriginalArticleUrl(context, detail),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
-                    );
-                  },
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: _NotificationArticleBottomActionBar(
+                        onPressed: () {
+                          unawaited(
+                            _openOriginalArticleUrl(context, detail),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],

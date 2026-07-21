@@ -1,5 +1,8 @@
 part of '../exchange_pages.dart';
 
+const _fullArticlePollInterval = Duration(seconds: 5);
+const _fullArticlePollAttempts = 180;
+
 class NotificationArticleDetailScreen extends StatefulWidget {
   const NotificationArticleDetailScreen({
     super.key,
@@ -25,6 +28,7 @@ class _NotificationArticleDetailScreenState
   _VisibleNotificationArticleGlossaryTooltip? _visibleGlossaryTooltip;
   StockIntelligenceItem? _resolvedIntelligenceItem;
   bool _detailLoading = false;
+  bool _detailPollingCancelled = false;
 
   @override
   void initState() {
@@ -56,27 +60,45 @@ class _NotificationArticleDetailScreenState
       }
       return;
     }
-    try {
-      final detail =
-          await widget.notificationController.loadStockIntelligenceDetail(
-        stockCode: stockCode,
-        eventId: intelligenceItem.eventId,
-      );
-      if (mounted) {
-        setState(() {
-          _resolvedIntelligenceItem = detail;
-          _detailLoading = false;
-        });
+    var consecutiveFailures = 0;
+    for (var attempt = 0;
+        attempt < _fullArticlePollAttempts && !_detailPollingCancelled;
+        attempt++) {
+      try {
+        final detail =
+            await widget.notificationController.loadStockIntelligenceDetail(
+          stockCode: stockCode,
+          eventId: intelligenceItem.eventId,
+        );
+        consecutiveFailures = 0;
+        if (mounted) {
+          setState(() => _resolvedIntelligenceItem = detail);
+        }
+        if (detail.displayBody.isNotEmpty ||
+            detail.originalContent.trim().isEmpty) {
+          if (mounted) {
+            setState(() => _detailLoading = false);
+          }
+          return;
+        }
+      } on Object {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 3) {
+          break;
+        }
       }
-    } on Object {
-      if (mounted) {
-        setState(() => _detailLoading = false);
+      if (attempt + 1 < _fullArticlePollAttempts && !_detailPollingCancelled) {
+        await Future<void>.delayed(_fullArticlePollInterval);
       }
+    }
+    if (mounted) {
+      setState(() => _detailLoading = false);
     }
   }
 
   @override
   void dispose() {
+    _detailPollingCancelled = true;
     _glossaryTooltipTimer?.cancel();
     super.dispose();
   }
@@ -151,10 +173,7 @@ class _NotificationArticleDetailScreenState
                                         horizontal: 16,
                                       ),
                                       child: _detailLoading
-                                          ? const Center(
-                                              child:
-                                                  CircularProgressIndicator(),
-                                            )
+                                          ? const _FullArticleTranslationLoader()
                                           : _NotificationArticleBody(
                                               detail: detail,
                                               articleContentStackKey:
@@ -248,6 +267,25 @@ class _NotificationArticleDetailScreenState
       return;
     }
     _dismissGlossaryTooltip();
+  }
+}
+
+class _FullArticleTranslationLoader extends StatelessWidget {
+  const _FullArticleTranslationLoader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      key: ValueKey('full-article-translation-loading'),
+      children: [
+        CircularProgressIndicator(color: AppColors.orange500),
+        SizedBox(height: 12),
+        Text(
+          'Preparing the full English translation…',
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 }
 
