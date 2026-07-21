@@ -542,6 +542,12 @@ void main() {
     );
     expect(find.byKey(const ValueKey('trending-stock-005930')), findsOneWidget);
     expect(find.byKey(const ValueKey('trending-stock-000660')), findsOneWidget);
+    final tenthRank = tester.widget<Text>(
+      find.byKey(const ValueKey('trending-stock-rank-10')),
+    );
+    expect(tenthRank.data, '10');
+    expect(tenthRank.maxLines, 1);
+    expect(tenthRank.softWrap, isFalse);
     final samsungTop = tester.getTopLeft(
       find.byKey(const ValueKey('trending-stock-005930')),
     );
@@ -652,7 +658,8 @@ void main() {
 
     expect(find.textContaining('Kakao'), findsWidgets);
     expect(find.textContaining('035720'), findsOneWidget);
-    expect(find.text('Order'), findsWidgets);
+    expect(find.text('Order'), findsNothing);
+    expect(find.text('Chart'), findsOneWidget);
     expect(find.text('K-News'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('stock-detail-tab-chart')));
@@ -823,7 +830,7 @@ void main() {
     expect(beforeScroll.opacity, 0);
 
     await tester.drag(
-      find.byKey(const PageStorageKey<String>('stock-order-tab')),
+      find.byKey(const PageStorageKey<String>('stock-chart-tab')),
       const Offset(0, -360),
     );
     await tester.pumpAndSettle();
@@ -831,7 +838,8 @@ void main() {
     final afterScroll = tester.widget<AnimatedOpacity>(collapsedHeader);
     expect(afterScroll.opacity, greaterThan(beforeScroll.opacity));
     expect(afterScroll.opacity, greaterThan(0.8));
-    expect(find.text('Order'), findsOneWidget);
+    expect(find.text('Order'), findsNothing);
+    expect(find.text('Chart'), findsOneWidget);
   });
 
   testWidgets('opens the figma order entry screen when tapping buy',
@@ -1490,6 +1498,14 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('stock-search-result-035720')));
     await tester.pumpAndSettle();
 
+    await tester.scrollUntilVisible(
+      find.text('Cash Balance'),
+      240,
+      scrollable: find.descendant(
+        of: find.byKey(const PageStorageKey<String>('stock-chart-tab')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(find.text('Cash Balance'), findsOneWidget);
     expect(find.text('Sign in to view cash balance'), findsOneWidget);
 
@@ -1775,9 +1791,25 @@ void main() {
     expect(find.text('09:00 KST'), findsOneWidget);
     expect(find.text('15:30 KST'), findsOneWidget);
     expect(find.text('USD 35.50'), findsWidgets);
+    await tester.scrollUntilVisible(
+      find.text('KRW 54,800'),
+      180,
+      scrollable: find.descendant(
+        of: find.byKey(const PageStorageKey<String>('stock-chart-tab')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     expect(find.text('KRW 54,800'), findsOneWidget);
     expect(find.text('KRW 53,200'), findsOneWidget);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('stock-chart-period-1W')),
+      -180,
+      scrollable: find.descendant(
+        of: find.byKey(const PageStorageKey<String>('stock-chart-tab')),
+        matching: find.byType(Scrollable),
+      ),
+    );
     await tester.tap(find.byKey(const ValueKey('stock-chart-period-1W')));
     await tester.pumpAndSettle();
     expect(find.text('1W price chart'), findsOneWidget);
@@ -1786,6 +1818,19 @@ void main() {
     expect(chartRequests.last.queryParameters['interval'], '30m');
     expect(find.text('+USD 1.50 +4.41%'), findsWidgets);
 
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('stock-chart-period-1M')),
+      -180,
+      scrollable: find.descendant(
+        of: find.byKey(const PageStorageKey<String>('stock-chart-tab')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+    await tester.drag(
+      find.byKey(const PageStorageKey<String>('stock-chart-tab')),
+      const Offset(0, 120),
+    );
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('stock-chart-period-1M')));
     await tester.pumpAndSettle();
     expect(find.text('1M price chart'), findsOneWidget);
@@ -2032,6 +2077,20 @@ void main() {
 
     expect(find.text('Foreign ownership unavailable'), findsOneWidget);
     expect(find.text('Foreign Ownership Forecast'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('stock-detail-tab-order')),
+      findsNothing,
+    );
+    expect(
+      tester
+          .getTopLeft(
+            find.byKey(const ValueKey('foreign-ownership-unavailable-card')),
+          )
+          .dy,
+      lessThan(
+        tester.getTopLeft(find.byKey(const ValueKey('stock-chart-content'))).dy,
+      ),
+    );
     expect(
       tester
           .widget<FilledButton>(

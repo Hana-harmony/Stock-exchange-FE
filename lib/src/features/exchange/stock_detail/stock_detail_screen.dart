@@ -213,7 +213,7 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: AppScaffold(
         bodySafeAreaBottom: false,
         extendBody: true,
@@ -384,13 +384,9 @@ class _StockDetailScreenState extends State<StockDetailScreen> {
                         body: TabBarView(
                           children: [
                             _buildQuoteSnapshot(
-                              builder: (context, snapshot, _) =>
-                                  _StockOrderTab(snapshot: snapshot),
-                            ),
-                            ValueListenableBuilder<MarketQuote?>(
-                              valueListenable: _liveQuoteListenable,
-                              builder: (context, liveQuote, _) =>
+                              builder: (context, snapshot, liveQuote) =>
                                   _StockChartTab(
+                                snapshot: snapshot,
                                 chart: detailState.chart,
                                 chartPoints: detailState.chart?.points,
                                 status: detailState.status,
