@@ -1,5 +1,8 @@
 part of '../exchange_pages.dart';
 
+const _fullArticlePollInterval = Duration(seconds: 5);
+const _fullArticlePollAttempts = 180;
+
 class NotificationArticleDetailScreen extends StatefulWidget {
   const NotificationArticleDetailScreen({
     super.key,
@@ -25,35 +28,29 @@ class _NotificationArticleDetailScreenState
   _VisibleNotificationArticleGlossaryTooltip? _visibleGlossaryTooltip;
   StockIntelligenceItem? _resolvedIntelligenceItem;
   bool _detailLoading = false;
+  bool _detailPollingCancelled = false;
 
   @override
   void initState() {
     super.initState();
     _resolvedIntelligenceItem = widget.intelligenceItem;
     if (widget.intelligenceItem != null) {
-      _detailLoading = true;
-      unawaited(_loadIntelligenceDetail());
+      if (widget.intelligenceItem!.displayBody.isEmpty) {
+        _detailLoading = true;
+        unawaited(_loadIntelligenceDetail());
+      } else {
+        unawaited(_refreshIntelligenceDetailOnce());
+      }
     }
   }
 
-  Future<void> _loadIntelligenceDetail() async {
+  Future<void> _refreshIntelligenceDetailOnce() async {
     final intelligenceItem = widget.intelligenceItem;
     if (intelligenceItem == null) {
       return;
     }
-    final stockCode = [
-      widget.item.subjectId,
-      widget.item.primaryStockCode,
-      intelligenceItem.primaryStockCode,
-      ...intelligenceItem.relatedStocks,
-    ].firstWhere(
-      (value) => RegExp(r'^\d{6}$').hasMatch(value),
-      orElse: () => '',
-    );
+    final stockCode = _resolveStockCode(intelligenceItem);
     if (stockCode.isEmpty) {
-      if (mounted) {
-        setState(() => _detailLoading = false);
-      }
       return;
     }
     try {
@@ -62,21 +59,84 @@ class _NotificationArticleDetailScreenState
         stockCode: stockCode,
         eventId: intelligenceItem.eventId,
       );
-      if (mounted) {
-        setState(() {
-          _resolvedIntelligenceItem = detail;
-          _detailLoading = false;
-        });
+      if (mounted && detail.displayBody.isNotEmpty) {
+        setState(() => _resolvedIntelligenceItem = detail);
       }
     } on Object {
+      // 목록의 번역 전문을 유지한다.
+    }
+  }
+
+  Future<void> _loadIntelligenceDetail() async {
+    final intelligenceItem = widget.intelligenceItem;
+    if (intelligenceItem == null) {
+      return;
+    }
+    final stockCode = _resolveStockCode(intelligenceItem);
+    if (stockCode.isEmpty) {
       if (mounted) {
         setState(() => _detailLoading = false);
       }
+      return;
     }
+    var consecutiveFailures = 0;
+    for (var attempt = 0;
+        attempt < _fullArticlePollAttempts && !_detailPollingCancelled;
+        attempt++) {
+      try {
+        final detail =
+            await widget.notificationController.loadStockIntelligenceDetail(
+          stockCode: stockCode,
+          eventId: intelligenceItem.eventId,
+        );
+        consecutiveFailures = 0;
+        if ((_resolvedIntelligenceItem?.displayBody.isNotEmpty ?? false) &&
+            detail.displayBody.isEmpty) {
+          if (mounted) {
+            setState(() => _detailLoading = false);
+          }
+          return;
+        }
+        if (mounted) {
+          setState(() => _resolvedIntelligenceItem = detail);
+        }
+        if (detail.displayBody.isNotEmpty ||
+            detail.originalContent.trim().isEmpty) {
+          if (mounted) {
+            setState(() => _detailLoading = false);
+          }
+          return;
+        }
+      } on Object {
+        consecutiveFailures++;
+        if (consecutiveFailures >= 3) {
+          break;
+        }
+      }
+      if (attempt + 1 < _fullArticlePollAttempts && !_detailPollingCancelled) {
+        await Future<void>.delayed(_fullArticlePollInterval);
+      }
+    }
+    if (mounted) {
+      setState(() => _detailLoading = false);
+    }
+  }
+
+  String _resolveStockCode(StockIntelligenceItem intelligenceItem) {
+    return [
+      widget.item.subjectId,
+      widget.item.primaryStockCode,
+      intelligenceItem.primaryStockCode,
+      ...intelligenceItem.relatedStocks,
+    ].firstWhere(
+      (value) => RegExp(r'^\d{6}$').hasMatch(value),
+      orElse: () => '',
+    );
   }
 
   @override
   void dispose() {
+    _detailPollingCancelled = true;
     _glossaryTooltipTimer?.cancel();
     super.dispose();
   }
@@ -150,11 +210,9 @@ class _NotificationArticleDetailScreenState
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                       ),
-                                      child: _detailLoading
-                                          ? const Center(
-                                              child:
-                                                  CircularProgressIndicator(),
-                                            )
+                                      child: _detailLoading &&
+                                              detail.bodyText.isEmpty
+                                          ? const _FullArticleTranslationLoader()
                                           : _NotificationArticleBody(
                                               detail: detail,
                                               articleContentStackKey:
@@ -248,6 +306,25 @@ class _NotificationArticleDetailScreenState
       return;
     }
     _dismissGlossaryTooltip();
+  }
+}
+
+class _FullArticleTranslationLoader extends StatelessWidget {
+  const _FullArticleTranslationLoader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      key: ValueKey('full-article-translation-loading'),
+      children: [
+        CircularProgressIndicator(color: AppColors.orange500),
+        SizedBox(height: 12),
+        Text(
+          'Preparing the full English translation…',
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
   }
 }
 
