@@ -208,6 +208,32 @@ void main() {
     expect(controller.value.errorMessage, 'Sign in to load alert inbox.');
   });
 
+  test('loads a full stock intelligence detail by event id', () async {
+    final detailJson = ((_stockIntelligenceJson()['items'] as List<Object?>)
+        .single as Map<String, Object?>);
+    final controller = NotificationController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient((request) async {
+          expect(
+            request.url.path,
+            '/api/v1/stocks/005930/intelligence/ALERT-1',
+          );
+          return _jsonEnvelope(detailJson);
+        }),
+      ),
+    );
+    addTearDown(controller.dispose);
+
+    final detail = await controller.loadStockIntelligenceDetail(
+      stockCode: '005930',
+      eventId: 'ALERT-1',
+    );
+
+    expect(detail.eventId, 'ALERT-1');
+    expect(detail.displayBody, isNotEmpty);
+  });
+
   test('does not treat What Why Impact summary as stock article body', () {
     final item = StockIntelligenceItem.fromJson({
       ...((_stockIntelligenceJson()['items'] as List<Object?>).single

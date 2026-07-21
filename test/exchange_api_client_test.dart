@@ -223,6 +223,10 @@ void main() {
     await client.getNotifications('ACC-ABC123456789');
     await client.getNotificationDevices('ACC-ABC123456789');
     await client.getStockIntelligenceFeed('005930');
+    await client.getStockIntelligenceDetail(
+      stockCode: '005930',
+      eventId: 'ALERT-DETAIL-001',
+    );
     await client.markNotificationRead(
       accountId: 'ACC-ABC123456789',
       notificationId: 'NTF-ABC123456789',
@@ -232,6 +236,7 @@ void main() {
       'GET /api/v1/accounts/ACC-ABC123456789/notifications',
       'GET /api/v1/accounts/ACC-ABC123456789/notifications/devices',
       'GET /api/v1/stocks/005930/intelligence?limit=20',
+      'GET /api/v1/stocks/005930/intelligence/ALERT-DETAIL-001',
       'POST /api/v1/accounts/ACC-ABC123456789/notifications/NTF-ABC123456789/read',
     ]);
   });
