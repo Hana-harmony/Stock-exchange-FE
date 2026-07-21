@@ -68,5 +68,5 @@
 - Tax 화면은 bearer auth session의 accountId로 tax document multipart upload, refund case 생성, Hana status sync, refund status 조회를 실행하고, caseId를 정부 검증 참조번호로 표시하며, 서류 checklist, 상태 timeline, 원천징수세 대비 조세조약세와 환급 가능분 비중, 매도 실현손익 입력 데이터, 사후 환수 리스크를 표시한다.
 - 테스트 하네스는 `MemoryExchangeSessionStore`를 주입해 session 상태 전이를 검증한다.
 - `web/push-sw.js`가 백그라운드 알림 표시와 클릭 시 앱 focus/open을 처리하며, Flutter release web build가 운영 산출물이다.
-- 뉴스·공시 전문이 아직 비어 있으면 상세 API가 번역을 비동기로 시작한다. FE는 5초 간격으로 최대 15분 재조회하며 제목·What/Why/Impact를 본문 대용으로 표시하지 않는다.
+- 뉴스·공시 목록에는 이미 영문 전문이 완성된 이벤트만 포함된다. 상세 화면은 목록에 포함된 전문을 즉시 표시하고 상세 API를 한 번만 새로고침하며, 번역 완료를 위한 반복 재조회를 하지 않는다.
 - 목록 또는 기존 상세 데이터에 검증된 영어 전문이 이미 있으면 상세 갱신 완료를 기다리지 않고 즉시 표시하며, 일시적으로 빈 갱신 응답이 와도 저장된 전문을 빈 상태로 덮어쓰지 않는다.

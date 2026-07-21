@@ -20,24 +20,16 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
   Timer? _glossaryTooltipTimer;
   _VisibleNotificationArticleGlossaryTooltip? _visibleGlossaryTooltip;
   late MarketNewsItem _resolvedItem;
-  bool _detailLoading = true;
-  bool _detailPollingCancelled = false;
 
   @override
   void initState() {
     super.initState();
     _resolvedItem = widget.item;
-    _detailLoading = widget.item.displayBody.isEmpty;
-    if (_detailLoading) {
-      unawaited(_loadDetail());
-    } else {
-      unawaited(_refreshDetailOnce());
-    }
+    unawaited(_refreshDetailOnce());
   }
 
   @override
   void dispose() {
-    _detailPollingCancelled = true;
     _glossaryTooltipTimer?.cancel();
     super.dispose();
   }
@@ -55,54 +47,6 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
       }
     } on Object {
       // 목록의 번역 전문을 유지한다.
-    }
-  }
-
-  Future<void> _loadDetail() async {
-    if (widget.item.newsId.isEmpty) {
-      if (mounted) {
-        setState(() => _detailLoading = false);
-      }
-      return;
-    }
-    var consecutiveFailures = 0;
-    for (var attempt = 0;
-        attempt < _fullArticlePollAttempts && !_detailPollingCancelled;
-        attempt++) {
-      try {
-        final latest = await widget.marketNewsController.loadDetail(
-          widget.item.newsId,
-        );
-        consecutiveFailures = 0;
-        if (_resolvedItem.displayBody.isNotEmpty &&
-            latest.displayBody.isEmpty) {
-          if (mounted) {
-            setState(() => _detailLoading = false);
-          }
-          return;
-        }
-        if (mounted) {
-          setState(() => _resolvedItem = latest);
-        }
-        if (latest.displayBody.isNotEmpty ||
-            latest.originalContent.trim().isEmpty) {
-          if (mounted) {
-            setState(() => _detailLoading = false);
-          }
-          return;
-        }
-      } on Object {
-        consecutiveFailures++;
-        if (consecutiveFailures >= 3) {
-          break;
-        }
-      }
-      if (attempt + 1 < _fullArticlePollAttempts && !_detailPollingCancelled) {
-        await Future<void>.delayed(_fullArticlePollInterval);
-      }
-    }
-    if (mounted) {
-      setState(() => _detailLoading = false);
     }
   }
 
@@ -172,16 +116,12 @@ class _MarketNewsDetailScreenState extends State<MarketNewsDetailScreen> {
                                       padding: const EdgeInsets.symmetric(
                                         horizontal: 16,
                                       ),
-                                      child: _detailLoading &&
-                                              detail.bodyText.isEmpty
-                                          ? const _FullArticleTranslationLoader()
-                                          : _NotificationArticleBody(
-                                              detail: detail,
-                                              articleContentStackKey:
-                                                  _articleContentStackKey,
-                                              onGlossaryTap:
-                                                  _showGlossaryTooltip,
-                                            ),
+                                      child: _NotificationArticleBody(
+                                        detail: detail,
+                                        articleContentStackKey:
+                                            _articleContentStackKey,
+                                        onGlossaryTap: _showGlossaryTooltip,
+                                      ),
                                     ),
                                     const SizedBox(height: 32),
                                   ],
