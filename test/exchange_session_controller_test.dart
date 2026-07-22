@@ -230,6 +230,40 @@ void main() {
     expect((await store.read())?.refreshToken, 'rotated-refresh-token');
   });
 
+  test('concurrent refresh requests share one token rotation', () async {
+    final store = MemoryExchangeSessionStore();
+    var refreshRequestCount = 0;
+    final controller = ExchangeSessionController(
+      sessionStore: store,
+      apiClient: _client((request) async {
+        if (request.url.path == '/api/v1/auth/login') {
+          return _jsonResponse({
+            'success': true,
+            'status': 200,
+            'code': 'COMMON_000',
+            'message': 'OK',
+            'data': _sessionJson(accessToken: 'old-access-token'),
+          });
+        }
+        refreshRequestCount++;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': _sessionJson(accessToken: 'renewed-access-token'),
+        });
+      }),
+    );
+    await controller.login(username: 'hana', password: 'secret123');
+
+    await Future.wait([controller.refresh(), controller.refresh()]);
+
+    expect(refreshRequestCount, 1);
+    expect(controller.session?.accessToken, 'renewed-access-token');
+  });
+
   test('restore refreshes an invalid access token before exposing session',
       () async {
     const storedSession = AuthSession(
