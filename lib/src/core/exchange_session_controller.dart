@@ -79,6 +79,7 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
   final ExchangeApiClient _apiClient;
   final ExchangeSessionStore _sessionStore;
   Timer? _refreshTimer;
+  Future<void>? _refreshInFlight;
 
   AuthSession? get session => value.session;
 
@@ -202,7 +203,22 @@ class ExchangeSessionController extends ValueNotifier<ExchangeSessionState> {
     }
   }
 
-  Future<void> refresh() async {
+  Future<void> refresh() {
+    final inFlight = _refreshInFlight;
+    if (inFlight != null) {
+      return inFlight;
+    }
+
+    final refresh = _performRefresh();
+    _refreshInFlight = refresh;
+    return refresh.whenComplete(() {
+      if (identical(_refreshInFlight, refresh)) {
+        _refreshInFlight = null;
+      }
+    });
+  }
+
+  Future<void> _performRefresh() async {
     final currentSession = session;
     if (currentSession == null) {
       value = const ExchangeSessionState.signedOut();

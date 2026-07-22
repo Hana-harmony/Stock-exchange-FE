@@ -255,10 +255,9 @@ class _ExchangeShellState extends State<ExchangeShell> {
       baseUri: _environment.apiBaseUri,
       httpClient: _ownedHttpClient!,
       sessionProvider: () => _sessionController.session,
-      onUnauthorized: () {
-        if (_sessionController.session != null &&
-            _sessionController.value.status != ExchangeSessionStatus.loading) {
-          unawaited(_sessionController.refresh());
+      onUnauthorized: () async {
+        if (_sessionController.session != null) {
+          await _sessionController.refresh();
         }
       },
     );
