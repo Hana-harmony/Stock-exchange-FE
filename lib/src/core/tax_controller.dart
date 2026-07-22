@@ -11,7 +11,7 @@ enum TaxStatus {
 }
 
 const _verificationPollInterval = Duration(milliseconds: 700);
-const _verificationPollAttempts = 120;
+const _verificationPollAttempts = 430;
 
 class TaxState {
   const TaxState({
@@ -623,7 +623,8 @@ class TaxController extends ValueNotifier<TaxState> {
     throw const ExchangeApiException(
       status: 408,
       code: 'TAX_OCR_TIMEOUT',
-      message: 'Hana Montana OCR verification is still in progress.',
+      message:
+          'The document was saved and verification is still processing. Return later to refresh the status.',
     );
   }
 
