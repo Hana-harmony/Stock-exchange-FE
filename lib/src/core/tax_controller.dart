@@ -3,15 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'currency_format.dart';
 import 'exchange_api_client.dart';
 
-enum TaxStatus {
-  idle,
-  loading,
-  loaded,
-  failure,
-}
+enum TaxStatus { idle, loading, loaded, failure }
 
 const _verificationPollInterval = Duration(milliseconds: 700);
-const _verificationPollAttempts = 120;
+const _verificationPollAttempts = 430;
 
 class TaxState {
   const TaxState({
@@ -27,16 +22,12 @@ class TaxState {
         uploadedDocuments = const [],
         errorMessage = null;
 
-  const TaxState.loading({
-    this.refundCase,
-    this.uploadedDocuments = const [],
-  })  : status = TaxStatus.loading,
+  const TaxState.loading({this.refundCase, this.uploadedDocuments = const []})
+      : status = TaxStatus.loading,
         errorMessage = null;
 
-  const TaxState.loaded(
-    this.refundCase, {
-    this.uploadedDocuments = const [],
-  })  : status = TaxStatus.loaded,
+  const TaxState.loaded(this.refundCase, {this.uploadedDocuments = const []})
+      : status = TaxStatus.loaded,
         errorMessage = null;
 
   const TaxState.failure({
@@ -70,9 +61,7 @@ class TaxDocumentUpload {
 
   bool get isVerified => verification?.isHanaMontanaVerified ?? false;
 
-  TaxDocumentUpload copyWith({
-    TaxDocumentVerification? verification,
-  }) {
+  TaxDocumentUpload copyWith({TaxDocumentVerification? verification}) {
     return TaxDocumentUpload(
       documentId: documentId,
       documentType: documentType,
@@ -173,14 +162,16 @@ class TaxDocumentVerification {
       riskLevel: _string(json['riskLevel'], fallback: 'MEDIUM'),
       manualReviewRequired: json['manualReviewRequired'] as bool? ?? true,
       extractedFields: _stringMap(json['extractedFields']),
-      missingRequiredFields: _list(json['missingRequiredFields'])
-          .map((value) => '$value')
-          .toList(growable: false),
-      rejectionReasons: _list(json['rejectionReasons'])
-          .map((value) => '$value')
-          .toList(growable: false),
-      documentModelVersion:
-          _string(json['documentModelVersion'], fallback: 'unavailable'),
+      missingRequiredFields: _list(
+        json['missingRequiredFields'],
+      ).map((value) => '$value').toList(growable: false),
+      rejectionReasons: _list(
+        json['rejectionReasons'],
+      ).map((value) => '$value').toList(growable: false),
+      documentModelVersion: _string(
+        json['documentModelVersion'],
+        fallback: 'unavailable',
+      ),
       source: _string(json['source'], fallback: 'HANA_OMNI_CONNECT_API'),
       progressPercent: _int(json['progressPercent']).clamp(0, 100).toInt(),
       stage: _string(json['stage'], fallback: 'QUEUED'),
@@ -281,10 +272,14 @@ class TaxRefundCase {
       accountId: _string(json['accountId'], fallback: ''),
       taxYear: _int(json['taxYear']),
       treatyCountry: _string(json['treatyCountry'], fallback: 'US'),
-      residenceCertificateFileName:
-          _string(json['residenceCertificateFileName'], fallback: ''),
-      reducedTaxApplicationFileName:
-          _string(json['reducedTaxApplicationFileName'], fallback: ''),
+      residenceCertificateFileName: _string(
+        json['residenceCertificateFileName'],
+        fallback: '',
+      ),
+      reducedTaxApplicationFileName: _string(
+        json['reducedTaxApplicationFileName'],
+        fallback: '',
+      ),
       advancePaymentRequested:
           json['advancePaymentRequested'] as bool? ?? false,
       status: _string(json['status'], fallback: 'NOT_SUBMITTED'),
@@ -293,18 +288,24 @@ class TaxRefundCase {
       realizedProfitUsd: _string(json['realizedProfitUsd'], fallback: '0.00'),
       realizedLossUsd: _string(json['realizedLossUsd'], fallback: '0.00'),
       netRealizedPnlUsd: _string(json['netRealizedPnlUsd'], fallback: '0.00'),
-      taxableRealizedPnlUsd:
-          _string(json['taxableRealizedPnlUsd'], fallback: '0.00'),
-      estimatedWithholdingTaxUsd:
-          _string(json['estimatedWithholdingTaxUsd'], fallback: '0.00'),
-      estimatedTreatyTaxUsd:
-          _string(json['estimatedTreatyTaxUsd'], fallback: '0.00'),
+      taxableRealizedPnlUsd: _string(
+        json['taxableRealizedPnlUsd'],
+        fallback: '0.00',
+      ),
+      estimatedWithholdingTaxUsd: _string(
+        json['estimatedWithholdingTaxUsd'],
+        fallback: '0.00',
+      ),
+      estimatedTreatyTaxUsd: _string(
+        json['estimatedTreatyTaxUsd'],
+        fallback: '0.00',
+      ),
       estimatedRefundUsd: _string(json['estimatedRefundUsd'], fallback: '0.00'),
       advancePaymentEligible: json['advancePaymentEligible'] as bool? ?? false,
       matchedTradeCount: _int(json['matchedTradeCount']),
-      matchedTrades: _list(json['matchedTrades'])
-          .map((value) => TaxMatchedTrade.fromJson(_map(value)))
-          .toList(),
+      matchedTrades: _list(
+        json['matchedTrades'],
+      ).map((value) => TaxMatchedTrade.fromJson(_map(value))).toList(),
       dataSource: _string(
         json['dataSource'],
         fallback: 'EXCHANGE_MOCK_LEDGER_REALIZED_PNL',
@@ -359,10 +360,7 @@ class TaxController extends ValueNotifier<TaxState> {
   final ExchangeApiClient _apiClient;
 
   void beginReplacement() {
-    value = TaxState.loaded(
-      value.refundCase,
-      uploadedDocuments: const [],
-    );
+    value = TaxState.loaded(value.refundCase, uploadedDocuments: const []);
   }
 
   Future<void> loadRefundStatus(String? accountId) async {
@@ -382,8 +380,10 @@ class TaxController extends ValueNotifier<TaxState> {
       final response = await _apiClient.getTaxRefundStatus(accountId);
       var refundCase = TaxRefundCase.fromJson(response.data ?? {});
       if (refundCase.caseId.isNotEmpty &&
-          const {'READY_FOR_HANA_SYNC', 'SYNCED_WITH_HANA'}
-              .contains(refundCase.status)) {
+          const {
+            'READY_FOR_HANA_SYNC',
+            'SYNCED_WITH_HANA',
+          }.contains(refundCase.status)) {
         try {
           final synced = await _apiClient.syncTaxRefundStatus(accountId);
           refundCase = TaxRefundCase.fromJson(synced.data ?? {});
@@ -612,8 +612,9 @@ class TaxController extends ValueNotifier<TaxState> {
         accountId: accountId,
         documentId: current.documentId,
       );
-      final verification =
-          TaxDocumentVerification.fromJson(response.data ?? {});
+      final verification = TaxDocumentVerification.fromJson(
+        response.data ?? {},
+      );
       current = current.copyWith(verification: verification);
       _emitDocument(current, loading: true);
       if (verification.isTerminal) {
@@ -623,7 +624,8 @@ class TaxController extends ValueNotifier<TaxState> {
     throw const ExchangeApiException(
       status: 408,
       code: 'TAX_OCR_TIMEOUT',
-      message: 'Hana Montana OCR verification is still in progress.',
+      message:
+          'The document was saved and verification is still processing. Return later to refresh the status.',
     );
   }
 
@@ -639,10 +641,7 @@ class TaxController extends ValueNotifier<TaxState> {
             refundCase: value.refundCase,
             uploadedDocuments: documents,
           )
-        : TaxState.loaded(
-            value.refundCase,
-            uploadedDocuments: documents,
-          );
+        : TaxState.loaded(value.refundCase, uploadedDocuments: documents);
   }
 }
 

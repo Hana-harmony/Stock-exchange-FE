@@ -11,8 +11,59 @@ import 'package:stock_exchange_fe/src/core/tax_controller.dart';
 import 'package:stock_exchange_fe/src/features/exchange/exchange_pages.dart';
 
 void main() {
-  testWidgets('leaves OCR screen and offers retry when status sync fails',
-      (tester) async {
+  testWidgets(
+    'shows processing state instead of failure after OCR polling timeout',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = _PendingTaxController(
+        apiClient: ExchangeApiClient(
+          baseUri: Uri.parse('http://localhost:3000'),
+          httpClient: MockClient(
+            (request) async =>
+                _jsonResponse(_taxCaseJson(status: 'NOT_SUBMITTED')),
+          ),
+        ),
+      );
+      addTearDown(controller.dispose);
+      final file = XFile.fromData(
+        Uint8List.fromList([1, 2, 3]),
+        path: '/tmp/residence.png',
+        mimeType: 'image/png',
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: TaxRefundRequestScreen(
+              accountId: 'ACC-ABC123456789',
+              taxController: controller,
+              filePicker: () async => file,
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tax-apply-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('tax-agree-button')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('tax-upload-RESIDENCE_CERTIFICATE')),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Document verification is processing'), findsOneWidget);
+      expect(find.text('Close'), findsOneWidget);
+      expect(find.text('Document verification failed'), findsNothing);
+      expect(find.text('Upload again'), findsNothing);
+    },
+  );
+
+  testWidgets('leaves OCR screen and offers retry when status sync fails', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -68,23 +119,34 @@ void main() {
     addTearDown(controller.dispose);
 
     final files = <XFile>[
-      XFile.fromData(Uint8List.fromList([1]),
-          path: '/tmp/residence.png', mimeType: 'image/png'),
-      XFile.fromData(Uint8List.fromList([2]),
-          path: '/tmp/apostille.png', mimeType: 'image/png'),
-      XFile.fromData(Uint8List.fromList([3]),
-          path: '/tmp/reduced-tax.png', mimeType: 'image/png'),
+      XFile.fromData(
+        Uint8List.fromList([1]),
+        path: '/tmp/residence.png',
+        mimeType: 'image/png',
+      ),
+      XFile.fromData(
+        Uint8List.fromList([2]),
+        path: '/tmp/apostille.png',
+        mimeType: 'image/png',
+      ),
+      XFile.fromData(
+        Uint8List.fromList([3]),
+        path: '/tmp/reduced-tax.png',
+        mimeType: 'image/png',
+      ),
     ];
 
-    await tester.pumpWidget(MaterialApp(
-      home: Scaffold(
-        body: TaxRefundRequestScreen(
-          accountId: 'ACC-ABC123456789',
-          taxController: controller,
-          filePicker: () async => files.removeAt(0),
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: TaxRefundRequestScreen(
+            accountId: 'ACC-ABC123456789',
+            taxController: controller,
+            filePicker: () async => files.removeAt(0),
+          ),
         ),
       ),
-    ));
+    );
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('tax-apply-button')));
@@ -126,8 +188,10 @@ void main() {
       find.byKey(const ValueKey('tax-analyzing-step-REDUCED_TAX_APPLICATION')),
       findsNothing,
     );
-    expect(find.byKey(const ValueKey('tax-submission-error-dialog')),
-        findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('tax-submission-error-dialog')),
+      findsOneWidget,
+    );
 
     await tester.tap(find.text('Close'));
     await tester.pumpAndSettle();
@@ -156,70 +220,114 @@ void main() {
   });
 
   testWidgets(
-      'shows only case reference and keeps submitted actions functional',
-      (tester) async {
-    await tester.binding.setSurfaceSize(const Size(430, 932));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+    'shows only case reference and keeps submitted actions functional',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    final controller = TaxController(
-      apiClient: ExchangeApiClient(
-        baseUri: Uri.parse('http://localhost:3000'),
-        httpClient: MockClient((request) async => _jsonResponse(
+      final controller = TaxController(
+        apiClient: ExchangeApiClient(
+          baseUri: Uri.parse('http://localhost:3000'),
+          httpClient: MockClient(
+            (request) async => _jsonResponse(
               _taxCaseJson(status: 'NO_REFUNDABLE_PROFIT', refundable: false),
-            )),
-      ),
-    );
-    addTearDown(controller.dispose);
-
-    await tester.pumpWidget(MaterialApp(
-      home: Builder(
-        builder: (context) => Scaffold(
-          body: Center(
-            child: FilledButton(
-              key: const ValueKey('open-tax-request'),
-              onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => TaxRefundRequestScreen(
-                    accountId: 'ACC-ABC123456789',
-                    taxController: controller,
-                  ),
-                ),
-              ),
-              child: const Text('Open tax request'),
             ),
           ),
         ),
-      ),
-    ));
+      );
+      addTearDown(controller.dispose);
 
-    await tester.tap(find.byKey(const ValueKey('open-tax-request')));
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: FilledButton(
+                  key: const ValueKey('open-tax-request'),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => TaxRefundRequestScreen(
+                        accountId: 'ACC-ABC123456789',
+                        taxController: controller,
+                      ),
+                    ),
+                  ),
+                  child: const Text('Open tax request'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
 
-    expect(find.textContaining('Case TAX-CASE-1'), findsOneWidget);
-    expect(find.textContaining('No refundable realized profit found'),
-        findsNothing);
-    expect(find.textContaining('USD 0.00'), findsNothing);
-    expect(
-      tester.getSize(find.byKey(const ValueKey('tax-confirm-button'))).width,
-      closeTo(398, 0.1),
+      await tester.tap(find.byKey(const ValueKey('open-tax-request')));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Case TAX-CASE-1'), findsOneWidget);
+      expect(
+        find.textContaining('No refundable realized profit found'),
+        findsNothing,
+      );
+      expect(find.textContaining('USD 0.00'), findsNothing);
+      expect(
+        tester.getSize(find.byKey(const ValueKey('tax-confirm-button'))).width,
+        closeTo(398, 0.1),
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('tax-review-documents-button')))
+            .width,
+        closeTo(398, 0.1),
+      );
+
+      await tester.tap(find.byKey(const ValueKey('tax-confirm-button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('open-tax-request')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('open-tax-request')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('tax-review-documents-button')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
+    },
+  );
+}
+
+class _PendingTaxController extends TaxController {
+  _PendingTaxController({required super.apiClient});
+
+  @override
+  Future<void> uploadDocument({
+    required String? accountId,
+    required String documentType,
+    required String fileName,
+    required Uint8List bytes,
+    String? contentType,
+  }) async {
+    value = TaxState.failure(
+      errorMessage:
+          'The document was saved and verification is still processing. Return later to refresh the status.',
+      refundCase: value.refundCase,
+      uploadedDocuments: [
+        TaxDocumentUpload(
+          documentId: 'DOC-PENDING',
+          documentType: documentType,
+          originalFileName: fileName,
+          sizeBytes: bytes.length,
+          createdAt: DateTime.utc(2026, 7, 22),
+          verification: TaxDocumentVerification.fromJson({
+            ..._verifiedJson(documentType),
+            'verificationStatus': 'PENDING',
+            'source': 'HANNAH_MONTANA_AI_TAX_OCR',
+            'progressPercent': 75,
+            'stage': 'HANNAH_MONTANA_PENDING',
+          }),
+        ),
+      ],
     );
-    expect(
-      tester
-          .getSize(find.byKey(const ValueKey('tax-review-documents-button')))
-          .width,
-      closeTo(398, 0.1),
-    );
-
-    await tester.tap(find.byKey(const ValueKey('tax-confirm-button')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('open-tax-request')), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('open-tax-request')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('tax-review-documents-button')));
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
-  });
+  }
 }
 
 Map<String, Object?> _verifiedJson(String documentType) {
