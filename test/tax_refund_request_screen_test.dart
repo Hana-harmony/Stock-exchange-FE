@@ -11,7 +11,8 @@ import 'package:stock_exchange_fe/src/core/tax_controller.dart';
 import 'package:stock_exchange_fe/src/features/exchange/exchange_pages.dart';
 
 void main() {
-  testWidgets('shows processing state instead of failure after OCR polling timeout',
+  testWidgets(
+      'shows processing state instead of failure after OCR polling timeout',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
     addTearDown(() => tester.binding.setSurfaceSize(null));
