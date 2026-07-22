@@ -25,7 +25,12 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
   static const _documentTypeGroup = XTypeGroup(
     label: 'Tax documents',
     extensions: ['pdf', 'png', 'jpg', 'jpeg', 'txt'],
-    mimeTypes: ['application/pdf', 'image/png', 'image/jpeg', 'text/plain'],
+    mimeTypes: [
+      'application/pdf',
+      'image/png',
+      'image/jpeg',
+      'text/plain',
+    ],
     uniformTypeIdentifiers: [
       'com.adobe.pdf',
       'public.png',
@@ -230,37 +235,31 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
     });
   }
 
-  Future<void> _showVerificationFailure(TaxDocumentVerification? verification) {
-    final isProcessing = verification != null && !verification.isTerminal;
+  Future<void> _showVerificationFailure(
+    TaxDocumentVerification? verification,
+  ) {
     final reasons = <String>[
       ...?verification?.rejectionReasons,
       ...?verification?.missingRequiredFields.map(
         (field) => 'Missing required field: $field',
       ),
     ];
-    final message = isProcessing
-        ? widget.taxController.value.errorMessage ??
-            'The document was saved and verification is still processing. Return later to refresh the status.'
-        : reasons.isNotEmpty
-            ? reasons.join('\n')
-            : widget.taxController.value.errorMessage ??
-                'The document could not be verified. Upload a clearer valid document.';
+    final message = reasons.isNotEmpty
+        ? reasons.join('\n')
+        : widget.taxController.value.errorMessage ??
+            'The document could not be verified. Upload a clearer valid document.';
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         key: const ValueKey('tax-verification-failure-dialog'),
-        title: Text(
-          isProcessing
-              ? 'Document verification is processing'
-              : 'Document verification failed',
-        ),
+        title: const Text('Document verification failed'),
         content: Text(message),
         actions: [
           FilledButton(
             key: const ValueKey('tax-reupload-dialog-action'),
             onPressed: () => Navigator.of(context).pop(),
-            child: Text(isProcessing ? 'Close' : 'Upload again'),
+            child: const Text('Upload again'),
           ),
         ],
       ),
@@ -423,11 +422,9 @@ Future<_PickedTaxDocumentFile?> _pickTaxDocumentFile(
   Future<XFile?> Function()? picker,
 ) async {
   final selected = await (picker?.call() ??
-      openFile(
-        acceptedTypeGroups: [
-          _TaxRefundRequestScreenState._documentTypeGroup,
-        ],
-      ));
+      openFile(acceptedTypeGroups: [
+        _TaxRefundRequestScreenState._documentTypeGroup,
+      ]));
   if (selected == null) {
     return null;
   }
@@ -984,7 +981,10 @@ class _TaxDocumentUploadStep extends StatelessWidget {
             const SizedBox(height: 12),
             Text(document.uploadDescription, style: _taxBodyStyle(context)),
             const SizedBox(height: 46),
-            const SizedBox(height: 240, child: _TaxUploadIllustration()),
+            const SizedBox(
+              height: 240,
+              child: _TaxUploadIllustration(),
+            ),
             _TaxInfoCallout(title: document.infoTitle, body: document.infoText),
             if (uploaded != null) ...[
               const SizedBox(height: 10),
@@ -1019,7 +1019,10 @@ class _TaxUploadIllustration extends StatelessWidget {
 }
 
 class _TaxInfoCallout extends StatelessWidget {
-  const _TaxInfoCallout({required this.title, required this.body});
+  const _TaxInfoCallout({
+    required this.title,
+    required this.body,
+  });
 
   final String title;
   final String body;
@@ -1251,8 +1254,9 @@ class _TaxDocumentAnalysisPreviewState
           selectedFile.bytes,
           fit: BoxFit.contain,
           gaplessPlayback: true,
-          errorBuilder: (_, __, ___) =>
-              const Center(child: Text('Unable to preview the uploaded image')),
+          errorBuilder: (_, __, ___) => const Center(
+            child: Text('Unable to preview the uploaded image'),
+          ),
         ),
       );
     }
@@ -1260,11 +1264,8 @@ class _TaxDocumentAnalysisPreviewState
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.picture_as_pdf_outlined,
-            size: 72,
-            color: AppColors.orange500,
-          ),
+          Icon(Icons.picture_as_pdf_outlined,
+              size: 72, color: AppColors.orange500),
           SizedBox(height: 12),
           Text('Encrypted PDF uploaded for OCR'),
         ],
@@ -1542,7 +1543,10 @@ class _TaxScreenWithBottomAction extends StatelessWidget {
 }
 
 class _TaxFitContent extends StatelessWidget {
-  const _TaxFitContent({required this.padding, required this.child});
+  const _TaxFitContent({
+    required this.padding,
+    required this.child,
+  });
 
   final EdgeInsets padding;
   final Widget child;
@@ -1623,7 +1627,9 @@ class _TaxSecondaryButton extends StatelessWidget {
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.gray700,
           side: const BorderSide(color: AppColors.gray300),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
           textStyle: Theme.of(context).textTheme.labelLarge?.copyWith(
                 fontSize: 18,
                 height: 25 / 18,
@@ -1790,10 +1796,9 @@ class _TaxFileErrorPanel extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: _taxBodyStyle(
-                context,
-                fontSize: 13,
-              )?.copyWith(color: AppColors.red500),
+              style: _taxBodyStyle(context, fontSize: 13)?.copyWith(
+                color: AppColors.red500,
+              ),
             ),
           ),
         ],
