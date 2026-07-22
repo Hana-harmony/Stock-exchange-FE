@@ -238,28 +238,36 @@ class _TaxRefundRequestScreenState extends State<TaxRefundRequestScreen> {
   Future<void> _showVerificationFailure(
     TaxDocumentVerification? verification,
   ) {
+    final isProcessing = verification != null && !verification.isTerminal;
     final reasons = <String>[
       ...?verification?.rejectionReasons,
       ...?verification?.missingRequiredFields.map(
         (field) => 'Missing required field: $field',
       ),
     ];
-    final message = reasons.isNotEmpty
-        ? reasons.join('\n')
-        : widget.taxController.value.errorMessage ??
-            'The document could not be verified. Upload a clearer valid document.';
+    final message = isProcessing
+        ? widget.taxController.value.errorMessage ??
+            'The document was saved and verification is still processing. Return later to refresh the status.'
+        : reasons.isNotEmpty
+            ? reasons.join('\n')
+            : widget.taxController.value.errorMessage ??
+                'The document could not be verified. Upload a clearer valid document.';
     return showDialog<void>(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         key: const ValueKey('tax-verification-failure-dialog'),
-        title: const Text('Document verification failed'),
+        title: Text(
+          isProcessing
+              ? 'Document verification is processing'
+              : 'Document verification failed',
+        ),
         content: Text(message),
         actions: [
           FilledButton(
             key: const ValueKey('tax-reupload-dialog-action'),
             onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Upload again'),
+            child: Text(isProcessing ? 'Close' : 'Upload again'),
           ),
         ],
       ),
