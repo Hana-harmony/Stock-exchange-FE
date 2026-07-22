@@ -11,6 +11,54 @@ import 'package:stock_exchange_fe/src/core/tax_controller.dart';
 import 'package:stock_exchange_fe/src/features/exchange/exchange_pages.dart';
 
 void main() {
+  testWidgets(
+      'shows processing state instead of failure after OCR polling timeout',
+      (tester) async {
+    await tester.binding.setSurfaceSize(const Size(430, 932));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final controller = _PendingTaxController(
+      apiClient: ExchangeApiClient(
+        baseUri: Uri.parse('http://localhost:3000'),
+        httpClient: MockClient(
+          (request) async => _jsonResponse(
+            _taxCaseJson(status: 'NOT_SUBMITTED'),
+          ),
+        ),
+      ),
+    );
+    addTearDown(controller.dispose);
+    final file = XFile.fromData(
+      Uint8List.fromList([1, 2, 3]),
+      path: '/tmp/residence.png',
+      mimeType: 'image/png',
+    );
+
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: TaxRefundRequestScreen(
+          accountId: 'ACC-ABC123456789',
+          taxController: controller,
+          filePicker: () async => file,
+        ),
+      ),
+    ));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('tax-apply-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('tax-agree-button')));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('tax-upload-RESIDENCE_CERTIFICATE')),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Document verification is processing'), findsOneWidget);
+    expect(find.text('Close'), findsOneWidget);
+    expect(find.text('Document verification failed'), findsNothing);
+    expect(find.text('Upload again'), findsNothing);
+  });
+
   testWidgets('leaves OCR screen and offers retry when status sync fails',
       (tester) async {
     await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -220,6 +268,41 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('tax-consent-step')), findsOneWidget);
   });
+}
+
+class _PendingTaxController extends TaxController {
+  _PendingTaxController({required super.apiClient});
+
+  @override
+  Future<void> uploadDocument({
+    required String? accountId,
+    required String documentType,
+    required String fileName,
+    required Uint8List bytes,
+    String? contentType,
+  }) async {
+    value = TaxState.failure(
+      errorMessage:
+          'The document was saved and verification is still processing. Return later to refresh the status.',
+      refundCase: value.refundCase,
+      uploadedDocuments: [
+        TaxDocumentUpload(
+          documentId: 'DOC-PENDING',
+          documentType: documentType,
+          originalFileName: fileName,
+          sizeBytes: bytes.length,
+          createdAt: DateTime.utc(2026, 7, 22),
+          verification: TaxDocumentVerification.fromJson({
+            ..._verifiedJson(documentType),
+            'verificationStatus': 'PENDING',
+            'source': 'HANNAH_MONTANA_AI_TAX_OCR',
+            'progressPercent': 75,
+            'stage': 'HANNAH_MONTANA_PENDING',
+          }),
+        ),
+      ],
+    );
+  }
 }
 
 Map<String, Object?> _verifiedJson(String documentType) {
