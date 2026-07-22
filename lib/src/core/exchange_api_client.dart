@@ -175,7 +175,7 @@ class ExchangeApiException implements Exception {
 }
 
 typedef AuthSessionProvider = AuthSession? Function();
-typedef UnauthorizedHandler = void Function();
+typedef UnauthorizedHandler = Future<void> Function();
 
 class ExchangeApiClient {
   ExchangeApiClient({
@@ -701,6 +701,24 @@ class ExchangeApiClient {
     required String fileName,
     required Uint8List bytes,
     String? contentType,
+  }) {
+    return _uploadTaxDocument(
+      accountId: accountId,
+      documentType: documentType,
+      fileName: fileName,
+      bytes: bytes,
+      contentType: contentType,
+      retryOnUnauthorized: true,
+    );
+  }
+
+  Future<ApiEnvelope<Map<String, dynamic>>> _uploadTaxDocument({
+    required String accountId,
+    required String documentType,
+    required String fileName,
+    required Uint8List bytes,
+    required String? contentType,
+    required bool retryOnUnauthorized,
   }) async {
     final request = http.MultipartRequest(
       'POST',
@@ -726,10 +744,27 @@ class ExchangeApiClient {
       timeout: _uploadTimeout,
     );
     final response = await http.Response.fromStream(streamedResponse);
-    return _decodeEnvelope<Map<String, dynamic>>(
-      response,
-      (value) => _asMap(value),
-    );
+    try {
+      return _decodeEnvelope<Map<String, dynamic>>(
+        response,
+        (value) => _asMap(value),
+      );
+    } on ExchangeApiException catch (error) {
+      if (retryOnUnauthorized &&
+          error.status == 401 &&
+          await _renewUnauthorizedSession()) {
+        // 파일 바이트는 메모리에 유지되므로 새 토큰으로 1회만 재시도한다.
+        return _uploadTaxDocument(
+          accountId: accountId,
+          documentType: documentType,
+          fileName: fileName,
+          bytes: bytes,
+          contentType: contentType,
+          retryOnUnauthorized: false,
+        );
+      }
+      rethrow;
+    }
   }
 
   Future<ApiEnvelope<Map<String, dynamic>>> getTaxDocumentVerification({
@@ -839,6 +874,7 @@ class ExchangeApiClient {
     required T Function(Object? value) decodeData,
     Map<String, Object?>? query,
     Map<String, Object?>? body,
+    bool retryOnUnauthorized = true,
   }) async {
     final request = http.Request(method, _uri(path, query));
     request.headers.addAll({
@@ -855,7 +891,38 @@ class ExchangeApiClient {
       timeout: _requestTimeout,
     );
     final response = await http.Response.fromStream(streamedResponse);
-    return _decodeEnvelope<T>(response, decodeData);
+    try {
+      return _decodeEnvelope<T>(response, decodeData);
+    } on ExchangeApiException catch (error) {
+      if (retryOnUnauthorized &&
+          !path.startsWith('/api/v1/auth/') &&
+          error.status == 401 &&
+          await _renewUnauthorizedSession()) {
+        return _send<T>(
+          method: method,
+          path: path,
+          decodeData: decodeData,
+          query: query,
+          body: body,
+          retryOnUnauthorized: false,
+        );
+      }
+      rethrow;
+    }
+  }
+
+  Future<bool> _renewUnauthorizedSession() async {
+    final handler = _onUnauthorized;
+    final previousSession = _sessionProvider();
+    if (handler == null || previousSession == null) {
+      return false;
+    }
+
+    await handler();
+    final renewedSession = _sessionProvider();
+    return renewedSession != null &&
+        renewedSession.accessToken.isNotEmpty &&
+        renewedSession.accessToken != previousSession.accessToken;
   }
 
   Future<http.StreamedResponse> _sendWithTimeout(
@@ -883,9 +950,6 @@ class ExchangeApiClient {
     if (response.statusCode >= 400 || !envelope.success) {
       final status =
           envelope.status == 0 ? response.statusCode : envelope.status;
-      if (status == 401) {
-        _onUnauthorized?.call();
-      }
       throw ExchangeApiException(
         status: status,
         code: envelope.code,

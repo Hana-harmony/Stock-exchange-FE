@@ -695,6 +695,66 @@ void main() {
     );
   });
 
+  test('tax document upload renews an expired session and retries once',
+      () async {
+    var session = const AuthSession(
+      username: 'hana',
+      accountId: 'ACC-ABC123456789',
+      tokenType: 'Bearer',
+      accessToken: 'expired-access-token',
+      refreshToken: 'refresh-token',
+    );
+    final authorizationHeaders = <String?>[];
+    var requestCount = 0;
+    final client = ExchangeApiClient(
+      baseUri: Uri.parse('http://localhost:3000'),
+      sessionProvider: () => session,
+      onUnauthorized: () async {
+        session = const AuthSession(
+          username: 'hana',
+          accountId: 'ACC-ABC123456789',
+          tokenType: 'Bearer',
+          accessToken: 'renewed-access-token',
+          refreshToken: 'rotated-refresh-token',
+        );
+      },
+      httpClient: MockClient((request) async {
+        requestCount++;
+        authorizationHeaders.add(_header(request, 'authorization'));
+        if (requestCount == 1) {
+          return _jsonResponse({
+            'success': false,
+            'status': 401,
+            'code': 'AUTH_003',
+            'message': 'Invalid auth token',
+          }, statusCode: 401);
+        }
+        return _jsonResponse({
+          'success': true,
+          'status': 200,
+          'code': 'COMMON_000',
+          'message': 'OK',
+          'data': {'documentId': 'DOC-RETRIED'},
+        });
+      }),
+    );
+
+    final response = await client.uploadTaxDocument(
+      accountId: 'ACC-ABC123456789',
+      documentType: 'RESIDENCE_CERTIFICATE',
+      fileName: 'residence.png',
+      bytes: Uint8List.fromList(utf8.encode('document')),
+      contentType: 'image/png',
+    );
+
+    expect(requestCount, 2);
+    expect(authorizationHeaders, [
+      'Bearer expired-access-token',
+      'Bearer renewed-access-token',
+    ]);
+    expect(response.data?['documentId'], 'DOC-RETRIED');
+  });
+
   test('tax document verification progress uses account scoped bearer contract',
       () async {
     const session = AuthSession(
