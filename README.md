@@ -2,6 +2,16 @@
 
 Flutter iOS/Android 기반 MTS 프론트엔드다. Flutter Web은 내부 QA·데모에서 앱 영역을 최대 430px로 유지한다. 사용자는 한국 상장주식의 실시간 시세, 종목 상세, 뉴스·공시 인텔리전스, 외국인 한도 신호, 모의 원장 기반 주문/자산, 세무 환급 상태를 영어 UI와 USD 환산 기준으로 확인한다.
 
+## 주요 화면
+
+| 실시간 투자 속보 | AI 스마트 브리핑 |
+| --- | --- |
+| ![보유·관심종목 실시간 알림](https://raw.githubusercontent.com/Hana-harmony/.github/main/images/15.png) | ![원문 근거 AI 스마트 브리핑](https://raw.githubusercontent.com/Hana-harmony/.github/main/images/17.png) |
+| 글로벌 피어 비교 | 외국인 보유 한도 신호 |
+| ![글로벌 피어 비교](https://raw.githubusercontent.com/Hana-harmony/.github/main/images/18.png) | ![외국인 보유 한도 예측](https://raw.githubusercontent.com/Hana-harmony/.github/main/images/22.png) |
+| 세무 서류 업로드 | 세무 처리 현황 |
+| ![세무 서류 순차 업로드](https://raw.githubusercontent.com/Hana-harmony/.github/main/images/27.png) | ![세무 신청 운영 화면](https://raw.githubusercontent.com/Hana-harmony/.github/main/images/29.png) |
+
 ## 핵심 기능
 - Markets: KOSPI/KOSDAQ/KOSPI 200 지수, 1~10위가 한 줄로 표시되는 인기 종목, 검색, 시장별 시세
 - 실시간 시세: Stock-exchange-BE WebSocket 구독, 재연결, stale 상태 표시
@@ -12,34 +22,6 @@ Flutter iOS/Android 기반 MTS 프론트엔드다. Flutter Web은 내부 QA·데
 - 주문 화면: 거래 PIN으로 승인하는 mock ledger 주문, orderability 경고/차단 표시
 - 뉴스·알림함: Discover와 Notifications에 동일한 감성·중요도·날짜·썸네일 정보 계층을 적용하고, 관심·보유종목 All/My Portfolio/Watchlist 필터, 읽음 처리, 표준 Web Push 구독과 금융 고유어 클릭 해설 제공
 - 세무 화면: 거주자 증명서·아포스티유·제한세율 적용신청서 파일 선택과 순차 업로드, OCR 진행·검증, Figma `998:10969` 기준 제출 완료 화면, 신청 Case와 승인 상태 표시. 수익 금액은 표시하지 않음
-
-## 실행
-```bash
-flutter pub get
-flutter test --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
-flutter run -d chrome \
-  --web-port=15100 \
-  --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000 \
-  --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=<VAPID_PUBLIC_KEY>
-```
-
-로컬 앱 검증 절차는 [docs/LOCAL_APP_TESTING.md](docs/LOCAL_APP_TESTING.md)를 따른다. 웹 포트 `15100`은 Stock-exchange-BE의 로컬 CORS·WebSocket 허용 Origin과 동일하게 유지한다. 백엔드는 `Hannah-Montana-AI -> Hana-Omni-Connect-API -> Stock-exchange-BE` 순서로 먼저 띄운다.
-
-## 검증
-```bash
-dart format --output=none --set-exit-if-changed lib test
-flutter analyze
-flutter test --dart-define=EXCHANGE_API_BASE_URL=http://localhost:3000
-flutter build web --release \
-  --dart-define=EXCHANGE_API_BASE_URL=https://api.example.com \
-  --dart-define=WEB_PUSH_VAPID_PUBLIC_KEY=<VAPID_PUBLIC_KEY>
-```
-
-## 책임 경계
-- FE는 Stock-exchange-BE만 호출한다.
-- Hana-Omni-Connect-API, Hannah-Montana-AI, 외부 provider key는 앱에 노출하지 않는다.
-- 브라우저에는 공개 VAPID 키만 주입한다. 비공개 VAPID 키와 push gateway 자격증명은 Stock-exchange-BE에서 관리한다.
-- 실제 주문 체결, 정산, 환전, 세무 지급/환수 실행은 FE 책임이 아니다.
 
 ## 문서
 - [아키텍처](docs/ARCHITECTURE.md)
