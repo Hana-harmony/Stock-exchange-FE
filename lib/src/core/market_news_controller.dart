@@ -333,6 +333,9 @@ String _englishMarketQueryLabel(String query) {
   if (normalized.contains('코스닥')) {
     return 'KOSDAQ';
   }
+  if (normalized.contains('외국인') && normalized.contains('순매수')) {
+    return 'Foreign Net Buying';
+  }
   if (normalized.contains('국내') || normalized.contains('증시')) {
     return 'Korea Market';
   }

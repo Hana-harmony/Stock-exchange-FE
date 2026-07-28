@@ -26,6 +26,15 @@ void main() {
     expect(merged.nextCursor, isNull);
   });
 
+  test('translates foreign net buying query label for the English UI', () {
+    final item = MarketNewsItem.fromJson({
+      'newsId': 'mkt-foreign-net-buying',
+      'query': '외국인 순매수',
+    });
+
+    expect(item.displayQuery, 'Foreign Net Buying');
+  });
+
   test('does not treat What Why Impact summary as market news body', () {
     final item = MarketNewsItem.fromJson({
       'newsId': 'mkt-1',
